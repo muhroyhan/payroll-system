@@ -1,0 +1,16 @@
+{
+  "name": "payroll-system",
+  "private": true,
+  "version": "0.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.33.3",
+  "scripts": {
+    "dev:api": "pnpm --filter @payroll-system/api start:dev",
+    "dev:web": "pnpm --filter @payroll-system/web dev",
+    "build": "pnpm --filter @payroll-system/shared-types build && pnpm -r --filter=!@payroll-system/shared-types build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test"
+  }
+}

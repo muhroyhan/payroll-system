@@ -1,0 +1,100 @@
+import {
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  Max,
+  Min,
+  MinLength,
+  ValidateIf,
+} from 'class-validator';
+import {
+  EmployeeActiveStatus,
+  EmploymentStatus,
+  MaritalStatus,
+  MAX_DEPENDENT_COUNT,
+  PtkpStatus,
+} from '@payroll-system/shared-types';
+
+export class CreateEmployeeDto {
+  @IsString()
+  @MinLength(1)
+  name: string;
+
+  @IsString()
+  @Length(16, 16, { message: 'nik must be exactly 16 digits' })
+  nik: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(15, 16, { message: 'npwp must be 15 or 16 digits' })
+  npwp?: string;
+
+  // §5.1a — only meaningful (and required) when ptkpManuallyOverridden is true;
+  // otherwise the PtkpDerivationService proposes it from maritalStatus/dependentCount.
+  @ValidateIf((o: CreateEmployeeDto) => o.ptkpManuallyOverridden === true)
+  @IsEnum(PtkpStatus)
+  ptkpStatus?: PtkpStatus;
+
+  @IsEnum(MaritalStatus)
+  maritalStatus: MaritalStatus;
+
+  @IsInt()
+  @Min(0)
+  @Max(MAX_DEPENDENT_COUNT)
+  dependentCount: number;
+
+  @IsOptional()
+  @IsBoolean()
+  wifeIncomeCombined?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  ptkpManuallyOverridden?: boolean;
+
+  @IsEnum(EmploymentStatus)
+  employmentStatus: EmploymentStatus;
+
+  @IsUUID()
+  employeeTypeId: string;
+
+  @IsUUID()
+  positionId: string;
+
+  @IsUUID()
+  departmentId: string;
+
+  @IsUUID()
+  divisionId: string;
+
+  @IsOptional()
+  @IsString()
+  location?: string;
+
+  @IsOptional()
+  @IsString()
+  bankName?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountHolderName?: string;
+
+  @IsDateString()
+  startDate: string;
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @IsOptional()
+  @IsEnum(EmployeeActiveStatus)
+  status?: EmployeeActiveStatus;
+}
