@@ -7,6 +7,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { UniqueConstraintError } from 'sequelize';
 import { PtkpStatus } from '@payroll-system/shared-types';
 import { PtkpDerivationService } from '../ptkp/ptkp-derivation.service';
+import { ScopeContext } from '../scope-resolver/scope-resolver.types';
 import { Employee } from './entities/employee.entity';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
@@ -40,16 +41,30 @@ export class EmployeesService {
     return record;
   }
 
+  // §5.2 — the scope coordinates the resolver matches scope masters against.
+  async getScopeContext(employeeId: string): Promise<ScopeContext> {
+    const e = await this.findByIdOrThrow(employeeId);
+    return {
+      employeeId: e.id,
+      divisionId: e.divisionId,
+      departmentId: e.departmentId,
+      positionId: e.positionId,
+      employeeTypeId: e.employeeTypeId,
+    };
+  }
+
   async create(dto: CreateEmployeeDto): Promise<Employee> {
     const ptkpManuallyOverridden = dto.ptkpManuallyOverridden ?? false;
     // §5.1a — DTO validation guarantees ptkpStatus is present when overridden;
     // otherwise propose it from the raw inputs instead of trusting the client.
     const ptkpStatus = ptkpManuallyOverridden
       ? (dto.ptkpStatus as PtkpStatus)
-      : this.ptkpDerivationService.derive(
-          dto.maritalStatus,
-          dto.dependentCount,
-        );
+      : this.ptkpDerivationService.derive({
+          maritalStatus: dto.maritalStatus,
+          dependentCount: dto.dependentCount,
+          gender: dto.gender,
+          spouseNoIncomeCertificate: dto.spouseNoIncomeCertificate ?? false,
+        });
 
     try {
       const created = await this.employeeModel.create({
@@ -72,10 +87,13 @@ export class EmployeesService {
     // never silently recompute ptkp_status — only an explicit ptkpStatus wins.
     const ptkpStatus = effectiveOverridden
       ? (dto.ptkpStatus ?? record.ptkpStatus)
-      : this.ptkpDerivationService.derive(
-          dto.maritalStatus ?? record.maritalStatus,
-          dto.dependentCount ?? record.dependentCount,
-        );
+      : this.ptkpDerivationService.derive({
+          maritalStatus: dto.maritalStatus ?? record.maritalStatus,
+          dependentCount: dto.dependentCount ?? record.dependentCount,
+          gender: dto.gender ?? record.gender,
+          spouseNoIncomeCertificate:
+            dto.spouseNoIncomeCertificate ?? record.spouseNoIncomeCertificate,
+        });
 
     try {
       await record.update({

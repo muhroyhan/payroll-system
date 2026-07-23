@@ -1,0 +1,74 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { Role } from '@payroll-system/shared-types';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { AttendanceRecordsService } from './attendance-records.service';
+import { AttendanceReconciliationService } from './attendance-reconciliation.service';
+import { CreateAttendanceRecordDto } from './dto/create-attendance-record.dto';
+import { BulkCreateAttendanceRecordsDto } from './dto/bulk-create-attendance-records.dto';
+import { ReconcileRangeDto } from './dto/reconcile-range.dto';
+
+@Controller('attendance-records')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.ADMIN, Role.HR_STAFF)
+export class AttendanceRecordsController {
+  constructor(
+    private readonly attendanceRecordsService: AttendanceRecordsService,
+    private readonly attendanceReconciliationService: AttendanceReconciliationService,
+  ) {}
+
+  @Get()
+  list(
+    @Query('employeeId') employeeId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.attendanceRecordsService.list(employeeId, from, to);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.attendanceRecordsService.findByIdOrThrow(id);
+  }
+
+  // Runs the raw-log -> attendance_records reconciliation (P3-T03), source = fingerprint.
+  @Post('reconcile')
+  reconcile(@Body() dto: ReconcileRangeDto) {
+    return this.attendanceReconciliationService.reconcileRange(
+      dto.employeeId,
+      dto.from,
+      dto.to,
+      dto.overwrite ?? false,
+    );
+  }
+
+  // Manual HR entry/correction, source = manual.
+  @Post()
+  create(
+    @Body() dto: CreateAttendanceRecordDto,
+    @Query('overwrite') overwrite?: string,
+  ) {
+    return this.attendanceRecordsService.createManual(
+      dto,
+      overwrite === 'true',
+    );
+  }
+
+  // Direct bulk import of already-reconciled rows from an external system, source = csv_import.
+  @Post('csv-import')
+  csvImport(@Body() dto: BulkCreateAttendanceRecordsDto) {
+    return this.attendanceRecordsService.bulkImportCsv(
+      dto.records,
+      dto.overwrite ?? false,
+    );
+  }
+}

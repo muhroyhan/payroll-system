@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { Role } from '@payroll-system/shared-types';
@@ -12,6 +13,10 @@ import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import {
+  AsOfQueryDto,
+  asOfOrToday,
+} from '../../../common/effective-dating/as-of-query.dto';
 import type { AuthenticatedUser } from '../../auth/types/authenticated-user';
 import { PtkpMasterService } from './ptkp-master.service';
 import { CreatePtkpMasterDto } from './dto/create-ptkp-master.dto';
@@ -26,6 +31,12 @@ export class PtkpMasterController {
   @Get()
   list() {
     return this.ptkpMasterService.list();
+  }
+
+  // Rows active for ?asOf=YYYY-MM-DD (default today) — the payroll-facing view.
+  @Get('effective')
+  resolveEffective(@Query() query: AsOfQueryDto) {
+    return this.ptkpMasterService.resolveEffective(asOfOrToday(query.asOf));
   }
 
   @Get(':id')

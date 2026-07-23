@@ -4,3 +4,7 @@ export * from "./enums/employment-status";
 export * from "./enums/scope-type";
 export * from "./enums/payslip-component";
 export * from "./enums/employee";
+export * from "./enums/holiday";
+export * from "./enums/attendance";
+export * from "./enums/leave";
+export * from "./enums/letters";

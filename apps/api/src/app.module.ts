@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
+import { BullModule } from '@nestjs/bullmq';
 import databaseConfig from './config/database.config';
 import redisConfig from './config/redis.config';
 import { AuthModule } from './modules/auth/auth.module';
@@ -13,6 +14,15 @@ import { EmployeesModule } from './modules/employees/employees.module';
 import { PayslipComponentsModule } from './modules/payslip-components/payslip-components.module';
 import { TaxBpjsConstantsModule } from './modules/tax-bpjs-constants/tax-bpjs-constants.module';
 import { SalaryPeriodConfigModule } from './modules/salary-period-config/salary-period-config.module';
+import { SalaryMasterModule } from './modules/salary-master/salary-master.module';
+import { IncentiveMasterModule } from './modules/incentive-master/incentive-master.module';
+import { LeaveModule } from './modules/leave/leave.module';
+import { HolidaysModule } from './modules/holidays/holidays.module';
+import { FingerprintsModule } from './modules/fingerprints/fingerprints.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
+import { SuratIjinModule } from './modules/letters/surat-ijin/surat-ijin.module';
+import { SuratPeringatanModule } from './modules/letters/surat-peringatan/surat-peringatan.module';
+import { OvertimeLettersModule } from './modules/letters/overtime-letters/overtime-letters.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -36,6 +46,15 @@ import { AppService } from './app.service';
         synchronize: false,
       }),
     }),
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        connection: {
+          host: config.get<string>('redis.host'),
+          port: config.get<number>('redis.port'),
+        },
+      }),
+    }),
     UsersModule,
     AuthModule,
     EmployeeTypesModule,
@@ -46,6 +65,15 @@ import { AppService } from './app.service';
     PayslipComponentsModule,
     TaxBpjsConstantsModule,
     SalaryPeriodConfigModule,
+    SalaryMasterModule,
+    IncentiveMasterModule,
+    LeaveModule,
+    HolidaysModule,
+    FingerprintsModule,
+    AttendanceModule,
+    SuratIjinModule,
+    SuratPeringatanModule,
+    OvertimeLettersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

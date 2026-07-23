@@ -9,7 +9,10 @@ import { DivisionsService } from '../organization/divisions/divisions.service';
 import { EmployeesService } from './employees.service';
 import { ImportEmployeeRowDto } from './dto/import-employee-row.dto';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
-import { ImportResult, ImportRowError } from './dto/import-result.dto';
+import {
+  BulkImportResult,
+  ImportRowError,
+} from '../../common/bulk-import/bulk-import-result';
 
 const HEADER_ROW_OFFSET = 2; // header row (1) + 1-based row numbering
 
@@ -23,7 +26,7 @@ export class EmployeesImportService {
     private readonly divisionsService: DivisionsService,
   ) {}
 
-  async importFromBuffer(buffer: Buffer): Promise<ImportResult> {
+  async importFromBuffer(buffer: Buffer): Promise<BulkImportResult> {
     const rows = this.parseRows(buffer);
     if (rows.length === 0) {
       throw new BadRequestException('The uploaded file contains no data rows');
@@ -43,7 +46,7 @@ export class EmployeesImportService {
     const divisionMap = this.byLowercaseName(divisions);
 
     const errors: ImportRowError[] = [];
-    const createdEmployeeIds: string[] = [];
+    const createdIds: string[] = [];
 
     for (const [index, rawRow] of rows.entries()) {
       const rowNumber = index + HEADER_ROW_OFFSET;
@@ -89,8 +92,10 @@ export class EmployeesImportService {
         npwp: rowDto.npwp,
         ptkpStatus: rowDto.ptkpStatus,
         maritalStatus: rowDto.maritalStatus,
+        gender: rowDto.gender,
         dependentCount: rowDto.dependentCount,
         wifeIncomeCombined: rowDto.wifeIncomeCombined,
+        spouseNoIncomeCertificate: rowDto.spouseNoIncomeCertificate,
         ptkpManuallyOverridden: rowDto.ptkpManuallyOverridden,
         employmentStatus: rowDto.employmentStatus,
         employeeTypeId: employeeTypeId as string,
@@ -108,7 +113,7 @@ export class EmployeesImportService {
 
       try {
         const created = await this.employeesService.create(createDto);
-        createdEmployeeIds.push(created.id);
+        createdIds.push(created.id);
       } catch (error) {
         errors.push({
           row: rowNumber,
@@ -123,9 +128,9 @@ export class EmployeesImportService {
 
     return {
       totalRows: rows.length,
-      successCount: createdEmployeeIds.length,
+      successCount: createdIds.length,
       failureCount: errors.length,
-      createdEmployeeIds,
+      createdIds,
       errors,
     };
   }

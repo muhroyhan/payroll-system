@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { Role } from '@payroll-system/shared-types';
@@ -12,6 +13,10 @@ import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import {
+  AsOfQueryDto,
+  asOfOrToday,
+} from '../../../common/effective-dating/as-of-query.dto';
 import type { AuthenticatedUser } from '../../auth/types/authenticated-user';
 import { BpjsKesehatanMasterService } from './bpjs-kesehatan-master.service';
 import { CreateBpjsKesehatanMasterDto } from './dto/create-bpjs-kesehatan-master.dto';
@@ -28,6 +33,14 @@ export class BpjsKesehatanMasterController {
   @Get()
   list() {
     return this.bpjsKesehatanMasterService.list();
+  }
+
+  // The single rate/cap row active for ?asOf=YYYY-MM-DD (default today).
+  @Get('effective')
+  resolveEffective(@Query() query: AsOfQueryDto) {
+    return this.bpjsKesehatanMasterService.resolveEffective(
+      asOfOrToday(query.asOf),
+    );
   }
 
   @Get(':id')

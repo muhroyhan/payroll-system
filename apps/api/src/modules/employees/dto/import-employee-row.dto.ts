@@ -15,6 +15,7 @@ import {
 import {
   EmployeeActiveStatus,
   EmploymentStatus,
+  Gender,
   MaritalStatus,
   MAX_DEPENDENT_COUNT,
   PtkpStatus,
@@ -64,6 +65,11 @@ export class ImportEmployeeRowDto {
   @IsEnum(MaritalStatus)
   maritalStatus: MaritalStatus;
 
+  // §5.1a — required for correct PTKP derivation (married-female exception).
+  @Transform(emptyToUndefined)
+  @IsEnum(Gender)
+  gender: Gender;
+
   @Type(() => Number)
   @IsInt()
   @Min(0)
@@ -74,6 +80,11 @@ export class ImportEmployeeRowDto {
   @Transform(({ value }) => toBoolean(value))
   @IsBoolean()
   wifeIncomeCombined?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => toBoolean(value))
+  @IsBoolean()
+  spouseNoIncomeCertificate?: boolean;
 
   @IsOptional()
   @Transform(({ value }) => toBoolean(value))

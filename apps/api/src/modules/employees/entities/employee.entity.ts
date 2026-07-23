@@ -12,6 +12,7 @@ import {
 import {
   EmployeeActiveStatus,
   EmploymentStatus,
+  Gender,
   MaritalStatus,
   PtkpStatus,
 } from '@payroll-system/shared-types';
@@ -47,12 +48,23 @@ export class Employee extends Model {
   @Column(DataType.ENUM(...Object.values(MaritalStatus)))
   declare maritalStatus: MaritalStatus;
 
+  // §5.1a — feeds the married-female PTKP exception. Nullable for legacy rows
+  // created before this column existed; required for new employees via the DTO.
+  @Column(DataType.ENUM(...Object.values(Gender)))
+  declare gender: Gender | null;
+
   @Column(DataType.TINYINT)
   declare dependentCount: number;
 
   @Default(false)
   @Column(DataType.BOOLEAN)
   declare wifeIncomeCombined: boolean;
+
+  // §5.1a — Surat Keterangan proving the husband has no income. Only meaningful
+  // for a married female; flips her derived PTKP from TK to K.
+  @Default(false)
+  @Column(DataType.BOOLEAN)
+  declare spouseNoIncomeCertificate: boolean;
 
   // true once HR sets ptkp_status directly — derivation must not silently overwrite it (§5.1a).
   @Default(false)

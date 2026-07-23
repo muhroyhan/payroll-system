@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { resolveEffectiveRecord } from '../../../common/effective-dating/resolve-effective';
 import { BpjsKetenagakerjaanMaster } from './entities/bpjs-ketenagakerjaan-master.entity';
 import { CreateBpjsKetenagakerjaanMasterDto } from './dto/create-bpjs-ketenagakerjaan-master.dto';
 import { UpdateBpjsKetenagakerjaanMasterDto } from './dto/update-bpjs-ketenagakerjaan-master.dto';
@@ -11,8 +12,26 @@ export class BpjsKetenagakerjaanMasterService {
     private readonly bpjsKetenagakerjaanMasterModel: typeof BpjsKetenagakerjaanMaster,
   ) {}
 
+  // Admin view: every row, active or not (this table intentionally keeps the
+  // old + new JP-cap rows side by side, so date-filtering here would hide one).
   list(): Promise<BpjsKetenagakerjaanMaster[]> {
     return this.bpjsKetenagakerjaanMasterModel.findAll();
+  }
+
+  // Payroll-facing: the single rate card active for `periodDate`.
+  async resolveEffective(
+    periodDate: string,
+  ): Promise<BpjsKetenagakerjaanMaster> {
+    const record = await resolveEffectiveRecord(
+      this.bpjsKetenagakerjaanMasterModel,
+      periodDate,
+    );
+    if (!record) {
+      throw new NotFoundException(
+        `No BPJS Ketenagakerjaan rate card configured effective on ${periodDate}`,
+      );
+    }
+    return record;
   }
 
   async findByIdOrThrow(id: string): Promise<BpjsKetenagakerjaanMaster> {

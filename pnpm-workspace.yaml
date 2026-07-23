@@ -1,3 +1,9 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# puppeteer needs its postinstall to run so it downloads its bundled Chromium —
+# without this, PDF generation (P4-T01) fails at runtime with no browser found.
+onlyBuiltDependencies:
+  - puppeteer
+

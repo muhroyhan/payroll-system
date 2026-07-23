@@ -15,6 +15,7 @@ import {
 import {
   EmployeeActiveStatus,
   EmploymentStatus,
+  Gender,
   MaritalStatus,
   MAX_DEPENDENT_COUNT,
   PtkpStatus,
@@ -43,6 +44,10 @@ export class CreateEmployeeDto {
   @IsEnum(MaritalStatus)
   maritalStatus: MaritalStatus;
 
+  // §5.1a — required for correct PTKP derivation (married-female exception).
+  @IsEnum(Gender)
+  gender: Gender;
+
   @IsInt()
   @Min(0)
   @Max(MAX_DEPENDENT_COUNT)
@@ -51,6 +56,12 @@ export class CreateEmployeeDto {
   @IsOptional()
   @IsBoolean()
   wifeIncomeCombined?: boolean;
+
+  // §5.1a — Surat Keterangan (husband has no income). Flips a married female's
+  // derived PTKP from TK to K.
+  @IsOptional()
+  @IsBoolean()
+  spouseNoIncomeCertificate?: boolean;
 
   @IsOptional()
   @IsBoolean()
