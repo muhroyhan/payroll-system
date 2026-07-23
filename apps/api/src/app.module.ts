@@ -23,6 +23,7 @@ import { AttendanceModule } from './modules/attendance/attendance.module';
 import { SuratIjinModule } from './modules/letters/surat-ijin/surat-ijin.module';
 import { SuratPeringatanModule } from './modules/letters/surat-peringatan/surat-peringatan.module';
 import { OvertimeLettersModule } from './modules/letters/overtime-letters/overtime-letters.module';
+import { KasbonModule } from './modules/kasbon/kasbon.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -74,6 +75,7 @@ import { AppService } from './app.service';
     SuratIjinModule,
     SuratPeringatanModule,
     OvertimeLettersModule,
+    KasbonModule,
   ],
   controllers: [AppController],
   providers: [AppService],
