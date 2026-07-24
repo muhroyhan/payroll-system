@@ -117,7 +117,7 @@ almost everything after them — resist jumping straight to payslip generation.
 | P8-T01 | `payroll_runs` state machine | `draft → calculated → approved → disbursed`, forward-only, guarded (§11) |
 | P8-T02 | BullMQ "Calculate Payroll Run" job | Chunked (100–200/batch), `processed_count`/`total_count` progress |
 | P8-T03 | Per-run resolver caching | Pre-resolve scope values once per unique combination, not per employee (§2.2) |
-| P8-T04 | Full §9 calculation implementation | `bulkCreate` for `payslips` + `payslip_line_items` |
+| P8-T04 | Full §9 calculation implementation | `bulkCreate` for `payslips` + `payslip_line_items`. **Consideration (from P8-T02):** a job retry after a mid-run crash currently re-chunks from chunk 1 — idempotent (absolute-set progress + per-employee unique constraint) but wasteful. When the real calculation replaces the placeholder, evaluate **resume-from-offset** (skip employees whose payslip for this run already exists) so a retry doesn't reprocess hundreds of already-correct employees |
 | P8-T05 | PDF generation queue | Separate from the calculation job |
 | P8-T06 | Payroll summary report | |
 | P8-T07 | Immutability guards | Enforce §11 rules: locked attendance during `calculated`+, revert-to-draft path, locked payslips once `approved` |
