@@ -26,6 +26,7 @@ import { OvertimeLettersModule } from './modules/letters/overtime-letters/overti
 import { KasbonModule } from './modules/kasbon/kasbon.module';
 import { PayslipTempComponentsModule } from './modules/payslip-temp-components/payslip-temp-components.module';
 import { PayrollCalculationModule } from './modules/payroll-calculation/payroll-calculation.module';
+import { PayrollRunsModule } from './modules/payroll-runs/payroll-runs.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -80,6 +81,7 @@ import { AppService } from './app.service';
     KasbonModule,
     PayslipTempComponentsModule,
     PayrollCalculationModule,
+    PayrollRunsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

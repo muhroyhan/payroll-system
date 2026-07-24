@@ -9,3 +9,4 @@ export * from "./enums/attendance";
 export * from "./enums/leave";
 export * from "./enums/letters";
 export * from "./enums/kasbon";
+export * from "./enums/payroll-run";

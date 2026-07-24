@@ -94,6 +94,21 @@ almost everything after them — resist jumping straight to payslip generation.
 | P7-T07 | Tests against every P7-T01 worked example | Must pass before Phase 8 starts — this is the hard gate. **RESOLVED:** WE-01/02/03/06 reconciled to the official DJP calculator; **monthly** PPh21 rounding confirmed as round-to-nearest-100 via WE-07 (was `Math.round` per-rupiah — now `roundToNearestHundred`). **STILL OPEN:** the **annual** (December true-up) rounding mode is unverified — WE-05 lands on an exact multiple of 100 so proves nothing; `calculateAnnualPph21Trueup` still uses plain `Math.round` and must NOT be aligned to round-100 without a *fractional* December worked example |
 | P7-T08 | NPWP-missing 20% surcharge flag | Signature already wired: `npwpMissing` flag on `calculateMonthlyPph21` (P7-T03) and `calculateAnnualPph21Trueup` (P7-T04), defaulting false — P7-T08 only flips it from employee data |
 
+**Phase 7 status: all tasks CLOSED except one open item (below).**
+
+> ### ⛔ PRE-PRODUCTION CHECKLIST — must close before the FIRST December payroll run in production
+>
+> - [ ] **Annual PPh21 rounding mode is UNVERIFIED.** The monthly path is confirmed
+>   round-to-nearest-100 (WE-07), but `calculateAnnualPph21Trueup` (P7-T04) still uses plain
+>   `Math.round` because WE-05 lands on an exact multiple of 100 and proves nothing. This does
+>   **not** block Phase 8 development (the Jan–Nov monthly path is fully verified), but it is a
+>   **hard gate before any real December / final-month true-up is run in production** — a wrong
+>   rounding mode there silently mis-states every year-end payslip. **To close:** obtain a
+>   December worked example whose annual PPh21 lands on a *fraction* from the official DJP
+>   calculator, then confirm round-100 vs nearest-rupiah vs truncate and update the annual core
+>   + add the fixture. See `03_STRUCTURE.md` §7 (R7 note) and `payroll-calculation/
+>   pph21-annual-trueup.core.ts` (the flagged `Math.round`).
+
 ### Phase 8 — Payroll Run & Payslip Generation
 *Depends on: Phase 7, Phase 5, Phase 6, Phase 4*
 
