@@ -12,13 +12,17 @@ import {
   BpjsEmployeeResult,
   calculateEmployeeBpjs,
 } from './bpjs-employee.core';
+import { isNpwpMissing } from './npwp';
 
 export interface MonthlyCalculationInput {
   periodDate: string;
   taxableBruto: number;
   bpjsEligibleEarnings: number;
   ptkpStatus: PtkpStatus;
-  npwpMissing?: boolean;
+  // §5.1 — the employee's stored NPWP (nullable). The 20% surcharge (R4) is
+  // derived from this field here, not passed as a pre-computed boolean, so the
+  // wiring to employee data lives in one place.
+  npwp: string | null;
 }
 
 export interface MonthlyCalculationResult {
@@ -52,7 +56,7 @@ export class MonthlyPayslipCalculationService {
       taxableBruto: input.taxableBruto,
       ptkpStatus: input.ptkpStatus,
       brackets,
-      npwpMissing: input.npwpMissing,
+      npwpMissing: isNpwpMissing(input.npwp), // R4 — derived from employee data
     });
 
     // §9 Step 3 — employee BPJS, computed independently of the TER base above.

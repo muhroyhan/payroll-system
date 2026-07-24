@@ -134,17 +134,6 @@ describe('calculateMonthlyPph21 (P7-T03, R3)', () => {
     expect(r.pph21).not.toBe(115_200);
   });
 
-  // R4 belongs to P7-T08; the flag is wired now so P7-T08 only flips it.
-  it('npwpMissing=true applies a 20% surcharge (P7-T08 scope; signature ready)', () => {
-    const r = calculateMonthlyPph21({
-      taxableBruto: 8_000_000,
-      ptkpStatus: PtkpStatus.TK_0,
-      brackets: BRACKETS,
-      npwpMissing: true,
-    });
-    expect(r.pph21).toBe(144_000); // 120,000 × 1.2
-  });
-
   it('defaults to no surcharge when npwpMissing is omitted', () => {
     const r = calculateMonthlyPph21({
       taxableBruto: 8_000_000,
@@ -152,5 +141,54 @@ describe('calculateMonthlyPph21 (P7-T03, R3)', () => {
       brackets: BRACKETS,
     });
     expect(r.pph21).toBe(120_000);
+  });
+
+  // R4 (P7-T08) — no NPWP on file adds a 20% surcharge. Compared against the
+  // same WE-01/02/03 baselines.
+  describe('npwpMissing surcharge (P7-T08, R4)', () => {
+    it('WE-01 no NPWP: 120,000 × 1.2 = 144,000', () => {
+      const r = calculateMonthlyPph21({
+        taxableBruto: 8_000_000,
+        ptkpStatus: PtkpStatus.TK_0,
+        brackets: BRACKETS,
+        npwpMissing: true,
+      });
+      expect(r.pph21).toBe(144_000);
+    });
+
+    it('WE-02 no NPWP: 520,000 × 1.2 = 624,000', () => {
+      const r = calculateMonthlyPph21({
+        taxableBruto: 13_000_000,
+        ptkpStatus: PtkpStatus.K_2,
+        brackets: BRACKETS,
+        npwpMissing: true,
+      });
+      expect(r.pph21).toBe(624_000);
+    });
+
+    it('WE-03 no NPWP: 1,600,000 × 1.2 = 1,920,000', () => {
+      const r = calculateMonthlyPph21({
+        taxableBruto: 20_000_000,
+        ptkpStatus: PtkpStatus.K_3,
+        brackets: BRACKETS,
+        npwpMissing: true,
+      });
+      expect(r.pph21).toBe(1_920_000);
+    });
+
+    // Order matters: surcharge is applied BEFORE the nearest-100 rounding.
+    // bruto 10,100,050 × 2.25% = 227,251.125.
+    //   correct   → round100(227,251.125 × 1.2) = round100(272,701.35) = 272,700
+    //   wrong way → round100(227,251.125) × 1.2  = 227,300 × 1.2        = 272,760
+    it('applies the surcharge BEFORE rounding to nearest 100, not after', () => {
+      const r = calculateMonthlyPph21({
+        taxableBruto: 10_100_050,
+        ptkpStatus: PtkpStatus.TK_0,
+        brackets: BRACKETS,
+        npwpMissing: true,
+      });
+      expect(r.pph21).toBe(272_700); // surcharge-before-rounding
+      expect(r.pph21).not.toBe(272_760); // surcharge-after-rounding (wrong)
+    });
   });
 });
