@@ -11,8 +11,11 @@ describe('PayrollRunsService (P8-T01)', () => {
         .fn()
         .mockImplementation((data: any) => Promise.resolve(data)),
     };
-    const service = new PayrollRunsService(model as any);
-    return { service, model };
+    const queue = {
+      enqueueCalculateRun: jest.fn().mockResolvedValue(undefined),
+    };
+    const service = new PayrollRunsService(model as any, queue as any);
+    return { service, model, queue };
   }
 
   function run(status: PayrollRunStatus) {
@@ -43,6 +46,23 @@ describe('PayrollRunsService (P8-T01)', () => {
     await expect(service.findByIdOrThrow('missing')).rejects.toThrow(
       NotFoundException,
     );
+  });
+
+  it('requestCalculation: enqueues the job for a draft run', async () => {
+    const r = run(PayrollRunStatus.DRAFT);
+    const { service, queue } = makeService(r);
+    const result = await service.requestCalculation('run-1');
+    expect(queue.enqueueCalculateRun).toHaveBeenCalledWith('run-1');
+    expect(result).toEqual({ payrollRunId: 'run-1' });
+  });
+
+  it('requestCalculation: rejects a non-draft run (must revert first)', async () => {
+    const r = run(PayrollRunStatus.CALCULATED);
+    const { service, queue } = makeService(r);
+    await expect(service.requestCalculation('run-1')).rejects.toThrow(
+      ConflictException,
+    );
+    expect(queue.enqueueCalculateRun).not.toHaveBeenCalled();
   });
 
   it('markCalculated: draft → calculated', async () => {

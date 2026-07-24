@@ -8,10 +8,10 @@ import {
 } from 'sequelize-typescript';
 import { PayrollRunStatus } from '@payroll-system/shared-types';
 
-// §5.8 — a payroll run for one period. Schema kept exactly to §5.8: id, period,
-// status, created_by, approved_by, locked_at. Progress counters
-// (processed_count/total_count) belong to the calculation job (P8-T02) and are
-// intentionally NOT added here yet. Never hard-deleted (§11).
+// §5.8 — a payroll run for one period (id, period, status, created_by,
+// approved_by, locked_at) plus the P8-T02 progress counters
+// (processed_count/total_count) for the chunked calculation job's progress
+// bar. Never hard-deleted (§11).
 @Table({ tableName: 'payroll_runs', underscored: true, timestamps: true })
 export class PayrollRun extends Model {
   @PrimaryKey
@@ -38,4 +38,15 @@ export class PayrollRun extends Model {
   // everything under it are permanently immutable (§11).
   @Column(DataType.DATE)
   declare lockedAt: Date | null;
+
+  // P8-T02 — how many employees the calculation job has processed / needs to
+  // process this run, for the admin progress bar. Set absolutely (not
+  // incremented) so a retried chunk can't double-count.
+  @Default(0)
+  @Column(DataType.INTEGER)
+  declare processedCount: number;
+
+  @Default(0)
+  @Column(DataType.INTEGER)
+  declare totalCount: number;
 }

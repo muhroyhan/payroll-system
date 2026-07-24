@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   Put,
@@ -38,6 +40,16 @@ export class PayrollRunsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.payrollRunsService.create(dto, user.id);
+  }
+
+  // P8-T02 — enqueue the calculation job and return immediately (202). The run
+  // stays `draft` until the job finishes and flips it to `calculated`; poll
+  // GET /:id for processed_count/total_count progress.
+  @Post(':id/calculate')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Roles(Role.ADMIN)
+  calculate(@Param('id') id: string) {
+    return this.payrollRunsService.requestCalculation(id);
   }
 
   // The money-committing lifecycle steps are ADMIN-only (calculation itself is
