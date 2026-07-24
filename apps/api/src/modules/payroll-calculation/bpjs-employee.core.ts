@@ -1,3 +1,8 @@
+import {
+  cappedContribution,
+  uncappedContribution,
+} from './bpjs-contribution.core';
+
 // P7-T03 (R5, §9 Step 3) — employee-side BPJS deductions. Pure/stateless:
 // rates/caps come from the effective constant rows, fetched by the service.
 //
@@ -24,12 +29,16 @@ export function calculateEmployeeBpjs(
   bpjsEligibleEarnings: number,
   rates: BpjsEmployeeRates,
 ): BpjsEmployeeResult {
-  const kesehatan = Math.round(
-    Math.min(bpjsEligibleEarnings, rates.kesehatanCap) * rates.kesehatanRate,
+  const kesehatan = cappedContribution(
+    bpjsEligibleEarnings,
+    rates.kesehatanCap,
+    rates.kesehatanRate,
   );
-  const jht = Math.round(bpjsEligibleEarnings * rates.jhtRate);
-  const jp = Math.round(
-    Math.min(bpjsEligibleEarnings, rates.jpCap) * rates.jpRate,
+  const jht = uncappedContribution(bpjsEligibleEarnings, rates.jhtRate);
+  const jp = cappedContribution(
+    bpjsEligibleEarnings,
+    rates.jpCap,
+    rates.jpRate,
   );
   return { kesehatan, jht, jp, total: kesehatan + jht + jp };
 }
