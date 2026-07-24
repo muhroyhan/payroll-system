@@ -91,8 +91,8 @@ almost everything after them — resist jumping straight to payslip generation.
 | P7-T04 | PPh21 December/final-month Pasal 17 true-up | |
 | P7-T05 | BPJS Kesehatan calculator | Cap + 1%/4% split |
 | P7-T06 | BPJS Ketenagakerjaan calculator | JHT, JP (capped), JKK, JKM |
-| P7-T07 | Tests against every P7-T01 worked example | Must pass before Phase 8 starts — this is the hard gate |
-| P7-T08 | NPWP-missing 20% surcharge flag | |
+| P7-T07 | Tests against every P7-T01 worked example | Must pass before Phase 8 starts — this is the hard gate. **Open items to close here:** (a) reconcile WE-01/02/03/06 (still `[pending]` in the specs) to the official DJP calculator; (b) **PPh21 rounding mode is unverified** — the monthly TER path rounds to whole rupiah (`Math.round`), but round-vs-floor-per-rupiah could not be pinned because WE-01/02/03 all land on exact integers; needs a worked example with a fractional result to confirm |
+| P7-T08 | NPWP-missing 20% surcharge flag | Signature already wired: `npwpMissing` flag on `calculateMonthlyPph21` (P7-T03) and `calculateAnnualPph21Trueup` (P7-T04), defaulting false — P7-T08 only flips it from employee data |
 
 ### Phase 8 — Payroll Run & Payslip Generation
 *Depends on: Phase 7, Phase 5, Phase 6, Phase 4*
