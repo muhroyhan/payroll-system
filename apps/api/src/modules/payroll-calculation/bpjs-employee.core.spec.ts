@@ -11,10 +11,11 @@ const RATES: BpjsEmployeeRates = {
 };
 
 describe('calculateEmployeeBpjs (P7-T03, R5)', () => {
-  // ⚠️ PENDING OFFICIAL VERIFICATION — WE-01/02/03 figures, not yet reconciled
-  // to the official DJP/BPJS calculators (03_STRUCTURE.md §7).
+  // ✅ CONFIRMED — WE-01/02/03 BPJS figures are part of the confirmed worked
+  // examples (P7-T07). BPJS is a deterministic percentage-of-wage calc (no
+  // rounding-mode question like PPh21), so these are settled.
 
-  it('WE-01 [pending]: bruto 8,000,000 (no cap binds) → Kes 80k, JHT 160k, JP 80k, total 320k', () => {
+  it('WE-01 [confirmed]: bruto 8,000,000 (no cap binds) → Kes 80k, JHT 160k, JP 80k, total 320k', () => {
     expect(calculateEmployeeBpjs(8_000_000, RATES)).toEqual({
       kesehatan: 80_000,
       jht: 160_000,
@@ -23,7 +24,7 @@ describe('calculateEmployeeBpjs (P7-T03, R5)', () => {
     });
   });
 
-  it('WE-02 [pending]: bruto 13,000,000 (Kes + JP caps bind) → Kes 120k, JHT 260k, JP 110,863, total 490,863', () => {
+  it('WE-02 [confirmed]: bruto 13,000,000 (Kes + JP caps bind) → Kes 120k, JHT 260k, JP 110,863, total 490,863', () => {
     expect(calculateEmployeeBpjs(13_000_000, RATES)).toEqual({
       kesehatan: 120_000,
       jht: 260_000,
@@ -32,7 +33,7 @@ describe('calculateEmployeeBpjs (P7-T03, R5)', () => {
     });
   });
 
-  it('WE-03 [pending]: bruto 20,000,000 (Kes + JP caps bind) → Kes 120k, JHT 400k, JP 110,863, total 630,863', () => {
+  it('WE-03 [confirmed]: bruto 20,000,000 (Kes + JP caps bind) → Kes 120k, JHT 400k, JP 110,863, total 630,863', () => {
     expect(calculateEmployeeBpjs(20_000_000, RATES)).toEqual({
       kesehatan: 120_000,
       jht: 400_000,

@@ -4,6 +4,7 @@ import {
   lookupTerRate,
   resolveTerCategory,
 } from '../tax-bpjs-constants/ter-bracket-master/ter-lookup';
+import { roundToNearestHundred } from './rounding';
 
 // P7-T03 — monthly (Jan–Nov) PPh21 via TER (R3, §9 Step 4). Pure/stateless:
 // the DB-backed service fetches the effective TER brackets and passes them in.
@@ -42,10 +43,8 @@ export function calculateMonthlyPph21(
     input.taxableBruto,
   );
   const surcharge = input.npwpMissing ? 1.2 : 1;
-  // Rounded to whole rupiah to eliminate float noise. ⚠️ The rounding MODE
-  // (round vs floor) is not yet pinned by a fractional worked example — all of
-  // WE-01/02/03 are exact integers — so P7-T07 should confirm it against an
-  // official calculation before Phase 8's hard gate.
-  const pph21 = Math.round(input.taxableBruto * terRate * surcharge);
+  // Rounded to the nearest Rp 100 — CONFIRMED via WE-07 (P7-T07), replacing
+  // the earlier unverified `Math.round`-per-rupiah. See rounding.ts.
+  const pph21 = roundToNearestHundred(input.taxableBruto * terRate * surcharge);
   return { terCategory, terRate, pph21 };
 }

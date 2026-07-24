@@ -156,6 +156,10 @@ considered production-ready.
   matching the worked example from P7-T01.
 - **TC-TAX-02**: TER category boundary — an employee whose Taxable Earnings sits exactly at a
   bracket threshold → correct rate applied on the correct side of the boundary (no off-by-one).
+- **TC-TAX-02b**: Monthly PPh21 rounding — a `bruto × TER rate` that lands on a fraction is
+  rounded to the **nearest Rp 100** (confirmed via WE-07: 9,000,100 × 1.75% = 157,501.75 →
+  157,500), not to the nearest rupiah or floored. (The **annual** rounding mode is a separate,
+  still-open item — see `04_STEPS.md` P7-T07.)
 - **TC-TAX-03**: December (or final month of employment) → full annual Pasal 17 true-up
   computed and correctly offsets amounts already withheld Jan–Nov, producing either a refund
   or an extra deduction as appropriate.

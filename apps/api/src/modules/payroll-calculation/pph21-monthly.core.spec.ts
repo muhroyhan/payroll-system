@@ -2,13 +2,31 @@ import { PtkpStatus, TerCategory } from '@payroll-system/shared-types';
 import { TerBracketRow } from '../tax-bpjs-constants/ter-bracket-master/ter-lookup';
 import { calculateMonthlyPph21 } from './pph21-monthly.core';
 
-// TER brackets copied from the seed for the incomes WE-01/02/03 touch.
+// TER brackets copied from the seed for the incomes the worked examples touch.
 const BRACKETS: TerBracketRow[] = [
   {
     terCategory: TerCategory.A,
     incomeLowerBound: '7500001',
     incomeUpperBound: '8550000',
     rate: '0.01500',
+  },
+  {
+    terCategory: TerCategory.A,
+    incomeLowerBound: '8550001',
+    incomeUpperBound: '9650000',
+    rate: '0.01750',
+  },
+  {
+    terCategory: TerCategory.A,
+    incomeLowerBound: '9650001',
+    incomeUpperBound: '10050000',
+    rate: '0.02000',
+  },
+  {
+    terCategory: TerCategory.A,
+    incomeLowerBound: '10050001',
+    incomeUpperBound: '10350000',
+    rate: '0.02250',
   },
   {
     terCategory: TerCategory.B,
@@ -25,12 +43,11 @@ const BRACKETS: TerBracketRow[] = [
 ];
 
 describe('calculateMonthlyPph21 (P7-T03, R3)', () => {
-  // ⚠️ PENDING OFFICIAL VERIFICATION — WE-01/02/03 drafted from the seed
-  // brackets, NOT yet reconciled to the official DJP calculator (see the
-  // "Worked-example verification status" table in 03_STRUCTURE.md §7). If a WE
-  // is later corrected, the matching test here is the one to revise.
+  // ✅ CONFIRMED — WE-01/02/03/06/07 reconciled to the official DJP calculator
+  // (P7-T07). Rounding is nearest-Rp-100, confirmed via WE-07 (03_STRUCTURE.md
+  // §7). WE-04(a)/WE-05(a) are confirmed elsewhere (§5.1a / annual true-up).
 
-  it('WE-01 [pending]: TK/0, bruto 8,000,000 → cat A, 1.5%, PPh21 120,000', () => {
+  it('WE-01 [confirmed]: TK/0, bruto 8,000,000 → cat A, 1.5%, PPh21 120,000', () => {
     const r = calculateMonthlyPph21({
       taxableBruto: 8_000_000,
       ptkpStatus: PtkpStatus.TK_0,
@@ -41,7 +58,7 @@ describe('calculateMonthlyPph21 (P7-T03, R3)', () => {
     expect(r.pph21).toBe(120_000);
   });
 
-  it('WE-02 [pending]: K/2, bruto 13,000,000 → cat B, 4%, PPh21 520,000', () => {
+  it('WE-02 [confirmed]: K/2, bruto 13,000,000 → cat B, 4%, PPh21 520,000', () => {
     const r = calculateMonthlyPph21({
       taxableBruto: 13_000_000,
       ptkpStatus: PtkpStatus.K_2,
@@ -52,7 +69,7 @@ describe('calculateMonthlyPph21 (P7-T03, R3)', () => {
     expect(r.pph21).toBe(520_000);
   });
 
-  it('WE-03 [pending]: K/3, bruto 20,000,000 → cat C, 8%, PPh21 1,600,000', () => {
+  it('WE-03 [confirmed]: K/3, bruto 20,000,000 → cat C, 8%, PPh21 1,600,000', () => {
     const r = calculateMonthlyPph21({
       taxableBruto: 20_000_000,
       ptkpStatus: PtkpStatus.K_3,
@@ -61,6 +78,46 @@ describe('calculateMonthlyPph21 (P7-T03, R3)', () => {
     expect(r.terCategory).toBe(TerCategory.C);
     expect(r.terRate).toBe(0.08);
     expect(r.pph21).toBe(1_600_000);
+  });
+
+  // WE-06 [confirmed] — boundary (TC-TAX-02). Rate/bracket boundary confirmed;
+  // the +Rp1 value's PPh21 is recomputed here with the correct nearest-100
+  // rounding (the draft's 226,125.02 was pre-rounding, not final).
+  it('WE-06 [confirmed]: cat A, bruto 10,050,000 (bracket upper) → 2%, PPh21 201,000', () => {
+    const r = calculateMonthlyPph21({
+      taxableBruto: 10_050_000,
+      ptkpStatus: PtkpStatus.TK_0,
+      brackets: BRACKETS,
+    });
+    expect(r.terRate).toBe(0.02);
+    expect(r.pph21).toBe(201_000); // 10,050,000 × 2% = 201,000 (already ×100)
+  });
+
+  it('WE-06 [confirmed]: cat A, bruto 10,050,001 (+Rp1) → 2.25%, PPh21 226,100 (nearest-100)', () => {
+    const r = calculateMonthlyPph21({
+      taxableBruto: 10_050_001,
+      ptkpStatus: PtkpStatus.TK_0,
+      brackets: BRACKETS,
+    });
+    expect(r.terRate).toBe(0.0225);
+    // 10,050,001 × 2.25% = 226,125.0225 → nearest-100 = 226,100.
+    expect(r.pph21).toBe(226_100);
+  });
+
+  // WE-07 [confirmed] — the rounding-mode fixture. bruto 9,000,100 (TK/0,
+  // 1.75%) = 157,501.75. Confirmed 157,500 = nearest-Rp-100, NOT nearest-rupiah
+  // (Math.round would give 157,502) nor floor (157,501).
+  it('WE-07 [confirmed]: TK/0, bruto 9,000,100 → 1.75%, PPh21 157,500 (round to nearest 100)', () => {
+    const r = calculateMonthlyPph21({
+      taxableBruto: 9_000_100,
+      ptkpStatus: PtkpStatus.TK_0,
+      brackets: BRACKETS,
+    });
+    expect(r.terRate).toBe(0.0175);
+    expect(r.pph21).toBe(157_500);
+    // Explicitly NOT the other rounding modes:
+    expect(r.pph21).not.toBe(157_502); // nearest rupiah (old Math.round)
+    expect(r.pph21).not.toBe(157_501); // floor
   });
 
   // Guards the user's explicit ordering concern: TER is applied to GROSS, BPJS

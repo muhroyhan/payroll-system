@@ -107,6 +107,13 @@ export function calculateAnnualPph21Trueup(
   if (input.npwpMissing) {
     annualPph21 = annualPph21 * 1.2; // R4 — P7-T08 scope; signature ready.
   }
+  // ⚠️ OPEN ITEM (P7-T07) — the ANNUAL rounding mode is NOT verified. The
+  // monthly path was confirmed as round-to-nearest-100 (WE-07), but WE-05
+  // (the only confirmed December example) lands on an exact multiple of 100,
+  // so it proves nothing here. The annual figure could be round-100 (like
+  // monthly), plain nearest-rupiah, or truncate — do NOT assume it matches
+  // monthly. Left as Math.round (unchanged) until a fractional December
+  // worked example pins it. See 04_STEPS.md P7-T07.
   annualPph21 = Math.round(annualPph21);
 
   const decemberPph21 = annualPph21 - input.withheldJanNov;

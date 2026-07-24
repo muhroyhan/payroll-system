@@ -435,6 +435,13 @@ year:
 PPh21 (Jan–Nov) = Gross Monthly Taxable Income × TER rate (looked up from bracket table)
 ```
 
+**✅ Rounding rule (final) — round the monthly PPh21 to the nearest Rp 100.** Confirmed
+against the official DJP calculator via worked example **WE-07** (P7-T07): bruto 9,000,100
+(TK/0, TER 1.75%) = 157,501.75 → **157,500**, i.e. nearest-Rp-100 — *not* nearest-rupiah
+(which gives 157,502) nor floor (157,501). Implemented as `roundToNearestHundred` in
+`payroll-calculation/rounding.ts`. ⚠️ This is the *monthly* rule only — see the R7 note below
+for the still-open annual-rounding question.
+
 **December (or final month of employment):** recalculate the full year using the progressive
 Pasal 17 rates on annual net income, subtract what was already withheld Jan–Nov, and true up.
 Don't skip this — it's required, not optional.
@@ -459,17 +466,25 @@ distinguished version (a) from version (b) precisely on this point). This relies
 constant tables introduced at P7-T02: `biaya_jabatan_masters` and `pasal17_bracket_masters`,
 both effective-dated like every other tax constant (§7).
 
+⚠️ **OPEN ITEM (P7-T07) — annual rounding mode is unverified.** The *monthly* PPh21 is
+confirmed round-to-nearest-100 (WE-07 above), but WE-05 (the only confirmed December example)
+lands on an exact multiple of 100, so it proves nothing about the annual figure's rounding.
+The annual `calculateAnnualPph21Trueup` deliberately still uses plain `Math.round` (unchanged,
+not assumed to match monthly) — **do not** silently align it to round-100 without a fractional
+December worked example. Carried in `04_STEPS.md` P7-T07.
+
 ### Worked-example verification status (P7-T01)
 
 | WE | Case | Status |
 |---|---|---|
 | WE-04(a) | Married-female no-cert → `TK/0` | ✅ confirmed vs official calculator (R6) |
 | WE-05(a) | December true-up formula | ✅ confirmed vs official calculator (R7) |
-| WE-01 / WE-02 / WE-03 | TER cat A / B / C, Jan–Nov | ⏳ PENDING — drafted, not yet reconciled to the official calculator |
-| WE-06 | TER boundary (TC-TAX-02) | ⏳ PENDING — drafted, not yet reconciled to the official calculator |
+| WE-01 / WE-02 / WE-03 | TER cat A / B / C, Jan–Nov | ✅ confirmed vs official calculator (P7-T07) |
+| WE-06 | TER boundary (TC-TAX-02) | ✅ confirmed — bracket/boundary + nearest-100 rounding of the +Rp1 value (226,100) |
+| WE-07 | Monthly PPh21 rounding mode | ✅ confirmed — 9,000,100 → 157,500 = round-to-nearest-100 |
 
-⏳ items are wired as test fixtures now (marked "pending official verification" in the specs)
-so P7-T07 knows they still need a final reconciliation pass before Phase 8's hard gate.
+All Jan–Nov worked examples are reconciled. The remaining tax-engine open item is the
+**annual** rounding mode (see the R7 note above) — needs a fractional December example.
 
 ### TER categories (by PTKP status)
 

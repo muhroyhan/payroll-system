@@ -54,37 +54,34 @@ describe('resolveTerCategory (R1)', () => {
 });
 
 describe('lookupTerRate (R2/R3)', () => {
-  // ⚠️ PENDING OFFICIAL VERIFICATION — the WE-01/02/03/06 figures below are
-  // drafted from the seed brackets but NOT yet reconciled to the official DJP
-  // calculator (see the "Worked-example verification status" table in
-  // 03_STRUCTURE.md §7). If a WE is later corrected, the matching test here is
-  // the one to revise. WE-04(a)/WE-05(a) are already confirmed and live in
-  // §5.1a/§7, not here (this file is TER lookup only).
+  // ✅ CONFIRMED — WE-01/02/03/06 rate/bracket resolution reconciled to the
+  // official DJP calculator (P7-T07). This file covers TER rate lookup only;
+  // PPh21 amounts + rounding live in pph21-monthly.core.spec.ts.
 
-  it('WE-01 [pending]: TK/0 (cat A), bruto 8,000,000 → 1.50%', () => {
+  it('WE-01 [confirmed]: TK/0 (cat A), bruto 8,000,000 → 1.50%', () => {
     const category = resolveTerCategory(PtkpStatus.TK_0);
     expect(category).toBe(TerCategory.A);
     expect(lookupTerRate(BRACKETS, category, 8_000_000)).toBe(0.015);
   });
 
-  it('WE-02 [pending]: K/2 (cat B), bruto 13,000,000 → 4.00%', () => {
+  it('WE-02 [confirmed]: K/2 (cat B), bruto 13,000,000 → 4.00%', () => {
     const category = resolveTerCategory(PtkpStatus.K_2);
     expect(category).toBe(TerCategory.B);
     expect(lookupTerRate(BRACKETS, category, 13_000_000)).toBe(0.04);
   });
 
-  it('WE-03 [pending]: K/3 (cat C), bruto 20,000,000 → 8.00%', () => {
+  it('WE-03 [confirmed]: K/3 (cat C), bruto 20,000,000 → 8.00%', () => {
     const category = resolveTerCategory(PtkpStatus.K_3);
     expect(category).toBe(TerCategory.C);
     expect(lookupTerRate(BRACKETS, category, 20_000_000)).toBe(0.08);
   });
 
   // WE-06 — the boundary case (TC-TAX-02): inclusive on BOTH sides.
-  it('WE-06 [pending]: cat A, bruto exactly 10,050,000 stays in the lower bracket → 2.00%', () => {
+  it('WE-06 [confirmed]: cat A, bruto exactly 10,050,000 stays in the lower bracket → 2.00%', () => {
     expect(lookupTerRate(BRACKETS, TerCategory.A, 10_050_000)).toBe(0.02);
   });
 
-  it('WE-06 [pending]: cat A, bruto 10,050,001 (+Rp1) crosses to the next bracket → 2.25%', () => {
+  it('WE-06 [confirmed]: cat A, bruto 10,050,001 (+Rp1) crosses to the next bracket → 2.25%', () => {
     expect(lookupTerRate(BRACKETS, TerCategory.A, 10_050_001)).toBe(0.0225);
   });
 
