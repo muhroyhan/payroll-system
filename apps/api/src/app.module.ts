@@ -25,6 +25,7 @@ import { SuratPeringatanModule } from './modules/letters/surat-peringatan/surat-
 import { OvertimeLettersModule } from './modules/letters/overtime-letters/overtime-letters.module';
 import { KasbonModule } from './modules/kasbon/kasbon.module';
 import { PayslipTempComponentsModule } from './modules/payslip-temp-components/payslip-temp-components.module';
+import { PayrollCalculationModule } from './modules/payroll-calculation/payroll-calculation.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -78,6 +79,7 @@ import { AppService } from './app.service';
     OvertimeLettersModule,
     KasbonModule,
     PayslipTempComponentsModule,
+    PayrollCalculationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
