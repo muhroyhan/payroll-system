@@ -18,11 +18,9 @@ export interface EarningComponent {
   // From payslip_component_master.is_taxable — read from the master row, never
   // hardcoded per component kind (§3).
   isTaxable: boolean;
-  // Whether this component counts toward the BPJS wage base. ⚠️ There is NO
-  // is_bpjs_eligible column on payslip_component_master yet (only is_taxable),
-  // so this flag currently has no data source and must be supplied explicitly.
-  // See the P7-T06 report: recommend adding the field rather than hardcoding
-  // "THR/overtime excluded".
+  // From payslip_component_master.is_bpjs_eligible (added P7-T06b) — whether
+  // this component counts toward the BPJS wage base. Read from the master row
+  // exactly like isTaxable, never hardcoded per component kind (§3).
   isBpjsEligible: boolean;
 }
 
@@ -50,19 +48,18 @@ export function assembleEarningsBase(
   return { grossEarnings, taxableGross, bpjsEligibleGross };
 }
 
-// Concrete P6-T01 link: a payslip_temp_component's taxability is read straight
-// from its payslip_component_master row (the loaded `component` association) —
-// never hardcoded by component name/kind (§3). is_bpjs_eligible has no master
-// column yet, so it must be passed explicitly until that field exists (see the
-// P7-T06 report). Typed structurally so this core stays DB-free.
-export function tempComponentToEarning(
-  tempComponent: { amount: string; component: { isTaxable: boolean } },
-  isBpjsEligible: boolean,
-): EarningComponent {
+// Concrete P6-T01 link: a payslip_temp_component's taxability AND BPJS
+// eligibility are both read straight from its payslip_component_master row
+// (the loaded `component` association) — never hardcoded by component
+// name/kind (§3). Typed structurally so this core stays DB-free.
+export function tempComponentToEarning(tempComponent: {
+  amount: string;
+  component: { isTaxable: boolean; isBpjsEligible: boolean };
+}): EarningComponent {
   return {
     source: 'temp_component',
     amount: Number(tempComponent.amount),
     isTaxable: tempComponent.component.isTaxable,
-    isBpjsEligible,
+    isBpjsEligible: tempComponent.component.isBpjsEligible,
   };
 }

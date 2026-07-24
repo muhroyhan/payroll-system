@@ -111,24 +111,43 @@ describe('assembleEarningsBase (P7-T06, §9 Step 1–2)', () => {
   });
 });
 
-describe('tempComponentToEarning (P6-T01 link)', () => {
-  it('reads isTaxable straight from the loaded component master association, not hardcoded', () => {
-    const taxable = tempComponentToEarning(
-      { amount: '500000.00', component: { isTaxable: true } },
-      false,
-    );
-    expect(taxable).toEqual({
+describe('tempComponentToEarning (P6-T01 link, P7-T06b data-driven)', () => {
+  it('reads BOTH isTaxable and isBpjsEligible straight from the loaded component master association, not hardcoded', () => {
+    const taxableAndEligible = tempComponentToEarning({
+      amount: '500000.00',
+      component: { isTaxable: true, isBpjsEligible: true },
+    });
+    expect(taxableAndEligible).toEqual({
       source: 'temp_component',
       amount: 500_000,
       isTaxable: true, // came from component.isTaxable
-      isBpjsEligible: false, // supplied explicitly (no master column yet)
+      isBpjsEligible: true, // came from component.isBpjsEligible
     });
 
-    const nonTaxable = tempComponentToEarning(
-      { amount: '300000.00', component: { isTaxable: false } },
-      false,
-    );
-    expect(nonTaxable.isTaxable).toBe(false);
+    const taxableNotEligible = tempComponentToEarning({
+      amount: '500000.00',
+      component: { isTaxable: true, isBpjsEligible: false },
+    });
+    expect(taxableNotEligible.isTaxable).toBe(true);
+    expect(taxableNotEligible.isBpjsEligible).toBe(false);
+
+    const neither = tempComponentToEarning({
+      amount: '300000.00',
+      component: { isTaxable: false, isBpjsEligible: false },
+    });
+    expect(neither.isTaxable).toBe(false);
+    expect(neither.isBpjsEligible).toBe(false);
+  });
+
+  // The two flags are independent columns — one being true must not leak
+  // into the other just because they came from the same master row.
+  it('does not couple the two flags together (independent columns)', () => {
+    const eligibleNotTaxable = tempComponentToEarning({
+      amount: '100000.00',
+      component: { isTaxable: false, isBpjsEligible: true },
+    });
+    expect(eligibleNotTaxable.isTaxable).toBe(false);
+    expect(eligibleNotTaxable.isBpjsEligible).toBe(true);
   });
 });
 

@@ -11,4 +11,7 @@ export class CreatePayslipComponentDto {
 
   @IsBoolean()
   isTaxable: boolean;
+
+  @IsBoolean()
+  isBpjsEligible: boolean;
 }
