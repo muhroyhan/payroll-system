@@ -15,6 +15,9 @@ import { LeavePolicyMasterPage } from '../features/leave/leave-policy-master/Lea
 import { LeaveBalancesPage } from '../features/leave/leave-balances/LeaveBalancesPage';
 import { LeaveRequestListPage } from '../features/leave/leave-requests/LeaveRequestListPage';
 import { LeaveRequestDetailPage } from '../features/leave/leave-requests/LeaveRequestDetailPage';
+import { FingerprintsPage } from '../features/fingerprints/FingerprintsPage';
+import { RawLogsPage } from '../features/attendance/raw-logs/RawLogsPage';
+import { AttendanceRecordsPage } from '../features/attendance/records/AttendanceRecordsPage';
 import { ProtectedLayout } from './ProtectedLayout';
 
 // FE-T01/T03/T04 (09_FRONTEND_STEPS.md) — /login, /403, and * are public
@@ -44,6 +47,9 @@ export const router = createBrowserRouter([
       { path: '/leave/balances', element: <LeaveBalancesPage /> },
       { path: '/leave/requests', element: <LeaveRequestListPage /> },
       { path: '/leave/requests/:id', element: <LeaveRequestDetailPage /> },
+      { path: '/attendance/fingerprints', element: <FingerprintsPage /> },
+      { path: '/attendance/raw-logs', element: <RawLogsPage /> },
+      { path: '/attendance/records', element: <AttendanceRecordsPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },
