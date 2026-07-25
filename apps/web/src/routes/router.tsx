@@ -18,6 +18,12 @@ import { LeaveRequestDetailPage } from '../features/leave/leave-requests/LeaveRe
 import { FingerprintsPage } from '../features/fingerprints/FingerprintsPage';
 import { RawLogsPage } from '../features/attendance/raw-logs/RawLogsPage';
 import { AttendanceRecordsPage } from '../features/attendance/records/AttendanceRecordsPage';
+import { SuratIjinListPage } from '../features/letters/surat-ijin/SuratIjinListPage';
+import { SuratIjinDetailPage } from '../features/letters/surat-ijin/SuratIjinDetailPage';
+import { SuratPeringatanListPage } from '../features/letters/surat-peringatan/SuratPeringatanListPage';
+import { SuratPeringatanDetailPage } from '../features/letters/surat-peringatan/SuratPeringatanDetailPage';
+import { OvertimeLetterListPage } from '../features/letters/overtime-letters/OvertimeLetterListPage';
+import { OvertimeLetterDetailPage } from '../features/letters/overtime-letters/OvertimeLetterDetailPage';
 import { ProtectedLayout } from './ProtectedLayout';
 
 // FE-T01/T03/T04 (09_FRONTEND_STEPS.md) — /login, /403, and * are public
@@ -50,6 +56,12 @@ export const router = createBrowserRouter([
       { path: '/attendance/fingerprints', element: <FingerprintsPage /> },
       { path: '/attendance/raw-logs', element: <RawLogsPage /> },
       { path: '/attendance/records', element: <AttendanceRecordsPage /> },
+      { path: '/letters/surat-ijin', element: <SuratIjinListPage /> },
+      { path: '/letters/surat-ijin/:id', element: <SuratIjinDetailPage /> },
+      { path: '/letters/surat-peringatan', element: <SuratPeringatanListPage /> },
+      { path: '/letters/surat-peringatan/:id', element: <SuratPeringatanDetailPage /> },
+      { path: '/letters/overtime', element: <OvertimeLetterListPage /> },
+      { path: '/letters/overtime/:id', element: <OvertimeLetterDetailPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },
