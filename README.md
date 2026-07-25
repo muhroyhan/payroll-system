@@ -42,7 +42,7 @@ pnpm --filter @payroll-system/api db:seed
 
 # 6. Run
 pnpm dev:api    # NestJS on http://localhost:3000
-pnpm dev:web    # Vite dev server
+pnpm dev:web    # Vite dev server on http://localhost:3001
 ```
 
 Default seeded admin login: `admin@payroll-system.local` / `ChangeMe123!` (override via
@@ -60,8 +60,8 @@ docker-compose.yml     Local MySQL + Redis
 
 ## Documentation
 
-- **User Manual** — how to use the application (coming soon)
-- **Technical Manual** — architecture, API reference, database schema (coming soon)
+- **./manuals/user_manual.docs** — how to use the application
+- **./manuals/tech_manual.docs** — architecture, API reference, database schema
 - **[docs/](./docs/)** — the original project spec this system was built against
   (rules, phased build plan, test/boundary definitions)
 

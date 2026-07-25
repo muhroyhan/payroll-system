@@ -1,7 +1,7 @@
 # Payroll System — Part E: Boundaries and Test Scenarios
 
-> Part 5 of 5 (final). See [00_README.md](./00_README.md) for the full doc set and how to use it with Claude.
-Previous: [04_STEPS.md](./04_STEPS.md)
+> Part 5 of 5 of the **backend bundle** (final). See [00_README.md](./00_README.md) for the full doc set and how to use it with Claude.
+Previous: [04_STEPS.md](./04_STEPS.md) · Next bundle (frontend): [06_FRONTEND_GENERAL.md](./06_FRONTEND_GENERAL.md)
 
 ---
 

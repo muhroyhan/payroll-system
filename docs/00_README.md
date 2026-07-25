@@ -1,12 +1,16 @@
 # Payroll System — Development Reference Doc Set
 
-This is the same spec you've been using, split into 5 files so you can point Claude at only
+This is the same spec you've been using, split into files so you can point Claude at only
 the part relevant to the current session instead of the whole thing every time. Keep this
 whole folder (e.g. `docs/payroll-spec/`) together — the files cross-reference each other by
 section number (`§5.2`, `§11`, etc.), and those numbers still refer to the *original* combined
 doc's numbering, not per-file numbering.
 
-## Files
+Two bundles: **00–05 is the backend** (built, Phases 1–8 complete) and **06–09 is the Admin
+Web frontend**. The frontend bundle never restates business logic — it cites the backend
+sections instead.
+
+## Backend bundle (`apps/api`)
 
 | File | Contents | When to point Claude at it |
 |---|---|---|
@@ -16,12 +20,31 @@ doc's numbering, not per-file numbering.
 | [04_STEPS.md](./04_STEPS.md) | §10: Feature roadmap with Task IDs (P1–P10) per phase | Every session — tell Claude which Task ID you're on (e.g. "we're starting P3-T04"). |
 | [05_BOUNDARIES_AND_TESTS.md](./05_BOUNDARIES_AND_TESTS.md) | §11–12: Immutability/validation rules, full test suite with edge cases, sign-off checklist | Whenever building anything with a lock/CRUD-restriction (§11), and mandatory for Phase 10 (P10-T01). |
 
+## Frontend bundle (`apps/web`)
+
+| File | Contents | When to point Claude at it |
+|---|---|---|
+| [06_FRONTEND_GENERAL.md](./06_FRONTEND_GENERAL.md) | §13: Frontend scope, stack delta, state-management pattern, auth flow as the backend actually implements it, **and the ⛔ backend gaps (B-01…B-08) that block FE work** | Once at frontend kickoff, and again whenever an auth or blocker question comes up. |
+| [07_FRONTEND_RULES.md](./07_FRONTEND_RULES.md) | §14: Hard frontend boundaries R-01…R-13 (one state library, antd Form only, one error-mapping contract, no hardcoded enums, locks disabled before the click) | **Every `apps/web` session** — the frontend analogue of 02_RULES.md. |
+| [08_FRONTEND_STRUCTURE.md](./08_FRONTEND_STRUCTURE.md) | §15: Screen/module inventory — routes, endpoints + their real guards, state-machine visualisations, and the lock-derivability matrix | Point at the **one subsection** for the module being built (e.g. §15.12 for payroll runs), not the whole file. |
+| [09_FRONTEND_STEPS.md](./09_FRONTEND_STEPS.md) | §16: Frontend roadmap, Task IDs FE-T00…FE-T34, plus the frontend sign-off checklist | Every `apps/web` session — say which FE Task ID you're on. |
+
 ## Suggested prompt pattern
+
+Backend:
 
 ```
 Read 02_RULES.md and 04_STEPS.md.
 We're on P3-T03 (attendance reconciliation service).
 Also read the relevant part of 03_STRUCTURE.md (§5.3) for the data shapes.
+```
+
+Frontend:
+
+```
+Read 07_FRONTEND_RULES.md and 09_FRONTEND_STEPS.md.
+We're on FE-T17 (attendance records screen + period lock).
+Also read 08_FRONTEND_STRUCTURE.md §15.8 and §15.2.
 ```
 
 This keeps context small and cheap per prompt instead of re-pasting the whole spec, while
