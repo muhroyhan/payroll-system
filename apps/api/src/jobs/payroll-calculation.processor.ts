@@ -9,17 +9,17 @@ import {
 import { Employee } from '../modules/employees/entities/employee.entity';
 import { PayrollRun } from '../modules/payroll-runs/entities/payroll-run.entity';
 import { isTransitionAllowed } from '../modules/payroll-runs/payroll-run-transitions';
+import { PayrollRunCalculationService } from '../modules/payroll-calculation/payroll-run-calculation.service';
 import { PAYROLL_CALCULATION_QUEUE } from './payroll-calculation.queue';
 
 // §01_GENERAL — "Process employees in chunks (e.g. 100–200 per batch)". 100 is
 // the safe lower end: finer checkpointing, smaller retry unit. Free to tune.
 const CHUNK_SIZE = 100;
 
-// P8-T02 — SKELETON only. Iterates the run's employees in chunks and tracks
-// progress; the real §9 per-employee calculation + payslip bulkCreate is
-// P8-T04 (the placeholder loop below). Same PATTERN as PdfGenerationProcessor
-// (one @Processor per queue, dispatch by job.name) — never a second competing
-// worker on this queue.
+// P8-T02/T04 — the calculation worker. Chunks the run's employees, runs the
+// full §9 calculation per employee (P8-T04, PayrollRunCalculationService),
+// tracks progress, and flips the run to `calculated`. Same PATTERN as
+// PdfGenerationProcessor (one @Processor per queue, dispatch by job.name).
 @Processor(PAYROLL_CALCULATION_QUEUE)
 export class PayrollCalculationProcessor extends WorkerHost {
   private readonly logger = new Logger(PayrollCalculationProcessor.name);
@@ -29,6 +29,7 @@ export class PayrollCalculationProcessor extends WorkerHost {
     private readonly payrollRunModel: typeof PayrollRun,
     @InjectModel(Employee)
     private readonly employeeModel: typeof Employee,
+    private readonly calculationService: PayrollRunCalculationService,
   ) {
     super();
   }
@@ -66,6 +67,12 @@ export class PayrollCalculationProcessor extends WorkerHost {
     const total = await this.employeeModel.count({ where });
     await run.update({ totalCount: total, processedCount: 0 });
 
+    // P8-T03 — one scope-resolver cache for the whole run (snapshot-once,
+    // shared across all chunks; never leaks to another run).
+    const scopeCache = this.calculationService.newScopeCache(
+      `${run.period}-01`,
+    );
+
     // Stable ordering so a retry re-chunks the same employees into the same
     // batches (checkpoint-friendly, §01_GENERAL).
     for (let offset = 0; offset < total; offset += CHUNK_SIZE) {
@@ -76,13 +83,15 @@ export class PayrollCalculationProcessor extends WorkerHost {
         offset,
       });
 
-      for (const _employee of chunk) {
-        // P8-T04 — real §9 calculation + payslip/payslip_line_items bulkCreate
-        // per employee goes here (with a unique constraint on
-        // (payroll_run_id, employee_id) for insert-level idempotency, same
-        // DB-constraint pattern as kasbon_deductions, P5-T02). Placeholder for
-        // now — the skeleton only exercises chunking + progress.
-        void _employee;
+      for (const employee of chunk) {
+        // P8-T04 — full §9 calculation + payslip/line-item persistence per
+        // employee, idempotent via the payslips (payroll_run_id, employee_id)
+        // unique constraint (same DB-constraint pattern as kasbon_deductions).
+        await this.calculationService.calculateEmployee(
+          run,
+          employee,
+          scopeCache,
+        );
       }
 
       // Absolute SET (not increment): re-running a chunk on retry writes the

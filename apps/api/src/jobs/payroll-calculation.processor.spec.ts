@@ -31,11 +31,16 @@ describe('PayrollCalculationProcessor (P8-T02)', () => {
           },
         ),
     };
+    const calculationService = {
+      newScopeCache: jest.fn().mockReturnValue({}),
+      calculateEmployee: jest.fn().mockResolvedValue(undefined),
+    };
     const processor = new PayrollCalculationProcessor(
       payrollRunModel as any,
       employeeModel as any,
+      calculationService as any,
     );
-    return { processor, payrollRunModel, employeeModel };
+    return { processor, payrollRunModel, employeeModel, calculationService };
   }
 
   function draftRun(): MockRun {

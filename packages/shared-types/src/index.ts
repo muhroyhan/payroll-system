@@ -10,3 +10,4 @@ export * from "./enums/leave";
 export * from "./enums/letters";
 export * from "./enums/kasbon";
 export * from "./enums/payroll-run";
+export * from "./enums/payslip-line-source";
