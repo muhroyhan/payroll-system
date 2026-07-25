@@ -9,7 +9,7 @@ import { ApiErrorDisplay } from '../../../components/ApiErrorDisplay';
 import { formatDate } from '../../../components/format';
 import { useDownloadPdf } from '../../../hooks/useDownloadPdf';
 import { describeApiError, type ApiErrorPresentation } from '../../../api/errors';
-import { PendingApprovalActions } from '../PendingApprovalActions';
+import { PendingApprovalActions } from '../../../components/PendingApprovalActions';
 import {
   useApproveSuratIjinMutation,
   useRejectSuratIjinMutation,

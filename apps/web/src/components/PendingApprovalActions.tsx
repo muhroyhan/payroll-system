@@ -10,12 +10,14 @@ interface PendingApprovalActionsProps {
   rejectLabel?: string;
 }
 
-// FE-T18/T20 (09_FRONTEND_STEPS.md), §15.10 (08_FRONTEND_STRUCTURE.md) — the
-// one piece genuinely identical across surat_ijin (approve/reject) and
-// overtime_letter (verify/reject): a button pair that exists ONLY while
-// status is pending. surat_peringatan has no such workflow at all (no
-// pending/approved status, no approve/reject endpoints — verified against
-// surat-peringatan.controller.ts), so it doesn't use this component.
+// FE-T18/T20/T21 (09_FRONTEND_STEPS.md) — the piece genuinely identical
+// across every pending → approved|rejected workflow (surat_ijin, overtime
+// letters' verify/reject, kasbon): a button pair that exists ONLY while
+// status is pending. Lives in components/, not features/letters/, because
+// kasbon (FE-T21) is its third consumer and isn't a letter — this is a
+// generic UI piece, not a letters-specific one. surat_peringatan has no such
+// workflow at all (no status field, no approve/reject endpoints — verified
+// against surat-peringatan.controller.ts), so it doesn't use this component.
 export function PendingApprovalActions({
   isPending,
   onApprove,
