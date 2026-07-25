@@ -325,4 +325,64 @@ describe('KasbonService', () => {
       );
     });
   });
+
+  // P8-T07 — reversing a run's deductions when the run is reverted to draft.
+  describe('reverseInstallmentsForRun', () => {
+    it('restores remaining_balance and deletes the deduction row', async () => {
+      const kasbon = record({
+        status: KasbonStatus.APPROVED,
+        amount: '3000000.00',
+        remainingBalance: '2000000.00', // one 1,000,000 installment taken
+      });
+      const deduction = {
+        kasbonId: 'kb-1',
+        amount: '1000000.00',
+        destroy: jest.fn().mockResolvedValue(undefined),
+      };
+      const { service, model, deductionModel } = makeService(kasbon, null);
+      deductionModel.findAll = jest.fn().mockResolvedValue([deduction]);
+      model.findByPk = jest.fn().mockResolvedValue(kasbon);
+
+      const reversed = await service.reverseInstallmentsForRun(
+        'run-1',
+        'txn' as any,
+      );
+
+      expect(reversed).toBe(1);
+      expect(kasbon.remainingBalance).toBe('3000000.00'); // restored
+      expect(deduction.destroy).toHaveBeenCalled();
+    });
+
+    it('un-pays-off a kasbon whose final installment is being reversed', async () => {
+      const kasbon = record({
+        status: KasbonStatus.PAID_OFF,
+        amount: '1000000.00',
+        remainingBalance: '0.00',
+      });
+      const deduction = {
+        kasbonId: 'kb-1',
+        amount: '1000000.00',
+        destroy: jest.fn().mockResolvedValue(undefined),
+      };
+      const { service, model, deductionModel } = makeService(kasbon, null);
+      deductionModel.findAll = jest.fn().mockResolvedValue([deduction]);
+      model.findByPk = jest.fn().mockResolvedValue(kasbon);
+
+      await service.reverseInstallmentsForRun('run-1', 'txn' as any);
+
+      expect(kasbon.remainingBalance).toBe('1000000.00');
+      expect(kasbon.status).toBe(KasbonStatus.APPROVED); // no longer paid_off
+    });
+
+    it('is a no-op when the run drew no installments', async () => {
+      const { service, deductionModel } = makeService(null, null);
+      deductionModel.findAll = jest.fn().mockResolvedValue([]);
+
+      const reversed = await service.reverseInstallmentsForRun(
+        'run-1',
+        'txn' as any,
+      );
+      expect(reversed).toBe(0);
+    });
+  });
 });

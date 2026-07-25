@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { UniqueConstraintError } from 'sequelize';
+import { Transaction, UniqueConstraintError } from 'sequelize';
 import { KasbonStatus } from '@payroll-system/shared-types';
 import { assertPendingStatus } from '../../common/approval-workflow/assert-pending';
 import { Kasbon } from './entities/kasbon.entity';
@@ -153,6 +153,45 @@ export class KasbonService {
       patch.status = KasbonStatus.PAID_OFF;
     }
     return record.update(patch);
+  }
+
+  // P8-T07 — undo every installment this payroll run drew, when the run is
+  // reverted to draft. A deduction is only ever provisional while the run is
+  // `calculated` (revert is impossible once approved/disbursed, TC-PAYROLL-05),
+  // so reversing here never touches a truly-disbursed payment. Restores
+  // remaining_balance and un-pays-off a kasbon the deleted deduction had
+  // settled — keeping remaining_balance an accurate reflection of only the
+  // installments still backed by a live payslip. Runs inside the caller's
+  // revert transaction so the whole teardown is atomic.
+  async reverseInstallmentsForRun(
+    payrollRunId: string,
+    transaction: Transaction,
+  ): Promise<number> {
+    const deductions = await this.kasbonDeductionModel.findAll({
+      where: { payrollRunId },
+      transaction,
+    });
+    for (const deduction of deductions) {
+      const kasbon = await this.kasbonModel.findByPk(deduction.kasbonId, {
+        transaction,
+      });
+      if (kasbon) {
+        const current = Number(kasbon.remainingBalance ?? kasbon.amount);
+        const restored = current + Number(deduction.amount);
+        await kasbon.update(
+          {
+            remainingBalance: restored.toFixed(2),
+            status:
+              kasbon.status === KasbonStatus.PAID_OFF
+                ? KasbonStatus.APPROVED
+                : kasbon.status,
+          },
+          { transaction },
+        );
+      }
+      await deduction.destroy({ transaction });
+    }
+    return deductions.length;
   }
 
   private async assertPending(id: string): Promise<Kasbon> {

@@ -3,10 +3,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/sequelize';
+import { InjectConnection, InjectModel } from '@nestjs/sequelize';
+import { Sequelize } from 'sequelize';
 import { PayrollRunStatus } from '@payroll-system/shared-types';
 import { PayrollCalculationQueue } from '../../jobs/payroll-calculation.queue';
 import { PayrollRun } from './entities/payroll-run.entity';
+import { PayrollRunRevertService } from './payroll-run-revert.service';
 import { CreatePayrollRunDto } from './dto/create-payroll-run.dto';
 import { isTransitionAllowed } from './payroll-run-transitions';
 
@@ -16,9 +18,11 @@ import { isTransitionAllowed } from './payroll-run-transitions';
 @Injectable()
 export class PayrollRunsService {
   constructor(
+    @InjectConnection() private readonly sequelize: Sequelize,
     @InjectModel(PayrollRun)
     private readonly payrollRunModel: typeof PayrollRun,
     private readonly payrollCalculationQueue: PayrollCalculationQueue,
+    private readonly revertService: PayrollRunRevertService,
   ) {}
 
   list(): Promise<PayrollRun[]> {
@@ -84,10 +88,18 @@ export class PayrollRunsService {
   // has no revert path, TC-PAYROLL-05).
   async revertToDraft(id: string): Promise<PayrollRun> {
     const record = await this.assertTransition(id, PayrollRunStatus.DRAFT);
-    // P8-T04 — when payslips/payslip_line_items exist, reverting must also
-    // delete this run's still-draft payslips + line items so they regenerate
-    // from corrected data (§11). Flagged; those tables don't exist yet.
-    return record.update({ status: PayrollRunStatus.DRAFT });
+    // P8-T07 — closes the gap flagged in P8-T01: reverting throws away this
+    // run's provisional payslips + line items (regenerated from corrected data
+    // on recalc) and rolls back the kasbon installments they drew, then flips
+    // the status. All in one transaction so a failure can't leave the run
+    // half-torn-down. Deleting the line items also auto-releases any
+    // sanction/overtime letter they had locked (§11 — that lock is derived
+    // from the reference, see PayrollRunRevertService).
+    await this.sequelize.transaction(async (transaction) => {
+      await this.revertService.revertRunData(id, transaction);
+      await record.update({ status: PayrollRunStatus.DRAFT }, { transaction });
+    });
+    return record;
   }
 
   private async assertTransition(

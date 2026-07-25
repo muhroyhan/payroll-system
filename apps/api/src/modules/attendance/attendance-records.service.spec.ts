@@ -19,13 +19,27 @@ describe('AttendanceRecordsService.upsert (TC-ATT-07)', () => {
 
   function makeService(
     existing: { source: AttendanceSource; update: jest.Mock } | null,
+    periodLocked = false,
   ) {
     const model = {
       findOne: jest.fn().mockResolvedValue(existing),
       create: jest.fn().mockResolvedValue({ id: 'new-row' }),
     };
-    const service = new AttendanceRecordsService(model as any);
-    return { service, model };
+    const payrollPeriodLock = {
+      isPeriodLocked: jest.fn().mockResolvedValue(periodLocked),
+      assertPeriodEditable: jest
+        .fn()
+        .mockImplementation(() =>
+          periodLocked
+            ? Promise.reject(new ConflictException('locked'))
+            : Promise.resolve(),
+        ),
+    };
+    const service = new AttendanceRecordsService(
+      model as any,
+      payrollPeriodLock as any,
+    );
+    return { service, model, payrollPeriodLock };
   }
 
   it('creates a new row when none exists for this employee/date', async () => {
@@ -76,5 +90,35 @@ describe('AttendanceRecordsService.upsert (TC-ATT-07)', () => {
       true,
     );
     expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  // §11 / TC-PAYROLL-04 (P8-T07) — a period whose payroll run is past draft is
+  // locked for attendance edits, regardless of source or overwrite.
+  it('rejects any write when the period is locked by a payroll run past draft', async () => {
+    const { service, model } = makeService(null, true);
+
+    await expect(
+      service.upsert({ ...baseInput, source: AttendanceSource.FINGERPRINT }),
+    ).rejects.toThrow(ConflictException);
+    expect(model.create).not.toHaveBeenCalled();
+  });
+
+  it('checks the lock BEFORE the source-collision check (period lock wins)', async () => {
+    const update = jest.fn();
+    const { service, payrollPeriodLock } = makeService(
+      { source: AttendanceSource.CSV_IMPORT, update },
+      true,
+    );
+
+    await expect(
+      service.upsert(
+        { ...baseInput, source: AttendanceSource.FINGERPRINT },
+        true, // even with overwrite, the period lock still blocks
+      ),
+    ).rejects.toThrow(ConflictException);
+    expect(payrollPeriodLock.assertPeriodEditable).toHaveBeenCalledWith(
+      '2026-06',
+    );
+    expect(update).not.toHaveBeenCalled();
   });
 });

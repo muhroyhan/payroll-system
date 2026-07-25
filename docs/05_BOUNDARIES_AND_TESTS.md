@@ -24,6 +24,17 @@ Concrete rules per entity:
   passed `approved` (an `approved` or `disbursed` run is permanently locked, full stop, no
   revert path). Reverting a `calculated` run should also invalidate/delete its (still-draft)
   `payslips` and `payslip_line_items`, since they'll be regenerated from corrected data.
+  **Revert-rollback scope (decided P8-T07):** reverting also rolls back the `kasbon_deductions`
+  those payslips drew — restoring each kasbon's `remaining_balance` and un-`paid_off`-ing it —
+  because `deductInstallment` mutated real kasbon state that would otherwise be left orphaned
+  (a phantom deduction with no backing payslip). This is safe precisely because revert is
+  impossible past `approved`, so a reversed installment was never part of a truly-disbursed
+  payment. In contrast, `surat_peringatan`/`overtime_letter` are NOT explicitly rolled back:
+  the calculation never mutated them, it only cited them by `source_id`, so their lock is
+  derived from the `payslip_line_items` reference count and deleting those line items releases
+  them automatically. Ordering (a "locked" letter vs. a reverted run) is therefore never a
+  conflict — the letter's lock exists exactly as long as the line item citing it, and the run's
+  lifecycle bounds that line item's lifetime.
 - **`payslips`:** CRU only, never delete (already noted in §5.8). Once `status = approved`,
   `gross_pay`/`pph21_amount`/BPJS fields/`net_pay` and all linked `payslip_line_items` are
   immutable — the only allowed mutation past `approved` is `pdf_path` (regenerating the PDF

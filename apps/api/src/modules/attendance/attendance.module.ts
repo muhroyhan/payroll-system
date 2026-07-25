@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { HolidaysModule } from '../holidays/holidays.module';
 import { LeaveModule } from '../leave/leave.module';
+import { PayrollPeriodLockModule } from '../payroll-runs/payroll-period-lock.module';
 import { SuratIjinModule } from '../letters/surat-ijin/surat-ijin.module';
 import { SuratIjinPermissionResolver } from '../letters/surat-ijin/surat-ijin-permission-resolver.service';
 import { Fingerprint } from '../fingerprints/entities/fingerprint.entity';
@@ -27,6 +28,8 @@ import { PERMISSION_RESOLVER } from './permission-resolver.interface';
     HolidaysModule,
     LeaveModule,
     SuratIjinModule,
+    // §11 / TC-PAYROLL-04 — the period-lock check for attendance edits.
+    PayrollPeriodLockModule,
   ],
   controllers: [AttendanceRawLogsController, AttendanceRecordsController],
   providers: [

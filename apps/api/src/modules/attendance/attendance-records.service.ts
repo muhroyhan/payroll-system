@@ -9,6 +9,7 @@ import { AttendanceSource } from '@payroll-system/shared-types';
 import { AttendanceRecord } from './entities/attendance-record.entity';
 import { ReconciledDay } from './reconciliation-core';
 import { CreateAttendanceRecordDto } from './dto/create-attendance-record.dto';
+import { PayrollPeriodLockService } from '../payroll-runs/payroll-period-lock.service';
 
 export interface UpsertAttendanceRecordInput extends ReconciledDay {
   employeeId: string;
@@ -21,6 +22,7 @@ export class AttendanceRecordsService {
   constructor(
     @InjectModel(AttendanceRecord)
     private readonly attendanceRecordModel: typeof AttendanceRecord,
+    private readonly payrollPeriodLock: PayrollPeriodLockService,
   ) {}
 
   list(
@@ -65,6 +67,12 @@ export class AttendanceRecordsService {
     input: UpsertAttendanceRecordInput,
     overwrite = false,
   ): Promise<AttendanceRecord> {
+    // §11 / TC-PAYROLL-04 — a period whose payroll run is past `draft` is
+    // locked: no create/update/reconcile of its attendance until the run is
+    // reverted to draft. All three write paths (manual, csv import,
+    // reconciliation) funnel through upsert, so this one guard covers them.
+    await this.payrollPeriodLock.assertPeriodEditable(input.date.slice(0, 7));
+
     const existing = await this.findByEmployeeAndDate(
       input.employeeId,
       input.date,

@@ -14,8 +14,25 @@ describe('PayrollRunsService (P8-T01)', () => {
     const queue = {
       enqueueCalculateRun: jest.fn().mockResolvedValue(undefined),
     };
-    const service = new PayrollRunsService(model as any, queue as any);
-    return { service, model, queue };
+    const sequelize = {
+      transaction: jest
+        .fn()
+        .mockImplementation((cb: (t: unknown) => unknown) => cb('txn')),
+    };
+    const revertService = {
+      revertRunData: jest.fn().mockResolvedValue({
+        deletedPayslips: 0,
+        deletedLineItems: 0,
+        reversedKasbonDeductions: 0,
+      }),
+    };
+    const service = new PayrollRunsService(
+      sequelize as any,
+      model as any,
+      queue as any,
+      revertService as any,
+    );
+    return { service, model, queue, sequelize, revertService };
   }
 
   function run(status: PayrollRunStatus) {
@@ -91,11 +108,25 @@ describe('PayrollRunsService (P8-T01)', () => {
     expect(result.lockedAt).toBeInstanceOf(Date);
   });
 
-  it('revertToDraft: calculated → draft', async () => {
+  it('revertToDraft: calculated → draft, tearing down payslips + kasbon in a txn', async () => {
     const r = run(PayrollRunStatus.CALCULATED);
-    const { service } = makeService(r);
+    const { service, revertService, sequelize } = makeService(r);
     const result = await service.revertToDraft('run-1');
     expect(result.status).toBe(PayrollRunStatus.DRAFT);
+    // Teardown runs, and it runs inside a transaction (atomic with the flip).
+    expect(sequelize.transaction).toHaveBeenCalledTimes(1);
+    expect(revertService.revertRunData).toHaveBeenCalledWith('run-1', 'txn');
+  });
+
+  it('revertToDraft: does NOT tear down data when the transition is rejected', async () => {
+    const { service, revertService } = makeService(
+      run(PayrollRunStatus.APPROVED),
+    );
+    await expect(service.revertToDraft('run-1')).rejects.toThrow(
+      ConflictException,
+    );
+    // The guard throws before any teardown — an approved run's payslips are safe.
+    expect(revertService.revertRunData).not.toHaveBeenCalled();
   });
 
   // §11 / TC-PAYROLL-05 — the guarded rejections.
