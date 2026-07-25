@@ -1,32 +1,78 @@
-# payroll-system
+# Payroll System
 
-Single-tenant payroll + HR-letters system for Indonesian SMBs. See [docs/00_README.md](./docs/00_README.md)
-for the full spec and how to point Claude/contributors at the relevant sections per session.
+Single-tenant payroll + HR-letters system for Indonesian SMBs — handles attendance,
+leave, HR letters (izin/peringatan/lembur), kasbon, PPh21/BPJS calculation, and payslip
+generation for internal HR/finance staff.
 
-## Stack
+## Tech Stack
 
-- **apps/api** — NestJS backend (Sequelize + MySQL, BullMQ for background jobs)
-- **apps/web** — React + Vite admin UI
-- **packages/shared-types** — enums/DTOs shared between api and web
+- **Backend** — NestJS, Sequelize (MySQL), BullMQ (background jobs)
+- **Frontend** — React + Vite, antd
+- **Shared** — `packages/shared-types` (enums/DTOs shared between api and web)
+- **Monorepo** — pnpm workspaces
 
-## Getting started
+## Prerequisites
+
+- Node.js >= 20
+- pnpm 10.x (`corepack enable` will pick up the pinned version automatically)
+- MySQL 8.x and Redis 7.x — or just Docker (see below)
+
+## Quick Start
 
 ```bash
+git clone <repo-url>
+cd payroll-system
+
+# 1. Install dependencies
 pnpm install
-pnpm --filter @payroll-system/shared-types build   # build once before running api/web
-pnpm dev:api    # NestJS on watch mode
+
+# 2. Start MySQL + Redis
+docker compose up -d
+
+# 3. Configure environment
+cp apps/api/.env.example apps/api/.env
+# edit apps/api/.env if your local MySQL/Redis differ from the defaults
+
+# 4. Build shared types (required before running api/web)
+pnpm --filter @payroll-system/shared-types build
+
+# 5. Migrate + seed the database
+pnpm --filter @payroll-system/api db:migrate
+pnpm --filter @payroll-system/api db:seed
+
+# 6. Run
+pnpm dev:api    # NestJS on http://localhost:3000
 pnpm dev:web    # Vite dev server
 ```
 
-## Monorepo scripts
+Default seeded admin login: `admin@payroll-system.local` / `ChangeMe123!` (override via
+`ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env` before seeding).
 
-| Script | Does |
-|---|---|
-| `pnpm build` | Builds shared-types first, then all apps |
-| `pnpm lint` | Lints every workspace package |
-| `pnpm test` | Runs tests in every workspace package |
+## Monorepo Structure
 
-## Current status
+```
+apps/api               NestJS backend
+apps/web               React + Vite admin UI
+packages/shared-types  Enums/DTOs shared between api and web
+docs/                  Project spec, architecture rules, phase plan, test boundaries
+docker-compose.yml     Local MySQL + Redis
+```
 
-Phase 1 (Foundation & Constants) in progress — see [docs/04_STEPS.md](./docs/04_STEPS.md) §10 for the
-full task list and phase order.
+## Documentation
+
+- **User Manual** — how to use the application (coming soon)
+- **Technical Manual** — architecture, API reference, database schema (coming soon)
+- **[docs/](./docs/)** — the original project spec this system was built against
+  (rules, phased build plan, test/boundary definitions)
+
+## Project Status
+
+Phases 1–8 (core payroll build) and Phase 10 (testing & go-live validation) are complete.
+Phase 9 (nice-to-have features) is deferred — not implemented, not required for
+production use.
+
+Two pre-production open items remain — see
+[docs/04_STEPS.md](./docs/04_STEPS.md) for details:
+- Annual/December PPh21 rounding mode is unverified (monthly rounding is confirmed).
+- BPJS JKK company rate needs confirming against this employer's actual registered risk
+  class.
