@@ -180,35 +180,45 @@ These are **gaps found in the backend, not frontend design choices.** Each one b
 degrades a specific frontend behaviour. They are repeated as tasks FE-T00a…FE-T00f in
 [09_FRONTEND_STEPS.md](./09_FRONTEND_STEPS.md).
 
-- [ ] **B-01 — CORS is not enabled.** `apps/api/src/main.ts` never calls
-      `app.enableCors()`. The API listens on `:3000`, the Vite dev server on `:3001`
-      (`apps/web/vite.config.ts`), so **every browser request will fail preflight today.**
-      Decide one: enable CORS on the API for the web origin, or add a `server.proxy` entry
-      in `vite.config.ts` for dev + serve the built SPA same-origin in production. *This is
-      a hard blocker — no screen can call any endpoint until it is resolved.*
+- [x] **B-01 — RESOLVED (FE-T00).** CORS was not enabled; the API listens on `:3000`, the
+      Vite dev server on `:3001` (`apps/web/vite.config.ts`), so every browser request failed
+      preflight. **Decision: `app.enableCors()` on the API**, not a Vite dev proxy — chosen
+      over the proxy because it works identically whether `apps/web` ends up served from a
+      separate origin or same-origin in production, without a second code path to maintain.
+      Implemented in `apps/api/src/main.ts`: allowed origins come from `CORS_ORIGIN` (comma-
+      separated, defaults to `http://localhost:3001`), added to `.env.example`. `credentials`
+      stays disabled — no cookie is issued (§13.4), the token travels as a Bearer header, so
+      there is nothing for the browser to need cross-origin credential mode for.
 
 - [ ] **B-02 — No global API prefix.** Routes are mounted at the root (`/employees`, not
-      `/api/employees`); `main.ts` has no `setGlobalPrefix`. Confirm this stays, because the
-      shared axios `baseURL` is built from it — and if the SPA is later served same-origin,
-      the absence of a prefix makes route collisions with client routes likely.
+      `/api/employees`); `main.ts` has no `setGlobalPrefix`. **Status: not a blocker** — the
+      shared axios `baseURL` (FE-T02) is simply `http://localhost:3000` (dev) / the deployed
+      API origin (prod), no `/api` segment. Confirm before a same-origin production
+      deployment is set up, since the absence of a prefix makes route collisions with client
+      routes (e.g. an SPA route also named `/employees`) possible in that specific topology —
+      not a concern for the current separate-origin-plus-CORS setup from B-01.
 
 - [ ] **B-03 — No token refresh, no `/auth/me`, no logout endpoint.** With `JWT_EXPIRES_IN=8h`
       and no refresh path, a user is hard-logged-out mid-session after 8 hours, losing
       unsaved form state. Also, on a page reload the frontend can only restore the user from
       whatever it persisted itself — it **cannot** re-validate the token or re-fetch the
-      current user, because no `GET /auth/me` exists. Confirm the intended behaviour:
-      (a) accept it and persist `user` client-side alongside the token, (b) add
-      `GET /auth/me`, or (c) add a refresh token. **Do not assume a refresh endpoint exists
-      and build against it.**
+      current user, because no `GET /auth/me` exists. **Status: blocks FE-T03 only** (auth
+      flow), not FE-T01/T00. Confirm the intended behaviour: (a) accept it and persist `user`
+      client-side alongside the token — the path FE-T03 currently plans to build, consistent
+      with the B-04 storage decision below — (b) add `GET /auth/me`, or (c) add a refresh
+      token. **Do not assume a refresh endpoint exists and build against it.**
 
-- [ ] **B-04 — Token storage is undecided and has a security trade-off.** No backend
-      decision exists (no cookie is issued — the token is returned in a JSON body, which
-      rules out `httpOnly` cookies without a backend change). `localStorage` survives reload
-      and is what the current API shape implies, but is XSS-readable; in-memory is safer but
-      logs the user out on every refresh, which is unusable at an 8-hour session length.
-      **Recommendation: `localStorage`**, consistent with the single-tenant, internal-staff
-      threat model — but record the decision explicitly rather than letting FE-T02 pick one
-      by accident.
+- [x] **B-04 — RESOLVED (FE-T00).** Token storage: **`localStorage`, storing both
+      `accessToken` and `user`** (the full login-response shape — `id`, `name`, `email`,
+      `role` — since there is no `/auth/me` to re-fetch it from, per B-03). Reasoning kept
+      short since this is a frontend-only call, not a backend gap: the API issues no cookie
+      (token comes back in a JSON body), which rules out `httpOnly` storage without a backend
+      change; in-memory-only storage would log the user out on every reload, which is
+      unworkable at an 8-hour session length with no refresh path (B-03); `localStorage`
+      survives reload and matches the single-tenant, internal-staff threat model this app
+      targets (§4 — no public signup, no untrusted third-party scripts). Session restore on
+      boot reads both keys back directly; there is nothing to re-validate against (B-03), so
+      a stale-but-unexpired token is trusted until the API itself returns 401.
 
 - [ ] **B-05 — No payslip PDF download endpoint.** P8-T05 generates payslip PDFs and stores
       `payslips.pdf_path`, and all three letters expose `GET /:id/pdf` returning a

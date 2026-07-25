@@ -14,8 +14,10 @@
     "@payroll-system/shared-types": "workspace:*",
     "@tanstack/react-query": "^5.101.2",
     "antd": "^6.5.1",
+    "axios": "^1.7.9",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "react-router-dom": "^7.1.5"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",
