@@ -10,6 +10,11 @@ import { OrganizationPage } from '../features/organization/OrganizationPage';
 import { SalaryMasterPage } from '../features/salary-master/SalaryMasterPage';
 import { IncentiveMasterPage } from '../features/incentive-master/IncentiveMasterPage';
 import { HolidaysPage } from '../features/holidays/HolidaysPage';
+import { LeaveTypesPage } from '../features/leave/leave-types/LeaveTypesPage';
+import { LeavePolicyMasterPage } from '../features/leave/leave-policy-master/LeavePolicyMasterPage';
+import { LeaveBalancesPage } from '../features/leave/leave-balances/LeaveBalancesPage';
+import { LeaveRequestListPage } from '../features/leave/leave-requests/LeaveRequestListPage';
+import { LeaveRequestDetailPage } from '../features/leave/leave-requests/LeaveRequestDetailPage';
 import { ProtectedLayout } from './ProtectedLayout';
 
 // FE-T01/T03/T04 (09_FRONTEND_STEPS.md) — /login, /403, and * are public
@@ -34,6 +39,11 @@ export const router = createBrowserRouter([
       { path: '/masters/salary', element: <SalaryMasterPage /> },
       { path: '/masters/incentive', element: <IncentiveMasterPage /> },
       { path: '/masters/holidays', element: <HolidaysPage /> },
+      { path: '/leave/types', element: <LeaveTypesPage /> },
+      { path: '/leave/policy', element: <LeavePolicyMasterPage /> },
+      { path: '/leave/balances', element: <LeaveBalancesPage /> },
+      { path: '/leave/requests', element: <LeaveRequestListPage /> },
+      { path: '/leave/requests/:id', element: <LeaveRequestDetailPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },
