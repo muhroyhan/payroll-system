@@ -130,14 +130,29 @@ export function describeApiError(error: unknown): ApiErrorPresentation {
   const serverMessage = extractServerMessage(data);
 
   switch (status) {
-    case 401:
-      // No refresh endpoint exists (B-03, 06_FRONTEND_GENERAL.md §13.5) —
-      // the interceptor in client.ts redirects immediately, it never retries.
+    case 401: {
+      // POST /auth/login itself answers wrong credentials with a plain 401
+      // (AuthService.validateUser) — that is NOT a session expiring, there
+      // is no session yet. Distinguishing by request URL (rather than
+      // always redirecting) is what lets client.ts's interceptor use
+      // `surface === 'redirect'` as its trigger without a second check.
+      const isLoginAttempt = error.config?.url?.includes('/auth/login');
+      if (isLoginAttempt) {
+        return {
+          kind: 'auth',
+          title: 'Email atau kata sandi salah.',
+          surface: 'inline',
+        };
+      }
+      // Every other 401 means an expired/invalid token. No refresh endpoint
+      // exists (B-03, 06_FRONTEND_GENERAL.md §13.5) — client.ts's
+      // interceptor redirects immediately, it never retries.
       return {
         kind: 'auth',
         title: 'Sesi berakhir, silakan login kembali.',
         surface: 'redirect',
       };
+    }
 
     case 403:
       // RolesGuard failure — the session is fine, the role is wrong. Never

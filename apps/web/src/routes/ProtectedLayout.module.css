@@ -1,0 +1,27 @@
+.logo {
+  color: #fff;
+  text-align: center;
+  padding: 16px 8px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.header {
+  background: #fff;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.userTrigger {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.content {
+  margin: 16px;
+}

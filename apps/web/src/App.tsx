@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConfigProvider } from 'antd';
 import { RouterProvider } from 'react-router-dom';
+import { AuthProvider } from './features/auth/AuthProvider';
 import { router } from './routes/router';
 
 // FE-T01 (09_FRONTEND_STEPS.md §13.2) — one QueryClient, app-wide (R-01,
@@ -17,7 +18,11 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ConfigProvider theme={theme}>
-        <RouterProvider router={router} />
+        {/* AuthProvider needs no router context of its own (plain state,
+            FE-T03) but every route below it does, so it wraps RouterProvider. */}
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
       </ConfigProvider>
     </QueryClientProvider>
   );

@@ -1,12 +1,21 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { HomePage } from '../pages/HomePage';
+import { ForbiddenPage } from '../pages/ForbiddenPage';
+import { NotFoundPage } from '../pages/NotFoundPage';
+import { LoginPage } from '../features/auth/LoginPage';
+import { ProtectedLayout } from './ProtectedLayout';
 
-// FE-T01 — router skeleton only. The protected layout, /login, /403, and the
-// access-map-driven route guards (R-11, 07_FRONTEND_RULES.md) land in FE-T03/FE-T04;
-// this file grows one route per feature task in 09_FRONTEND_STEPS.md.
+// FE-T01/T03/T04 (09_FRONTEND_STEPS.md) — /login, /403, and * are public
+// (no ProtectedLayout, no role check). Every other route nests under
+// ProtectedLayout, which enforces auth + the role guard from access.ts
+// (R-11, 07_FRONTEND_RULES.md) before rendering its <Outlet/>. Feature
+// tasks add one child route each; nothing here changes shape as they land.
 export const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage /> },
+  { path: '/403', element: <ForbiddenPage /> },
   {
-    path: '/',
-    element: <HomePage />,
+    element: <ProtectedLayout />,
+    children: [{ path: '/', element: <HomePage /> }],
   },
+  { path: '*', element: <NotFoundPage /> },
 ]);

@@ -1,0 +1,110 @@
+import type { ReactNode } from 'react';
+import { Alert, Tag, Typography } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { ListPage } from './ListPage';
+import { formatDate } from './format';
+
+interface EffectiveDatedRecord {
+  id: string;
+  effectiveStartDate: string;
+  effectiveEndDate: string | null;
+}
+
+interface EffectiveDatedMasterPageProps<T extends EffectiveDatedRecord> {
+  title: string;
+  query: {
+    data: T[] | undefined;
+    isLoading: boolean;
+    isError: boolean;
+    error: unknown;
+    refetch: () => void;
+  };
+  /** Domain-specific columns; the date-range + status + retire columns are appended here. */
+  columns: ColumnsType<T>;
+  primaryAction?: ReactNode;
+  /** Opens the edit form focused on effectiveEndDate — §11 says "retire",
+   *  never delete, so there is deliberately no onDelete prop. */
+  onRetire?: (record: T) => void;
+  /** The GET …/resolve preview panel — its query shape differs per master
+   *  (employeeId vs employeeId+leaveTypeId), so the caller builds it. */
+  resolvePreview?: ReactNode;
+}
+
+function isExpired(record: EffectiveDatedRecord): boolean {
+  return !!record.effectiveEndDate && new Date(record.effectiveEndDate) < new Date();
+}
+
+// §15.0/§15.5 (08_FRONTEND_STRUCTURE.md) — salary_master, incentive_master,
+// leave_policy_master, and every tax/BPJS constant table share this shape:
+// no DELETE endpoint exists (§11), a rule is retired via effectiveEndDate,
+// and payroll calculation for a past period must keep resolving whatever
+// was active *then* — the banner below states that explicitly instead of
+// leaving "why can't I delete this" to a 409.
+export function EffectiveDatedMasterPage<T extends EffectiveDatedRecord>({
+  title,
+  query,
+  columns,
+  primaryAction,
+  onRetire,
+  resolvePreview,
+}: EffectiveDatedMasterPageProps<T>) {
+  const dateColumns: ColumnsType<T> = [
+    {
+      title: 'Berlaku Sejak',
+      dataIndex: 'effectiveStartDate',
+      key: 'effectiveStartDate',
+      render: (value: string) => formatDate(value),
+    },
+    {
+      title: 'Berlaku Sampai',
+      dataIndex: 'effectiveEndDate',
+      key: 'effectiveEndDate',
+      render: (value: string | null) =>
+        value ? formatDate(value) : <Tag color="green">Tidak ditentukan</Tag>,
+    },
+    {
+      title: 'Status',
+      key: 'effectiveStatus',
+      render: (_, record) =>
+        isExpired(record) ? (
+          <Tag>Kedaluwarsa</Tag>
+        ) : (
+          <Tag color="green">Berlaku</Tag>
+        ),
+    },
+  ];
+
+  const retireColumn: ColumnsType<T> = onRetire
+    ? [
+        {
+          title: 'Aksi',
+          key: 'retire',
+          render: (_, record) => (
+            <Typography.Link onClick={() => onRetire(record)}>
+              Akhiri Masa Berlaku
+            </Typography.Link>
+          ),
+        },
+      ]
+    : [];
+
+  return (
+    <div>
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="Aturan lama tidak bisa dihapus."
+        description="Payroll run terdahulu harus tetap bisa direproduksi menggunakan aturan yang berlaku pada periodenya — koreksi dilakukan dengan mengakhiri masa berlaku aturan lama, bukan menghapusnya."
+      />
+      {resolvePreview}
+      <ListPage
+        title={title}
+        primaryAction={primaryAction}
+        query={query}
+        columns={[...columns, ...dateColumns, ...retireColumn]}
+        rowKey="id"
+      />
+    </div>
+  );
+}
