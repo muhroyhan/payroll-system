@@ -97,7 +97,15 @@ export class PayrollRunsService {
     // from the reference, see PayrollRunRevertService).
     await this.sequelize.transaction(async (transaction) => {
       await this.revertService.revertRunData(id, transaction);
-      await record.update({ status: PayrollRunStatus.DRAFT }, { transaction });
+      // The torn-down payslips/line items this run had calculated are gone,
+      // so the P8-T02 progress counters must go back to 0 too — otherwise a
+      // reverted run reports stale 100% progress from its previous
+      // calculation attempt, and the UI's "still calculating" detection
+      // (draft + totalCount > 0) never clears.
+      await record.update(
+        { status: PayrollRunStatus.DRAFT, processedCount: 0, totalCount: 0 },
+        { transaction },
+      );
     });
     return record;
   }

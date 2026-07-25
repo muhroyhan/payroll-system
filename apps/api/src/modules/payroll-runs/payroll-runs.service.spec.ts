@@ -118,6 +118,21 @@ describe('PayrollRunsService (P8-T01)', () => {
     expect(revertService.revertRunData).toHaveBeenCalledWith('run-1', 'txn');
   });
 
+  it('revertToDraft: resets the P8-T02 progress counters back to 0', async () => {
+    // Found via manual browser verification (FE-T26/27/28): a reverted run
+    // kept its stale processedCount/totalCount from the calculation that was
+    // just torn down, which made the frontend's "still calculating" check
+    // (draft + totalCount > 0) never clear again.
+    const r = Object.assign(run(PayrollRunStatus.CALCULATED), {
+      processedCount: 21,
+      totalCount: 21,
+    });
+    const { service } = makeService(r);
+    const result = await service.revertToDraft('run-1');
+    expect(result.processedCount).toBe(0);
+    expect(result.totalCount).toBe(0);
+  });
+
   it('revertToDraft: does NOT tear down data when the transition is rejected', async () => {
     const { service, revertService } = makeService(
       run(PayrollRunStatus.APPROVED),

@@ -31,6 +31,8 @@ import { PayslipTempComponentsPage } from '../features/payslip-temp-components/P
 import { TaxBpjsConstantsPage } from '../features/tax-bpjs-constants/TaxBpjsConstantsPage';
 import { SalaryPeriodConfigPage } from '../features/salary-period-config/SalaryPeriodConfigPage';
 import { UsersPage } from '../features/users/UsersPage';
+import { PayrollRunListPage } from '../features/payroll-runs/PayrollRunListPage';
+import { PayrollRunDetailPage } from '../features/payroll-runs/PayrollRunDetailPage';
 import { ProtectedLayout } from './ProtectedLayout';
 
 // FE-T01/T03/T04 (09_FRONTEND_STEPS.md) — /login, /403, and * are public
@@ -76,6 +78,8 @@ export const router = createBrowserRouter([
       { path: '/settings/tax-constants', element: <TaxBpjsConstantsPage /> },
       { path: '/settings/salary-period', element: <SalaryPeriodConfigPage /> },
       { path: '/settings/users', element: <UsersPage /> },
+      { path: '/payroll-runs', element: <PayrollRunListPage /> },
+      { path: '/payroll-runs/:id', element: <PayrollRunDetailPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },

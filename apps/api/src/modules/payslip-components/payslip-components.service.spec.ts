@@ -61,7 +61,9 @@ describe('PayslipComponentsService', () => {
   it('update() allows changing name alone even when referenced (name is not locked)', async () => {
     const { service, lineItemModel } = makeService(record(), 1);
 
-    const updated = await service.update('pc-1', { name: 'Tunjangan Transport (baru)' });
+    const updated = await service.update('pc-1', {
+      name: 'Tunjangan Transport (baru)',
+    });
 
     // Only queries payslip_line_items when a locked field is actually touched.
     expect(lineItemModel.count).not.toHaveBeenCalled();
