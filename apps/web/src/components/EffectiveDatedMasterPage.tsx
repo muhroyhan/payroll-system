@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { Alert, Tag, Typography } from 'antd';
+import { useMemo, useState, type ReactNode } from 'react';
+import { Alert, Checkbox, Space, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ListPage } from './ListPage';
 import { formatDate } from './format';
@@ -48,6 +48,16 @@ export function EffectiveDatedMasterPage<T extends EffectiveDatedRecord>({
   onRetire,
   resolvePreview,
 }: EffectiveDatedMasterPageProps<T>) {
+  // FE-T09 — expired rows are tagged (below) but excluded from the default
+  // view; a toggle reveals them rather than the list silently growing
+  // forever with rules nobody acts on anymore.
+  const [showExpired, setShowExpired] = useState(false);
+
+  const filteredData = useMemo(() => {
+    if (!query.data) return undefined;
+    return showExpired ? query.data : query.data.filter((record) => !isExpired(record));
+  }, [query.data, showExpired]);
+
   const dateColumns: ColumnsType<T> = [
     {
       title: 'Berlaku Sejak',
@@ -100,8 +110,18 @@ export function EffectiveDatedMasterPage<T extends EffectiveDatedRecord>({
       {resolvePreview}
       <ListPage
         title={title}
-        primaryAction={primaryAction}
-        query={query}
+        primaryAction={
+          <Space>
+            <Checkbox
+              checked={showExpired}
+              onChange={(event) => setShowExpired(event.target.checked)}
+            >
+              Tampilkan yang kedaluwarsa
+            </Checkbox>
+            {primaryAction}
+          </Space>
+        }
+        query={{ ...query, data: filteredData }}
         columns={[...columns, ...dateColumns, ...retireColumn]}
         rowKey="id"
       />

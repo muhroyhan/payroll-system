@@ -1,9 +1,5 @@
 import { Tag } from 'antd';
-
-export interface StatusTagMeta {
-  label: string;
-  color: string;
-}
+import type { StatusTagMeta } from './statusTagTypes';
 
 interface StatusTagProps<E extends string> {
   value: E;
