@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Avatar, Breadcrumb, Dropdown, Layout, Menu, type MenuProps } from 'antd';
 import { useAuth } from '../features/auth/useAuth';
+import { StatusTag } from '../components/StatusTag';
+import { ROLE_LABELS } from '../features/users/labels';
 import {
   NAV_GROUP_LABELS,
   NAV_GROUP_ORDER,
@@ -33,7 +35,7 @@ function buildMenuItems(entries: readonly AccessEntry[]): MenuProps['items'] {
 // entry here but no matching <Route> in router.tsx yet — clicking one hits
 // the "*" NotFoundPage, which is correct: the screen genuinely isn't built.
 export function ProtectedLayout() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
@@ -103,7 +105,7 @@ export function ProtectedLayout() {
           >
             <span className={styles.userTrigger}>
               <Avatar size="small">{user.name.charAt(0).toUpperCase()}</Avatar>
-              {user.name} ({isAdmin ? 'Admin' : 'HR Staff'})
+              {user.name} (<StatusTag value={user.role} labels={ROLE_LABELS} />)
             </span>
           </Dropdown>
         </Header>

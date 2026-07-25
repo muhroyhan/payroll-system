@@ -53,7 +53,7 @@ export function PayslipComponentFormDrawer({
       form={form}
       confirmLoading={createMutation.isPending || updateMutation.isPending}
     >
-      <PayslipComponentFormFields editing={!!component} />
+      <PayslipComponentFormFields />
     </FormDrawer>
   );
 }

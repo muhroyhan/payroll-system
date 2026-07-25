@@ -1,31 +1,23 @@
-import { Alert, Form, Input, Select, Switch } from 'antd';
+import { Form, Input, Select, Switch } from 'antd';
 import { enumSelectOptions } from '../../components/enumSelectOptions';
 import { PAYSLIP_COMPONENT_TYPE_LABELS } from './labels';
-
-interface PayslipComponentFormFieldsProps {
-  /** True when editing (not creating) — shows the immutability caveat
-   *  described in api.ts's note (the backend documents a lock here but
-   *  doesn't actually enforce one). */
-  editing?: boolean;
-}
 
 // FE-T22 (09_FRONTEND_STEPS.md), §15.6 (08_FRONTEND_STRUCTURE.md). No
 // ScopeSelector, no effective dates — payslip_component_master has neither
 // field (verified against payslip-component.entity.ts); it's a flat
 // {name, componentType, isTaxable, isBpjsEligible} constants table, unlike
 // salary/incentive master (FE-T09/T10).
-export function PayslipComponentFormFields({ editing = false }: PayslipComponentFormFieldsProps) {
+//
+// R-06b (07_FRONTEND_RULES.md) — componentType/isTaxable/isBpjsEligible are
+// now genuinely locked once referenced by a payslip line item (backend fix,
+// payslip-components.service.ts's assertMutableFieldsUntouched). Still not
+// derivable from this response (no isLocked flag), so this form does NOT
+// pre-emptively disable anything — it submits as-is and lets FormDrawer's
+// built-in conflict handling show the server's real 409 as a persistent
+// modal. `name` is never locked, so it always saves regardless.
+export function PayslipComponentFormFields() {
   return (
     <>
-      {editing && (
-        <Alert
-          type="warning"
-          showIcon
-          style={{ marginBottom: 16 }}
-          message="Berhati-hati mengubah tipe/pajak/BPJS komponen yang sudah pernah dipakai"
-          description="Payslip yang sudah dibuat memakai nilai komponen ini apa adanya saat itu — mengubahnya di sini tidak mengubah payslip lama, tapi dapat membuat riwayat tampak tidak konsisten. Sistem saat ini tidak mencegah perubahan ini secara otomatis."
-        />
-      )}
       <Form.Item
         name="name"
         label="Nama"

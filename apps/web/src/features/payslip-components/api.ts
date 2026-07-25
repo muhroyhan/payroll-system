@@ -13,16 +13,15 @@ import { apiClient } from '../../api/client';
 // ⚠️ There is NO delete endpoint (§11 — never hard-deleted; "retiring" means
 // ceasing to reference it, nothing to build here).
 //
-// ⚠️ The entity's own comment claims componentType/isTaxable/isBpjsEligible
-// "become immutable" once referenced by a payslip_line_items row, citing
-// P8-T07 — but payslip-components.service.ts's update() has NO such guard;
-// it unconditionally applies the patch. This is a real gap between the
-// documented intent and the shipped backend code, not something to route
-// around: the UI cannot pre-emptively disable a lock the server doesn't
-// enforce (that would be R-06a for a rule that isn't real), and there is no
-// 409 to catch reactively either (R-06b doesn't apply — there's nothing to
-// react to). The edit form shows a plain informational warning instead —
-// see PayslipComponentFormFields.tsx.
+// ✅ RESOLVED — componentType/isTaxable/isBpjsEligible are genuinely
+// immutable once this component is referenced by a payslip_line_items row
+// (payslip-components.service.ts's assertMutableFieldsUntouched, added
+// after this gap was found and confirmed live via curl: an update that used
+// to return 200 on a referenced component now returns 409). Still not
+// derivable from this response (no isLocked flag) — R-06b applies: the form
+// doesn't pre-emptively disable anything, it submits as-is and
+// FormDrawer's built-in conflict handling shows the real 409 as a
+// persistent modal. `name` is never locked.
 export interface PayslipComponent {
   id: string;
   name: string;

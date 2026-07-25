@@ -28,6 +28,9 @@ import { KasbonListPage } from '../features/kasbon/KasbonListPage';
 import { KasbonDetailPage } from '../features/kasbon/KasbonDetailPage';
 import { PayslipComponentsPage } from '../features/payslip-components/PayslipComponentsPage';
 import { PayslipTempComponentsPage } from '../features/payslip-temp-components/PayslipTempComponentsPage';
+import { TaxBpjsConstantsPage } from '../features/tax-bpjs-constants/TaxBpjsConstantsPage';
+import { SalaryPeriodConfigPage } from '../features/salary-period-config/SalaryPeriodConfigPage';
+import { UsersPage } from '../features/users/UsersPage';
 import { ProtectedLayout } from './ProtectedLayout';
 
 // FE-T01/T03/T04 (09_FRONTEND_STEPS.md) — /login, /403, and * are public
@@ -70,6 +73,9 @@ export const router = createBrowserRouter([
       { path: '/kasbon/:id', element: <KasbonDetailPage /> },
       { path: '/masters/payslip-components', element: <PayslipComponentsPage /> },
       { path: '/masters/temp-components', element: <PayslipTempComponentsPage /> },
+      { path: '/settings/tax-constants', element: <TaxBpjsConstantsPage /> },
+      { path: '/settings/salary-period', element: <SalaryPeriodConfigPage /> },
+      { path: '/settings/users', element: <UsersPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },
