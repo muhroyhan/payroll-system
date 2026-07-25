@@ -172,14 +172,24 @@ describe('PayslipTempComponentsService', () => {
   // ScopeResolverService, narrowed per component_id.
   it('listActiveForEmployee() resolves each distinct component_id independently via ScopeResolverService', async () => {
     const { service, model, scopeResolver, employeesService } = makeService();
-    model.findAll.mockResolvedValue([
-      { componentId: 'comp-1' },
-      { componentId: 'comp-2' },
-    ]);
+    // 1st findAll = distinct component_id candidates; 2nd findAll = the reload
+    // with the component master eager-loaded.
+    model.findAll
+      .mockResolvedValueOnce([
+        { componentId: 'comp-1' },
+        { componentId: 'comp-2' },
+      ])
+      .mockResolvedValueOnce([
+        record({
+          id: 'tc-1',
+          componentId: 'comp-1',
+          component: { componentType: 'earning', isTaxable: true },
+        }),
+      ]);
     scopeResolver.resolve
       .mockResolvedValueOnce({
         resolved: true,
-        record: record({ componentId: 'comp-1' }),
+        record: record({ id: 'tc-1', componentId: 'comp-1' }),
         matchedScopeType: ScopeType.EMPLOYEE,
       })
       .mockResolvedValueOnce({ resolved: false });
@@ -197,5 +207,27 @@ describe('PayslipTempComponentsService', () => {
     );
     expect(results).toHaveLength(1);
     expect(results[0].componentId).toBe('comp-1');
+    // Regression (P10-T02): the returned rows MUST have the component master
+    // eager-loaded — the payroll run reads component.componentType/isTaxable
+    // /isBpjsEligible off it, and would throw if it were undefined.
+    expect(results[0].component).toBeDefined();
+    const reloadCall = model.findAll.mock.calls[1][0] as {
+      where: { id: string[] };
+      include: string[];
+    };
+    expect(reloadCall.include).toContain('component');
+    expect(reloadCall.where.id).toEqual(['tc-1']);
+  });
+
+  it('listActiveForEmployee() returns [] without a reload query when nothing resolves', async () => {
+    const { service, model, scopeResolver } = makeService();
+    model.findAll.mockResolvedValueOnce([{ componentId: 'comp-1' }]);
+    scopeResolver.resolve.mockResolvedValueOnce({ resolved: false });
+
+    const results = await service.listActiveForEmployee('emp-1', '2026-07-15');
+
+    expect(results).toEqual([]);
+    // Only the candidates query ran — no pointless reload of an empty id set.
+    expect(model.findAll).toHaveBeenCalledTimes(1);
   });
 });

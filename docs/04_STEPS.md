@@ -125,11 +125,20 @@ almost everything after them — resist jumping straight to payslip generation.
 ### Phase 9 — Nice-to-haves / Premium Features
 *Depends on: Phase 8 fully signed off*
 
+**STATUS: DEFERRED — not implemented (decision recorded at Phase 10 kickoff).** All three are
+genuine nice-to-haves with **no dependency from Phase 10 or from initial production**: the core
+payroll system (Phases 1–8) is complete and go-live-ready without any of them. Each can be
+built independently later without refactoring Phases 1–8 — they add new paths, not changes to
+existing ones (gross-up is an alternative tax mode alongside the existing gross method;
+multi-location is an extra scope dimension the resolver already generalizes to; fingerprint
+polling is an alternative ingestion source feeding the same `attendance_raw_logs`). Not a gap
+in the delivered scope; a deliberate deferral.
+
 | Task ID | Task | Details |
 |---|---|---|
-| P9-T01 | Gross-up tax method | |
-| P9-T02 | Multi-location rule differences | |
-| P9-T03 | Direct fingerprint device API polling | |
+| P9-T01 | Gross-up tax method | **DEFERRED** — alternative to the delivered gross method; additive, no refactor of P7 |
+| P9-T02 | Multi-location rule differences | **DEFERRED** — extra scope dimension; the §5.2 resolver already generalizes |
+| P9-T03 | Direct fingerprint device API polling | **DEFERRED** — alternative ingestion into the same `attendance_raw_logs`; independent of P3 reconciliation |
 
 ### Phase 10 — Testing, Validation & Go-Live Verification
 *Depends on: all prior phases. This phase exists so the AI has an explicit final gate — do
@@ -143,4 +152,25 @@ not consider the project production-ready until every item here passes.*
 | P10-T04 | Sign-off checklist | Confirm the closing checklist at the end of §12 is fully checked |
 
 ---
+
+### Backlog — Non-Urgent (not pre-production blockers)
+
+These are known, tracked gaps that do **not** block go-live and are **not** on the
+pre-production checklist. Distinct from the ⛔ pre-production item above (annual PPh21 rounding),
+which IS a hard gate before the first December run.
+
+- [ ] **ESLint does not cover `.js` files in `src/database/` (migrations + seeders).**
+  `apps/api/tsconfig.json` has no `allowJs`, so the 46 `.js` files under `src/database/`
+  (migrations, seeders, `sequelize-cli.config.js`) fall outside the TypeScript project service
+  and fail to parse under `eslint src` with `Parsing error: ... was not found by the project
+  service` (one per file → 46 "errors"). **This is a lint-config coverage gap, not a functional
+  bug** — the migrations/seeders run correctly; they're simply not linted. The gap has existed
+  since Phase 1 (neither `tsconfig.json` nor `eslint.config.mjs` has changed since the initial
+  commit); it surfaced during the P8-T07 audit only because that was the first time `eslint`
+  was run unscoped (`eslint src`) rather than scoped to a touched `src/modules/*` directory.
+  **To close (whenever convenient):** either add a dedicated flat-config block for `**/*.js`
+  using a non-type-checked parser (e.g. `languageOptions.parserOptions.projectService: false`
+  for that glob), or add the `.js` files to an `allowJs` tsconfig include, or explicitly
+  `ignores` `src/database/**/*.js` if linting generated migrations is not wanted. Verify with
+  `find apps/api/src -name "*.js" | wc -l` (= 46) matching the parse-error count.
 

@@ -99,7 +99,7 @@ export class PayslipTempComponentsService {
       group: ['componentId'],
     });
 
-    const results: PayslipTempComponent[] = [];
+    const resolvedIds: string[] = [];
     for (const { componentId } of candidates) {
       const resolution = await this.scopeResolver.resolve(
         this.tempComponentModel,
@@ -108,9 +108,24 @@ export class PayslipTempComponentsService {
         { componentId },
       );
       if (resolution.resolved) {
-        results.push(resolution.record);
+        resolvedIds.push(resolution.record.id);
       }
     }
-    return results;
+    if (resolvedIds.length === 0) {
+      return [];
+    }
+
+    // Reload the resolved rows WITH the `component` master eager-loaded. The
+    // shared scope resolver's findAll (resolveEffectiveRecords) returns bare
+    // rows with no associations, but the payroll run (§9) reads
+    // component.componentType/isTaxable/isBpjsEligible live off this
+    // association (§3 — never duplicated onto the temp row). Without this
+    // include, `temp.component` is undefined and the run throws for any
+    // employee that has an active temp component. (Regression: found by the
+    // P10-T02 smoke test — the first live run with a temp component.)
+    return this.tempComponentModel.findAll({
+      where: { id: resolvedIds },
+      include: ['component'],
+    });
   }
 }
