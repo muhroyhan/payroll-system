@@ -10,6 +10,8 @@ import { Employee } from '../modules/employees/entities/employee.entity';
 import { PayrollRun } from '../modules/payroll-runs/entities/payroll-run.entity';
 import { isTransitionAllowed } from '../modules/payroll-runs/payroll-run-transitions';
 import { PayrollRunCalculationService } from '../modules/payroll-calculation/payroll-run-calculation.service';
+import { Payslip } from '../modules/payslips/entities/payslip.entity';
+import { PdfGenerationQueue } from './pdf-generation.queue';
 import { PAYROLL_CALCULATION_QUEUE } from './payroll-calculation.queue';
 
 // §01_GENERAL — "Process employees in chunks (e.g. 100–200 per batch)". 100 is
@@ -29,7 +31,10 @@ export class PayrollCalculationProcessor extends WorkerHost {
     private readonly payrollRunModel: typeof PayrollRun,
     @InjectModel(Employee)
     private readonly employeeModel: typeof Employee,
+    @InjectModel(Payslip)
+    private readonly payslipModel: typeof Payslip,
     private readonly calculationService: PayrollRunCalculationService,
+    private readonly pdfGenerationQueue: PdfGenerationQueue,
   ) {
     super();
   }
@@ -105,6 +110,18 @@ export class PayrollCalculationProcessor extends WorkerHost {
     // service uses (imported as a pure function to avoid a module cycle).
     if (isTransitionAllowed(run.status, PayrollRunStatus.CALCULATED)) {
       await run.update({ status: PayrollRunStatus.CALCULATED });
+
+      // P8-T05 — bulk-enqueue PDF generation for every payslip just created
+      // in this run (one call, not a per-employee enqueue loop). Rides the
+      // existing pdf-generation queue/processor, not a new one — a payslip
+      // PDF is the same "one small per-document job" shape as a letter PDF.
+      const payslips = await this.payslipModel.findAll({
+        where: { payrollRunId: run.id },
+        attributes: ['id'],
+      });
+      await this.pdfGenerationQueue.enqueuePayslipPdfBulk(
+        payslips.map((p) => p.id),
+      );
     }
   }
 }

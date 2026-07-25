@@ -549,10 +549,28 @@ This is the core algorithm the payroll engine runs per employee, per run. Order 
 Gross Earnings = resolved base_salary (via scope resolver, §5.2)
                 + resolved incentive_amount (via scope resolver)
                 + sum of active payslip_temp_components (earning type, this period)
-                + overtime pay (verified overtime_hours × overtime rate — only for hours
-                  backed by a verified overtime_letter, see §5.5)
+                + overtime pay (per R9 below — only for hours backed by a verified
+                  overtime_letter, see §5.5)
                 + THR/bonus, if paid this period
 ```
+
+### ✅ R9 (P8-T04b) — Overtime pay formula (final)
+
+Source: **PP 35/2021 Pasal 31** (Indonesian working-hours/overtime regulation). Uses
+`actual_overtime_hours` from a **verified** `overtime_letter` (P4-T03) — never
+`planned_overtime_hours` (TC-LETTER-03). Computed per letter (each letter = one overtime
+day, so the first-hour premium applies per day):
+
+```
+hourly_rate       = monthly base_salary ÷ 173
+overtime_pay(H)   = 1.5 × hourly_rate × min(H, 1)      (the first hour)
+                  + 2.0 × hourly_rate × max(H − 1, 0)   (each hour after the first)
+```
+
+- **base_salary** is the employee's resolved base salary (§5.2), not gross.
+- **Taxable**: yes (part of Taxable Earnings). **BPJS-eligible**: **NO** — overtime is
+  one-off/incidental per Step 2, so it never enters the BPJS wage base.
+- Rounded to whole rupiah per line.
 
 **Step 2 — Split earnings by taxable/BPJS-eligible flags.**
 Each component (base salary, incentive, each temp component) carries `is_taxable` on

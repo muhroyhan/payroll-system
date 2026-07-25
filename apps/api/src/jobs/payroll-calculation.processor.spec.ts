@@ -35,12 +35,27 @@ describe('PayrollCalculationProcessor (P8-T02)', () => {
       newScopeCache: jest.fn().mockReturnValue({}),
       calculateEmployee: jest.fn().mockResolvedValue(undefined),
     };
+    const payslipModel = {
+      findAll: jest.fn().mockResolvedValue([]),
+    };
+    const pdfGenerationQueue = {
+      enqueuePayslipPdfBulk: jest.fn().mockResolvedValue(undefined),
+    };
     const processor = new PayrollCalculationProcessor(
       payrollRunModel as any,
       employeeModel as any,
+      payslipModel as any,
       calculationService as any,
+      pdfGenerationQueue as any,
     );
-    return { processor, payrollRunModel, employeeModel, calculationService };
+    return {
+      processor,
+      payrollRunModel,
+      employeeModel,
+      calculationService,
+      payslipModel,
+      pdfGenerationQueue,
+    };
   }
 
   function draftRun(): MockRun {
@@ -63,7 +78,10 @@ describe('PayrollCalculationProcessor (P8-T02)', () => {
 
   it('processes a single chunk (< CHUNK_SIZE) and flips draft → calculated', async () => {
     const run = draftRun();
-    const { processor, employeeModel } = makeProcessor(run, 30);
+    const { processor, employeeModel, pdfGenerationQueue } = makeProcessor(
+      run,
+      30,
+    );
 
     await processor.process(job() as any);
 
@@ -71,6 +89,9 @@ describe('PayrollCalculationProcessor (P8-T02)', () => {
     expect(run.totalCount).toBe(30);
     expect(run.processedCount).toBe(30);
     expect(run.status).toBe(PayrollRunStatus.CALCULATED);
+    // P8-T05 — once calculated, this run's payslips get bulk-enqueued for PDF
+    // generation on the separate pdf-generation queue.
+    expect(pdfGenerationQueue.enqueuePayslipPdfBulk).toHaveBeenCalledTimes(1);
   });
 
   it('chunks a large run (250 employees → 3 batches) with ABSOLUTE progress sets (100, 200, 250)', async () => {
@@ -95,13 +116,39 @@ describe('PayrollCalculationProcessor (P8-T02)', () => {
   it('is a no-op when the run is not draft (already calculated)', async () => {
     const run = draftRun();
     run.status = PayrollRunStatus.CALCULATED;
-    const { processor, employeeModel } = makeProcessor(run, 100);
+    const { processor, employeeModel, pdfGenerationQueue } = makeProcessor(
+      run,
+      100,
+    );
 
     await processor.process(job() as any);
 
     expect(employeeModel.count).not.toHaveBeenCalled();
     expect(employeeModel.findAll).not.toHaveBeenCalled();
     expect(run.update).not.toHaveBeenCalled();
+    expect(pdfGenerationQueue.enqueuePayslipPdfBulk).not.toHaveBeenCalled();
+  });
+
+  it('bulk-enqueues PDF generation for exactly the payslips created in this run', async () => {
+    const run = draftRun();
+    const { processor, payslipModel, pdfGenerationQueue } = makeProcessor(
+      run,
+      10,
+    );
+    payslipModel.findAll.mockResolvedValue([
+      { id: 'ps-1' },
+      { id: 'ps-2' },
+    ] as any);
+
+    await processor.process(job() as any);
+
+    expect(payslipModel.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { payrollRunId: 'run-1' } }),
+    );
+    expect(pdfGenerationQueue.enqueuePayslipPdfBulk).toHaveBeenCalledWith([
+      'ps-1',
+      'ps-2',
+    ]);
   });
 
   it('handles a missing run gracefully (no throw)', async () => {

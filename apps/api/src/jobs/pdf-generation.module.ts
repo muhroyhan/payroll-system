@@ -5,6 +5,7 @@ import { UsersModule } from '../modules/users/users.module';
 import { SuratIjin } from '../modules/letters/surat-ijin/entities/surat-ijin.entity';
 import { SuratPeringatan } from '../modules/letters/surat-peringatan/entities/surat-peringatan.entity';
 import { OvertimeLetter } from '../modules/letters/overtime-letters/entities/overtime-letter.entity';
+import { Payslip } from '../modules/payslips/entities/payslip.entity';
 import { PdfRendererService } from './pdf-renderer.service';
 import {
   PdfGenerationQueue,
@@ -20,7 +21,12 @@ import { PdfGenerationProcessor } from './pdf-generation.processor';
 @Module({
   imports: [
     BullModule.registerQueue({ name: PDF_GENERATION_QUEUE }),
-    SequelizeModule.forFeature([SuratIjin, SuratPeringatan, OvertimeLetter]),
+    SequelizeModule.forFeature([
+      SuratIjin,
+      SuratPeringatan,
+      OvertimeLetter,
+      Payslip,
+    ]),
     UsersModule,
   ],
   providers: [PdfRendererService, PdfGenerationQueue, PdfGenerationProcessor],

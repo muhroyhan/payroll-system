@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { Op, Sequelize, UniqueConstraintError } from 'sequelize';
 import {
   KasbonStatus,
+  OvertimeLetterStatus,
   PayslipComponentType,
   PayslipLineSource,
 } from '@payroll-system/shared-types';
@@ -20,6 +21,7 @@ import { PayslipLineItem } from '../payslips/entities/payslip-line-item.entity';
 import { SalaryMaster } from '../salary-master/entities/salary-master.entity';
 import { IncentiveMaster } from '../incentive-master/entities/incentive-master.entity';
 import { SuratPeringatan } from '../letters/surat-peringatan/entities/surat-peringatan.entity';
+import { OvertimeLetter } from '../letters/overtime-letters/entities/overtime-letter.entity';
 import { Kasbon } from '../kasbon/entities/kasbon.entity';
 import { KasbonDeduction } from '../kasbon/entities/kasbon-deduction.entity';
 import { KasbonService } from '../kasbon/kasbon.service';
@@ -33,6 +35,7 @@ import { Pasal17BracketMaster } from '../tax-bpjs-constants/pasal17-bracket-mast
 import { resolveTerCategory } from '../tax-bpjs-constants/ter-bracket-master/ter-lookup';
 import { PerRunScopeCache } from '../scope-resolver/per-run-scope-cache';
 import { isNpwpMissing } from './npwp';
+import { calculateOvertimePay } from './overtime-pay.core';
 import {
   ResolvedDeduction,
   ResolvedEarning,
@@ -55,6 +58,8 @@ export class PayrollRunCalculationService {
     private readonly lineItemModel: typeof PayslipLineItem,
     @InjectModel(SuratPeringatan)
     private readonly suratPeringatanModel: typeof SuratPeringatan,
+    @InjectModel(OvertimeLetter)
+    private readonly overtimeLetterModel: typeof OvertimeLetter,
     @InjectModel(Kasbon) private readonly kasbonModel: typeof Kasbon,
     @InjectModel(KasbonDeduction)
     private readonly kasbonDeductionModel: typeof KasbonDeduction,
@@ -194,9 +199,7 @@ export class PayrollRunCalculationService {
   }
 
   // §9 Step 1 — gross earnings: base salary + incentive (scope cache) + active
-  // temp earning components. ⚠️ Overtime pay is intentionally omitted: §9's
-  // "overtime rate" is undocumented (no rate/formula/constant exists), so it
-  // cannot be computed yet — flagged in the P8-T04 report.
+  // temp earning components + overtime pay (R9).
   private async resolveEarnings(
     run: PayrollRun,
     employee: Employee,
@@ -210,12 +213,14 @@ export class PayrollRunCalculationService {
       this.salaryMasterModel,
       context,
     );
+    let baseSalary = 0;
     if (salary.resolved) {
+      baseSalary = Number(salary.record.baseSalary);
       earnings.push({
         source: PayslipLineSource.SALARY_MASTER,
         sourceId: salary.record.id,
         componentId: null,
-        amount: Number(salary.record.baseSalary),
+        amount: baseSalary,
         isTaxable: true, // base wage — always taxable + BPJS-eligible
         isBpjsEligible: true,
       });
@@ -231,11 +236,37 @@ export class PayrollRunCalculationService {
         sourceId: incentive.record.id,
         componentId: null,
         amount: Number(incentive.record.incentiveAmount),
-        // Assumption (flagged): incentive treated as taxable + BPJS-eligible.
-        // No is_taxable/is_bpjs_eligible flag exists on incentive_master.
         isTaxable: true,
-        isBpjsEligible: true,
+        // P8-T04b — read from incentive_master (data-driven), not hardcoded.
+        isBpjsEligible: incentive.record.isBpjsEligible,
       });
+    }
+
+    // §9/R9 — overtime pay from VERIFIED overtime_letters dated in this period.
+    // Per PP 35/2021 Pasal 31; taxable but NOT BPJS-eligible (one-off).
+    const monthRange = periodMonthRange(run.period);
+    const overtimeLetters = await this.overtimeLetterModel.findAll({
+      where: {
+        employeeId: employee.id,
+        status: OvertimeLetterStatus.VERIFIED,
+        date: { [Op.gte]: monthRange.start, [Op.lt]: monthRange.endExclusive },
+      },
+    });
+    for (const letter of overtimeLetters) {
+      const pay = calculateOvertimePay(
+        baseSalary,
+        Number(letter.actualOvertimeHours),
+      );
+      if (pay > 0) {
+        earnings.push({
+          source: PayslipLineSource.OVERTIME,
+          sourceId: letter.id,
+          componentId: null,
+          amount: pay,
+          isTaxable: true,
+          isBpjsEligible: false, // §9 Step 2 — one-off/incidental
+        });
+      }
     }
 
     const temps = await this.tempComponentsService.listActiveForEmployee(
@@ -289,11 +320,15 @@ export class PayrollRunCalculationService {
     }
 
     // Sanction — a surat_peringatan issued this period with a sanction amount.
+    const monthRange = periodMonthRange(run.period);
     const sanctions = await this.suratPeringatanModel.findAll({
       where: {
         employeeId: employee.id,
         sanctionAmount: { [Op.ne]: null },
-        issueDate: { [Op.between]: [`${periodDate}`, `${run.period}-31`] },
+        issueDate: {
+          [Op.gte]: monthRange.start,
+          [Op.lt]: monthRange.endExclusive,
+        },
       },
     });
     for (const sanction of sanctions) {
@@ -428,4 +463,19 @@ export class PayrollRunCalculationService {
       jkmRate: Number(tk.jkmCompanyRate),
     };
   }
+}
+
+// Half-open [start, endExclusive) covering one 'YYYY-MM' period. Avoids the
+// invalid `YYYY-MM-31` upper bound (e.g. 2026-11-31), which a DATEONLY column
+// casts to null and silently matches nothing.
+function periodMonthRange(period: string): {
+  start: string;
+  endExclusive: string;
+} {
+  const [year, month] = period.split('-').map(Number);
+  const nextMonth =
+    month === 12
+      ? `${year + 1}-01-01`
+      : `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  return { start: `${period}-01`, endExclusive: nextMonth };
 }

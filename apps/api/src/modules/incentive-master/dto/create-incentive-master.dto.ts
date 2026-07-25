@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsNumberString,
@@ -16,6 +17,10 @@ export class CreateIncentiveMasterDto {
 
   @IsNumberString()
   incentiveAmount: string;
+
+  // §9 Step 2 — fixed/recurring allowance → true, variable/one-off → false.
+  @IsBoolean()
+  isBpjsEligible: boolean;
 
   @IsDateString()
   effectiveStartDate: string;

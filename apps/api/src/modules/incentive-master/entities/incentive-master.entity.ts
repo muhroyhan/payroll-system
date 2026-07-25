@@ -26,6 +26,14 @@ export class IncentiveMaster extends Model {
   @Column(DataType.DECIMAL(15, 2))
   declare incentiveAmount: string;
 
+  // §9 Step 2 — whether this incentive counts toward the BPJS wage base. Added
+  // P8-T04b (same data-driven pattern as payslip_component_master's
+  // is_bpjs_eligible, P7-T06b): fixed/recurring allowances → true, variable/
+  // one-off incentives → false. Read by the payroll run, never hardcoded (§3).
+  @Default(false)
+  @Column(DataType.BOOLEAN)
+  declare isBpjsEligible: boolean;
+
   @Column(DataType.DATEONLY)
   declare effectiveStartDate: string;
 

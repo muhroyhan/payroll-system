@@ -29,4 +29,22 @@ export class PdfGenerationQueue {
       overtimeLetterId,
     });
   }
+
+  // P8-T05 — payslip PDFs are many small per-document jobs, the same shape as
+  // the letter types above, so they ride the SAME queue/processor rather than
+  // a third queue (payroll-calculation stays the separate one, since that's
+  // one big chunked batch job per run, not one job per document). Bulk-enqueue
+  // (addBulk) so a run's payslips are dispatched in one call, not looped
+  // one-at-a-time from the caller.
+  enqueuePayslipPdfBulk(payslipIds: string[]): Promise<unknown> {
+    if (payslipIds.length === 0) {
+      return Promise.resolve([]);
+    }
+    return this.queue.addBulk(
+      payslipIds.map((payslipId) => ({
+        name: 'generate-payslip-pdf',
+        data: { payslipId },
+      })),
+    );
+  }
 }

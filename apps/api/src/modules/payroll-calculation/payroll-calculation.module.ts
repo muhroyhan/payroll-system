@@ -12,6 +12,7 @@ import { PayslipLineItem } from '../payslips/entities/payslip-line-item.entity';
 import { SalaryMaster } from '../salary-master/entities/salary-master.entity';
 import { IncentiveMaster } from '../incentive-master/entities/incentive-master.entity';
 import { SuratPeringatan } from '../letters/surat-peringatan/entities/surat-peringatan.entity';
+import { OvertimeLetter } from '../letters/overtime-letters/entities/overtime-letter.entity';
 import { Kasbon } from '../kasbon/entities/kasbon.entity';
 import { KasbonDeduction } from '../kasbon/entities/kasbon-deduction.entity';
 import { BiayaJabatanMaster } from '../tax-bpjs-constants/biaya-jabatan-master/entities/biaya-jabatan-master.entity';
@@ -31,6 +32,7 @@ import { PayrollRunCalculationService } from './payroll-run-calculation.service'
       SalaryMaster,
       IncentiveMaster,
       SuratPeringatan,
+      OvertimeLetter,
       Kasbon,
       KasbonDeduction,
       BiayaJabatanMaster,

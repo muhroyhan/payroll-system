@@ -1,4 +1,9 @@
-import { SPLevel, SuratIjinType } from '@payroll-system/shared-types';
+import {
+  PayrollRunStatus,
+  PayslipLineSource,
+  SPLevel,
+  SuratIjinType,
+} from '@payroll-system/shared-types';
 import { PdfGenerationProcessor } from './pdf-generation.processor';
 
 jest.mock('fs/promises', () => ({
@@ -57,6 +62,31 @@ describe('PdfGenerationProcessor', () => {
         .fn<Promise<void>, [{ pdfPath: string }]>()
         .mockResolvedValue(undefined),
     };
+    const payslipRecord = {
+      id: 'ps-1',
+      employee: { name: 'Budi', nik: 'NIK-1' },
+      payrollRun: { period: '2026-11', status: PayrollRunStatus.CALCULATED },
+      lineItems: [
+        {
+          source: PayslipLineSource.SALARY_MASTER,
+          component: null,
+          amount: '8000000.00',
+        },
+        {
+          source: PayslipLineSource.TAX,
+          component: null,
+          amount: '-123800.00',
+        },
+      ],
+      netPay: '7876200.00',
+      pdfPath: null as string | null,
+      update: jest
+        .fn<Promise<void>, [{ pdfPath: string }]>()
+        .mockImplementation(function (this: any, patch) {
+          Object.assign(this, patch);
+          return Promise.resolve();
+        }),
+    };
     const suratIjinModel = {
       findByPk: jest.fn().mockResolvedValue(suratIjinRecord),
     };
@@ -65,6 +95,9 @@ describe('PdfGenerationProcessor', () => {
     };
     const overtimeLetterModel = {
       findByPk: jest.fn().mockResolvedValue(overtimeLetterRecord),
+    };
+    const payslipModel = {
+      findByPk: jest.fn().mockResolvedValue(payslipRecord),
     };
     const usersService = {
       findById: jest.fn().mockResolvedValue({ name: 'Approver' }),
@@ -76,6 +109,7 @@ describe('PdfGenerationProcessor', () => {
       suratIjinModel as any,
       suratPeringatanModel as any,
       overtimeLetterModel as any,
+      payslipModel as any,
       usersService as any,
       pdfRendererService as any,
     );
@@ -84,9 +118,11 @@ describe('PdfGenerationProcessor', () => {
       suratIjinModel,
       suratPeringatanModel,
       overtimeLetterModel,
+      payslipModel,
       suratIjinRecord,
       suratPeringatanRecord,
       overtimeLetterRecord,
+      payslipRecord,
       pdfRendererService,
     };
   }
@@ -153,6 +189,71 @@ describe('PdfGenerationProcessor', () => {
     expect(suratPeringatanModel.findByPk).not.toHaveBeenCalled();
     const updateArg = overtimeLetterRecord.update.mock.calls[0][0];
     expect(typeof updateArg.pdfPath).toBe('string');
+  });
+
+  it('dispatches generate-payslip-pdf to the payslip renderer only', async () => {
+    const { processor, suratIjinModel, payslipModel, payslipRecord } =
+      makeProcessor();
+
+    await processor.process({
+      name: 'generate-payslip-pdf',
+      data: { payslipId: 'ps-1' },
+    } as any);
+
+    expect(payslipModel.findByPk).toHaveBeenCalledWith(
+      'ps-1',
+      expect.anything(),
+    );
+    expect(suratIjinModel.findByPk).not.toHaveBeenCalled();
+    const updateArg = payslipRecord.update.mock.calls[0][0];
+    expect(typeof updateArg.pdfPath).toBe('string');
+  });
+
+  // §11/P8-T05 — once a run is approved/disbursed, the employee's master data
+  // can keep changing but the already-issued payslip PDF must not be
+  // silently re-rendered with new header info.
+  it('does NOT regenerate a payslip PDF that already exists once the run is approved', async () => {
+    const { processor, payslipModel, payslipRecord, pdfRendererService } =
+      makeProcessor();
+    payslipRecord.pdfPath = 'storage/payslip/ps-1.pdf';
+    payslipRecord.payrollRun.status = PayrollRunStatus.APPROVED;
+
+    await processor.process({
+      name: 'generate-payslip-pdf',
+      data: { payslipId: 'ps-1' },
+    } as any);
+
+    expect(payslipModel.findByPk).toHaveBeenCalled();
+    expect(pdfRendererService.renderHtmlToPdf).not.toHaveBeenCalled();
+    expect(payslipRecord.update).not.toHaveBeenCalled();
+  });
+
+  it('does NOT regenerate a payslip PDF that already exists once the run is disbursed', async () => {
+    const { processor, payslipRecord, pdfRendererService } = makeProcessor();
+    payslipRecord.pdfPath = 'storage/payslip/ps-1.pdf';
+    payslipRecord.payrollRun.status = PayrollRunStatus.DISBURSED;
+
+    await processor.process({
+      name: 'generate-payslip-pdf',
+      data: { payslipId: 'ps-1' },
+    } as any);
+
+    expect(pdfRendererService.renderHtmlToPdf).not.toHaveBeenCalled();
+    expect(payslipRecord.update).not.toHaveBeenCalled();
+  });
+
+  it('still generates a payslip PDF for a calculated run even if pdfPath is already set (e.g. a prior partial retry)', async () => {
+    const { processor, payslipRecord, pdfRendererService } = makeProcessor();
+    payslipRecord.pdfPath = 'storage/payslip/ps-1-old.pdf';
+    payslipRecord.payrollRun.status = PayrollRunStatus.CALCULATED;
+
+    await processor.process({
+      name: 'generate-payslip-pdf',
+      data: { payslipId: 'ps-1' },
+    } as any);
+
+    expect(pdfRendererService.renderHtmlToPdf).toHaveBeenCalled();
+    expect(payslipRecord.update).toHaveBeenCalled();
   });
 
   it('does not throw on an unrecognized job name (logs and returns)', async () => {
