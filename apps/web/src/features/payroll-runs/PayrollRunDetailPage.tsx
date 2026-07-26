@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Descriptions, Modal, Progress, Space, Typography } from 'antd';
 import { PayrollRunStatus } from '@payroll-system/shared-types';
 import { DetailPage } from '../../components/DetailPage';
@@ -114,6 +114,8 @@ export function PayrollRunDetailPage() {
         actions={
           record && (
             <Space>
+              <Link to={`/payroll-runs/${record.id}/payslips`}>Payslip</Link>
+              <Link to={`/payroll-runs/${record.id}/summary`}>Ringkasan</Link>
               {record.status === PayrollRunStatus.DRAFT && (
                 <LockedAction
                   type="primary"

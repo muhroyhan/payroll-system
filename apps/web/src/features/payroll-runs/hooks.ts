@@ -6,6 +6,7 @@ import {
   createPayrollRun,
   disbursePayrollRun,
   getPayrollRun,
+  getPayrollRunSummary,
   listPayrollRuns,
   revertPayrollRunToDraft,
   type PayrollRun,
@@ -94,5 +95,17 @@ export function useRevertPayrollRunMutation(id: string) {
       queryClient.invalidateQueries({ queryKey: ['payroll-runs'] });
       queryClient.invalidateQueries({ queryKey: ['payroll-runs', id] });
     },
+  });
+}
+
+// FE-T29 — a distinct key from ['payroll-runs', id] (not derived from that
+// query's cache) since a draft run's summary genuinely 409s; this query is
+// allowed to sit in an error state independently of the run detail query.
+export function usePayrollRunSummaryQuery(id: string | undefined) {
+  return useQuery({
+    queryKey: ['payroll-runs', id, 'summary'],
+    queryFn: () => getPayrollRunSummary(id as string),
+    enabled: !!id,
+    retry: false,
   });
 }

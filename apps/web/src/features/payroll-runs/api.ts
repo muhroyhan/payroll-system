@@ -72,3 +72,52 @@ export async function revertPayrollRunToDraft(id: string): Promise<PayrollRun> {
   const { data } = await apiClient.put<PayrollRun>(`/payroll-runs/${id}/revert`);
   return data;
 }
+
+// Mirrors PayrollRunSummary/PayrollRunSummaryTotals in
+// apps/api/src/modules/payroll-runs/payroll-run-summary.service.ts — pure
+// server-side aggregation over a run's final payslips (P8-T06). Every field
+// here is displayed as-is; nothing is recomputed client-side (R-07).
+export interface PayrollRunSummaryTotals {
+  employeeCount: number;
+  grossPay: number;
+  taxableGross: number;
+  pph21Amount: number;
+  bpjsKesehatanEmployee: number;
+  bpjsKesehatanCompany: number;
+  bpjsJhtEmployee: number;
+  bpjsJhtCompany: number;
+  bpjsJpEmployee: number;
+  bpjsJpCompany: number;
+  bpjsJkkCompany: number;
+  bpjsJkmCompany: number;
+  netPay: number;
+}
+
+export interface PayrollRunDepartmentSummary extends PayrollRunSummaryTotals {
+  departmentId: string | null;
+  departmentName: string;
+}
+
+export interface PayrollRunSummary {
+  payrollRunId: string;
+  period: string;
+  status: PayrollRunStatus;
+  totals: PayrollRunSummaryTotals;
+  byDepartment: PayrollRunDepartmentSummary[];
+}
+
+// A `draft` run's summary 409s (no payslips yet, §5.8) — the page renders
+// that as an explanatory empty state, not a toast (§15.12).
+export async function getPayrollRunSummary(id: string): Promise<PayrollRunSummary> {
+  const { data } = await apiClient.get<PayrollRunSummary>(`/payroll-runs/${id}/summary`);
+  return data;
+}
+
+// Verified against payroll-runs.controller.ts: GET /:id/summary/csv is a
+// dedicated StreamableFile endpoint (text/csv), not a client-side CSV
+// generation — no separate "build CSV from fetched JSON" step needed. It
+// sits behind the same JwtAuthGuard as everything else, so it must go
+// through useDownloadPdf's blob-fetch helper, never a plain <a href>.
+export function payrollRunSummaryCsvUrl(id: string): string {
+  return `/payroll-runs/${id}/summary/csv`;
+}

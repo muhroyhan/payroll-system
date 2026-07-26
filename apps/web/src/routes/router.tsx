@@ -33,6 +33,9 @@ import { SalaryPeriodConfigPage } from '../features/salary-period-config/SalaryP
 import { UsersPage } from '../features/users/UsersPage';
 import { PayrollRunListPage } from '../features/payroll-runs/PayrollRunListPage';
 import { PayrollRunDetailPage } from '../features/payroll-runs/PayrollRunDetailPage';
+import { PayrollRunSummaryPage } from '../features/payroll-runs/PayrollRunSummaryPage';
+import { PayslipListPage } from '../features/payslips/PayslipListPage';
+import { PayslipDetailPage } from '../features/payslips/PayslipDetailPage';
 import { ProtectedLayout } from './ProtectedLayout';
 
 // FE-T01/T03/T04 (09_FRONTEND_STEPS.md) — /login, /403, and * are public
@@ -80,6 +83,9 @@ export const router = createBrowserRouter([
       { path: '/settings/users', element: <UsersPage /> },
       { path: '/payroll-runs', element: <PayrollRunListPage /> },
       { path: '/payroll-runs/:id', element: <PayrollRunDetailPage /> },
+      { path: '/payroll-runs/:id/summary', element: <PayrollRunSummaryPage /> },
+      { path: '/payroll-runs/:id/payslips', element: <PayslipListPage /> },
+      { path: '/payslips/:id', element: <PayslipDetailPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },
