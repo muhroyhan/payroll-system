@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Button, Form } from 'antd';
+import { Button, Drawer, Form } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { AuditEntityType } from '@payroll-system/shared-types';
 import { EffectiveDatedMasterPage } from '../../../components/EffectiveDatedMasterPage';
 import { FormDrawer } from '../../../components/FormDrawer';
 import { formatIDR } from '../../../components/format';
 import { StatusTag } from '../../../components/StatusTag';
+import { AuditHistoryPanel } from '../../audit-events/AuditHistoryPanel';
 import { PTKP_STATUS_LABELS } from '../../employees/labels';
 import { PtkpMasterFormFields } from './PtkpMasterFormFields';
 import { PtkpEffectivePreview } from './PtkpEffectivePreview';
@@ -25,6 +27,7 @@ export function PtkpMasterPage() {
   const [form] = Form.useForm<PtkpMasterFormRuntimeValues>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<PtkpMaster | null>(null);
+  const [historyRecord, setHistoryRecord] = useState<PtkpMaster | null>(null);
 
   const createMutation = useCreatePtkpMasterMutation();
   const updateMutation = useUpdatePtkpMasterMutation(editing?.id ?? '');
@@ -76,6 +79,7 @@ export function PtkpMasterPage() {
           </Button>
         }
         onRetire={openEdit}
+        onShowHistory={setHistoryRecord}
         resolvePreview={<PtkpEffectivePreview />}
       />
       <FormDrawer<PtkpMasterFormRuntimeValues>
@@ -88,6 +92,19 @@ export function PtkpMasterPage() {
       >
         <PtkpMasterFormFields />
       </FormDrawer>
+      <Drawer
+        title="Histori Perubahan"
+        open={!!historyRecord}
+        onClose={() => setHistoryRecord(null)}
+        width={640}
+      >
+        {historyRecord && (
+          <AuditHistoryPanel
+            entityType={AuditEntityType.PTKP_MASTER}
+            entityId={historyRecord.id}
+          />
+        )}
+      </Drawer>
     </>
   );
 }

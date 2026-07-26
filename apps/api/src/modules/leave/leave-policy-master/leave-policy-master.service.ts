@@ -1,5 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Role } from '@payroll-system/shared-types';
+import { auditOptions } from '../../../common/audit/audit-actor';
 import { EmployeesService } from '../../employees/employees.service';
 import { ScopeResolverService } from '../../scope-resolver/scope-resolver.service';
 import { ScopeValueValidator } from '../../scope-resolver/scope-value-validator.service';
@@ -37,9 +39,13 @@ export class LeavePolicyMasterService {
   async create(
     dto: CreateLeavePolicyMasterDto,
     createdBy: string,
+    actorRole: Role,
   ): Promise<LeavePolicyMaster> {
     await this.scopeValueValidator.validate(dto.scopeType, dto.scopeValue);
-    return this.leavePolicyMasterModel.create({ ...dto, createdBy } as any);
+    return this.leavePolicyMasterModel.create(
+      { ...dto, createdBy } as any,
+      auditOptions({ id: createdBy, role: actorRole }),
+    );
   }
 
   // §11 audit follow-up (dispute-traceability review, §1C) — this master was
@@ -63,6 +69,7 @@ export class LeavePolicyMasterService {
     id: string,
     dto: UpdateLeavePolicyMasterDto,
     updatedBy: string,
+    actorRole: Role,
   ): Promise<LeavePolicyMaster> {
     const record = await this.findByIdOrThrow(id);
     if (dto.scopeType && dto.scopeValue) {
@@ -70,7 +77,10 @@ export class LeavePolicyMasterService {
     }
     await this.assertLockedFieldsUntouched(record, dto);
     assertRetireReasonProvided(record, dto);
-    return record.update({ ...dto, updatedBy });
+    return record.update(
+      { ...dto, updatedBy },
+      auditOptions({ id: updatedBy, role: actorRole }, dto.reason),
+    );
   }
 
   private async assertLockedFieldsUntouched(

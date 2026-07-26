@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
-import { PtkpStatus } from '@payroll-system/shared-types';
+import { PtkpStatus, Role } from '@payroll-system/shared-types';
 import { PtkpMasterService } from './ptkp-master.service';
 import { closeOverlappingPredecessor } from '../../../common/effective-dating/close-overlapping-predecessor';
 
@@ -65,7 +65,7 @@ describe('PtkpMasterService', () => {
         amount: '58500000.00',
         effectiveStartDate: '2026-01-01',
       };
-      await service.create(dto as any, 'user-1');
+      await service.create(dto as any, 'user-1', Role.ADMIN);
 
       expect(sequelize.transaction).toHaveBeenCalledTimes(1);
       expect(mockedCloseOverlappingPredecessor).toHaveBeenCalledWith(
@@ -75,12 +75,17 @@ describe('PtkpMasterService', () => {
         'txn-1',
         expect.any(String),
         'user-1',
+        Role.ADMIN,
       );
       const [, , , , newRowId] =
         mockedCloseOverlappingPredecessor.mock.calls[0];
       expect(model.create).toHaveBeenCalledWith(
         { id: newRowId, ...dto, createdBy: 'user-1' },
-        { transaction: 'txn-1' },
+        expect.objectContaining({
+          transaction: 'txn-1',
+          actorId: 'user-1',
+          actorRole: Role.ADMIN,
+        }),
       );
     });
 
@@ -98,6 +103,7 @@ describe('PtkpMasterService', () => {
             effectiveStartDate: '2026-01-01',
           } as any,
           'user-1',
+          Role.ADMIN,
         ),
       ).rejects.toThrow(ConflictException);
       expect(model.create).not.toHaveBeenCalled();
@@ -112,6 +118,7 @@ describe('PtkpMasterService', () => {
         'ptkp-1',
         { amount: '60000000.00' },
         'user-1',
+        Role.ADMIN,
       );
 
       expect(effectiveRangePayslipChecker.isReferenced).toHaveBeenCalledWith(
@@ -125,7 +132,12 @@ describe('PtkpMasterService', () => {
     it("passes a category matcher scoped to this row's own ptkpStatus", async () => {
       const { service, effectiveRangePayslipChecker } = makeService(record(), false);
 
-      await service.update('ptkp-1', { amount: '60000000.00' }, 'user-1');
+      await service.update(
+        'ptkp-1',
+        { amount: '60000000.00' },
+        'user-1',
+        Role.ADMIN,
+      );
 
       const [, matcher] = effectiveRangePayslipChecker.isReferenced.mock.calls[0];
       expect(matcher({ ptkpStatus: PtkpStatus.TK_0 })).toBe(true);
@@ -142,7 +154,7 @@ describe('PtkpMasterService', () => {
         const { service } = makeService(record(), true);
 
         await expect(
-          service.update('ptkp-1', patch, 'user-1'),
+          service.update('ptkp-1', patch, 'user-1', Role.ADMIN),
         ).rejects.toThrow(ConflictException);
       },
     );
@@ -158,6 +170,7 @@ describe('PtkpMasterService', () => {
         'ptkp-1',
         { effectiveEndDate: '2026-12-31', reason: 'Superseded by new rate' },
         'user-1',
+        Role.ADMIN,
       );
 
       expect(effectiveRangePayslipChecker.isReferenced).not.toHaveBeenCalled();
@@ -172,6 +185,7 @@ describe('PtkpMasterService', () => {
           'ptkp-1',
           { effectiveEndDate: '2026-12-31' },
           'user-1',
+          Role.ADMIN,
         ),
       ).rejects.toThrow(BadRequestException);
     });
@@ -179,7 +193,7 @@ describe('PtkpMasterService', () => {
     it('does not query the checker when no locked field is touched', async () => {
       const { service, effectiveRangePayslipChecker } = makeService(record(), true);
 
-      await service.update('ptkp-1', {}, 'user-1');
+      await service.update('ptkp-1', {}, 'user-1', Role.ADMIN);
 
       expect(effectiveRangePayslipChecker.isReferenced).not.toHaveBeenCalled();
     });

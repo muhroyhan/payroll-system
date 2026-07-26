@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Button, Form } from 'antd';
+import { Button, Drawer, Form } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { AuditEntityType } from '@payroll-system/shared-types';
 import { EffectiveDatedMasterPage } from '../../../components/EffectiveDatedMasterPage';
 import { FormDrawer } from '../../../components/FormDrawer';
 import { formatIDR } from '../../../components/format';
+import { AuditHistoryPanel } from '../../audit-events/AuditHistoryPanel';
 import { BpjsKetenagakerjaanMasterFormFields } from './BpjsKetenagakerjaanMasterFormFields';
 import { BpjsKetenagakerjaanEffectivePreview } from './BpjsKetenagakerjaanEffectivePreview';
 import {
@@ -24,6 +26,9 @@ export function BpjsKetenagakerjaanMasterPage() {
   const [form] = Form.useForm<BpjsKetenagakerjaanMasterFormRuntimeValues>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<BpjsKetenagakerjaanMaster | null>(null);
+  const [historyRecord, setHistoryRecord] = useState<BpjsKetenagakerjaanMaster | null>(
+    null,
+  );
 
   const createMutation = useCreateBpjsKetenagakerjaanMasterMutation();
   const updateMutation = useUpdateBpjsKetenagakerjaanMasterMutation(editing?.id ?? '');
@@ -76,6 +81,7 @@ export function BpjsKetenagakerjaanMasterPage() {
           </Button>
         }
         onRetire={openEdit}
+        onShowHistory={setHistoryRecord}
         resolvePreview={<BpjsKetenagakerjaanEffectivePreview />}
       />
       <FormDrawer<BpjsKetenagakerjaanMasterFormRuntimeValues>
@@ -88,6 +94,19 @@ export function BpjsKetenagakerjaanMasterPage() {
       >
         <BpjsKetenagakerjaanMasterFormFields />
       </FormDrawer>
+      <Drawer
+        title="Histori Perubahan"
+        open={!!historyRecord}
+        onClose={() => setHistoryRecord(null)}
+        width={640}
+      >
+        {historyRecord && (
+          <AuditHistoryPanel
+            entityType={AuditEntityType.BPJS_KETENAGAKERJAAN_MASTER}
+            entityId={historyRecord.id}
+          />
+        )}
+      </Drawer>
     </>
   );
 }

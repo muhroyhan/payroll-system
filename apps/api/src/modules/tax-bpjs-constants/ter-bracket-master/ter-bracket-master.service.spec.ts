@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Op } from 'sequelize';
-import { PtkpStatus, TerCategory } from '@payroll-system/shared-types';
+import { PtkpStatus, Role, TerCategory } from '@payroll-system/shared-types';
 import { TerBracketMasterService } from './ter-bracket-master.service';
 import { closeOverlappingPredecessor } from '../../../common/effective-dating/close-overlapping-predecessor';
 
@@ -75,7 +75,7 @@ describe('TerBracketMasterService', () => {
         rate: '0.00',
         effectiveStartDate: '2026-01-01',
       };
-      await service.create(dto as any, 'user-1');
+      await service.create(dto as any, 'user-1', Role.ADMIN);
 
       expect(sequelize.transaction).toHaveBeenCalledTimes(1);
       expect(mockedCloseOverlappingPredecessor).toHaveBeenCalledWith(
@@ -89,12 +89,17 @@ describe('TerBracketMasterService', () => {
         'txn-1',
         expect.any(String),
         'user-1',
+        Role.ADMIN,
       );
       const [, , , , newRowId] =
         mockedCloseOverlappingPredecessor.mock.calls[0];
       expect(model.create).toHaveBeenCalledWith(
         { id: newRowId, ...dto, createdBy: 'user-1' },
-        { transaction: 'txn-1' },
+        expect.objectContaining({
+          transaction: 'txn-1',
+          actorId: 'user-1',
+          actorRole: Role.ADMIN,
+        }),
       );
     });
 
@@ -109,6 +114,7 @@ describe('TerBracketMasterService', () => {
           effectiveStartDate: '2026-01-01',
         } as any,
         'user-1',
+        Role.ADMIN,
       );
 
       expect(mockedCloseOverlappingPredecessor).toHaveBeenCalledWith(
@@ -122,6 +128,7 @@ describe('TerBracketMasterService', () => {
         'txn-1',
         expect.any(String),
         'user-1',
+        Role.ADMIN,
       );
     });
 
@@ -141,6 +148,7 @@ describe('TerBracketMasterService', () => {
             effectiveStartDate: '2026-01-01',
           } as any,
           'user-1',
+          Role.ADMIN,
         ),
       ).rejects.toThrow(ConflictException);
       expect(model.create).not.toHaveBeenCalled();
@@ -218,6 +226,7 @@ describe('TerBracketMasterService', () => {
           effectiveStartDate: '2026-01-01',
         } as any,
         'user-1',
+        Role.ADMIN,
       );
 
       // The exact-match predecessor (same category + same bounds) is closed,
@@ -230,7 +239,11 @@ describe('TerBracketMasterService', () => {
           supersedesId: createdCallArg.id,
           updatedBy: 'user-1',
         },
-        { transaction: 'txn-1' },
+        expect.objectContaining({
+          transaction: 'txn-1',
+          actorId: 'user-1',
+          actorRole: Role.ADMIN,
+        }),
       );
       // The different-income-range bracket in the SAME category must coexist
       // untouched — it was never a candidate at all.
@@ -246,6 +259,7 @@ describe('TerBracketMasterService', () => {
       'ter-1',
       { rate: '0.005' },
       'user-1',
+      Role.ADMIN,
     );
 
     expect(effectiveRangePayslipChecker.isReferenced).toHaveBeenCalledWith(
@@ -259,7 +273,7 @@ describe('TerBracketMasterService', () => {
   it("passes a category matcher that re-derives TER category from the employee's ptkpStatus", async () => {
     const { service, effectiveRangePayslipChecker } = makeService(record(), false);
 
-    await service.update('ter-1', { rate: '0.005' }, 'user-1');
+    await service.update('ter-1', { rate: '0.005' }, 'user-1', Role.ADMIN);
 
     const [, matcher] = effectiveRangePayslipChecker.isReferenced.mock.calls[0];
     // TK/0 -> category A (matches this row); K/1 -> category B (does not).
@@ -279,7 +293,7 @@ describe('TerBracketMasterService', () => {
       const { service } = makeService(record(), true);
 
       await expect(
-        service.update('ter-1', patch, 'user-1'),
+        service.update('ter-1', patch, 'user-1', Role.ADMIN),
       ).rejects.toThrow(ConflictException);
     },
   );
@@ -295,6 +309,7 @@ describe('TerBracketMasterService', () => {
       'ter-1',
       { effectiveEndDate: '2026-03-01', reason: 'Superseded by new bracket' },
       'user-1',
+      Role.ADMIN,
     );
 
     expect(effectiveRangePayslipChecker.isReferenced).not.toHaveBeenCalled();
@@ -305,14 +320,19 @@ describe('TerBracketMasterService', () => {
     const { service } = makeService(record(), false);
 
     await expect(
-      service.update('ter-1', { effectiveEndDate: '2026-03-01' }, 'user-1'),
+      service.update(
+        'ter-1',
+        { effectiveEndDate: '2026-03-01' },
+        'user-1',
+        Role.ADMIN,
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 
   it('update() does not query the checker when no locked field is touched', async () => {
     const { service, effectiveRangePayslipChecker } = makeService(record(), true);
 
-    await service.update('ter-1', {}, 'user-1');
+    await service.update('ter-1', {}, 'user-1', Role.ADMIN);
 
     expect(effectiveRangePayslipChecker.isReferenced).not.toHaveBeenCalled();
   });

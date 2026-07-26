@@ -49,7 +49,7 @@ export class PtkpMasterController {
     @Body() dto: CreatePtkpMasterDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.ptkpMasterService.create(dto, user.id);
+    return this.ptkpMasterService.create(dto, user.id, user.role);
   }
 
   @Put(':id')
@@ -58,6 +58,6 @@ export class PtkpMasterController {
     @Body() dto: UpdatePtkpMasterDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.ptkpMasterService.update(id, dto, user.id);
+    return this.ptkpMasterService.update(id, dto, user.id, user.role);
   }
 }

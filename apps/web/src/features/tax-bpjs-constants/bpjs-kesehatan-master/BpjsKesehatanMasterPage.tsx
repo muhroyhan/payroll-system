@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Button, Form } from 'antd';
+import { Button, Drawer, Form } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { AuditEntityType } from '@payroll-system/shared-types';
 import { EffectiveDatedMasterPage } from '../../../components/EffectiveDatedMasterPage';
 import { FormDrawer } from '../../../components/FormDrawer';
 import { formatIDR } from '../../../components/format';
+import { AuditHistoryPanel } from '../../audit-events/AuditHistoryPanel';
 import { BpjsKesehatanMasterFormFields } from './BpjsKesehatanMasterFormFields';
 import { BpjsKesehatanEffectivePreview } from './BpjsKesehatanEffectivePreview';
 import {
@@ -24,6 +26,7 @@ export function BpjsKesehatanMasterPage() {
   const [form] = Form.useForm<BpjsKesehatanMasterFormRuntimeValues>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<BpjsKesehatanMaster | null>(null);
+  const [historyRecord, setHistoryRecord] = useState<BpjsKesehatanMaster | null>(null);
 
   const createMutation = useCreateBpjsKesehatanMasterMutation();
   const updateMutation = useUpdateBpjsKesehatanMasterMutation(editing?.id ?? '');
@@ -72,6 +75,7 @@ export function BpjsKesehatanMasterPage() {
           </Button>
         }
         onRetire={openEdit}
+        onShowHistory={setHistoryRecord}
         resolvePreview={<BpjsKesehatanEffectivePreview />}
       />
       <FormDrawer<BpjsKesehatanMasterFormRuntimeValues>
@@ -84,6 +88,19 @@ export function BpjsKesehatanMasterPage() {
       >
         <BpjsKesehatanMasterFormFields />
       </FormDrawer>
+      <Drawer
+        title="Histori Perubahan"
+        open={!!historyRecord}
+        onClose={() => setHistoryRecord(null)}
+        width={640}
+      >
+        {historyRecord && (
+          <AuditHistoryPanel
+            entityType={AuditEntityType.BPJS_KESEHATAN_MASTER}
+            entityId={historyRecord.id}
+          />
+        )}
+      </Drawer>
     </>
   );
 }

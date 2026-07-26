@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Button, Form } from 'antd';
+import { Button, Drawer, Form } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { AuditEntityType } from '@payroll-system/shared-types';
 import { EffectiveDatedMasterPage } from '../../../components/EffectiveDatedMasterPage';
 import { FormDrawer } from '../../../components/FormDrawer';
+import { AuditHistoryPanel } from '../../audit-events/AuditHistoryPanel';
 import { useScopeReferenceData } from '../../scope-resolver/useScopeReferenceData';
 import { SCOPE_TYPE_LABELS } from '../../scope-resolver/labels';
 import { useLeaveTypesQuery } from '../leave-types/hooks';
@@ -31,6 +33,7 @@ export function LeavePolicyMasterPage() {
   const [form] = Form.useForm<LeavePolicyMasterFormRuntimeValues>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<LeavePolicyMaster | null>(null);
+  const [historyRecord, setHistoryRecord] = useState<LeavePolicyMaster | null>(null);
 
   const createMutation = useCreateLeavePolicyMasterMutation();
   const updateMutation = useUpdateLeavePolicyMasterMutation(editing?.id ?? '');
@@ -87,6 +90,7 @@ export function LeavePolicyMasterPage() {
           </Button>
         }
         onRetire={openEdit}
+        onShowHistory={setHistoryRecord}
         resolvePreview={<LeavePolicyResolvePreview />}
       />
       <FormDrawer<LeavePolicyMasterFormRuntimeValues>
@@ -99,6 +103,19 @@ export function LeavePolicyMasterPage() {
       >
         <LeavePolicyMasterFormFields form={form} />
       </FormDrawer>
+      <Drawer
+        title="Histori Perubahan"
+        open={!!historyRecord}
+        onClose={() => setHistoryRecord(null)}
+        width={640}
+      >
+        {historyRecord && (
+          <AuditHistoryPanel
+            entityType={AuditEntityType.LEAVE_POLICY_MASTER}
+            entityId={historyRecord.id}
+          />
+        )}
+      </Drawer>
     </>
   );
 }

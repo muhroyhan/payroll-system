@@ -2,10 +2,12 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize';
 import { randomUUID } from 'crypto';
+import { Role } from '@payroll-system/shared-types';
 import { resolveEffectiveRecord } from '../../../common/effective-dating/resolve-effective';
 import { EffectiveRangePayslipChecker } from '../../../common/effective-dating/effective-range-payslip-checker';
 import { closeOverlappingPredecessor } from '../../../common/effective-dating/close-overlapping-predecessor';
 import { assertRetireReasonProvided } from '../../../common/effective-dating/retire-reason';
+import { auditOptions } from '../../../common/audit/audit-actor';
 import { BpjsKesehatanMaster } from './entities/bpjs-kesehatan-master.entity';
 import { CreateBpjsKesehatanMasterDto } from './dto/create-bpjs-kesehatan-master.dto';
 import { UpdateBpjsKesehatanMasterDto } from './dto/update-bpjs-kesehatan-master.dto';
@@ -53,6 +55,7 @@ export class BpjsKesehatanMasterService {
   create(
     dto: CreateBpjsKesehatanMasterDto,
     createdBy: string,
+    actorRole: Role,
   ): Promise<BpjsKesehatanMaster> {
     return this.sequelize.transaction(async (transaction) => {
       const newRowId = randomUUID();
@@ -63,10 +66,11 @@ export class BpjsKesehatanMasterService {
         transaction,
         newRowId,
         createdBy,
+        actorRole,
       );
       return this.bpjsKesehatanMasterModel.create(
         { id: newRowId, ...dto, createdBy } as any,
-        { transaction },
+        { transaction, ...auditOptions({ id: createdBy, role: actorRole }) },
       );
     });
   }
@@ -78,11 +82,15 @@ export class BpjsKesehatanMasterService {
     id: string,
     dto: UpdateBpjsKesehatanMasterDto,
     updatedBy: string,
+    actorRole: Role,
   ): Promise<BpjsKesehatanMaster> {
     const record = await this.findByIdOrThrow(id);
     await this.assertLockedFieldsUntouched(record, dto);
     assertRetireReasonProvided(record, dto);
-    return record.update({ ...dto, updatedBy });
+    return record.update(
+      { ...dto, updatedBy },
+      auditOptions({ id: updatedBy, role: actorRole }, dto.reason),
+    );
   }
 
   // effectiveEndDate is deliberately NOT locked (audit follow-up): closing a

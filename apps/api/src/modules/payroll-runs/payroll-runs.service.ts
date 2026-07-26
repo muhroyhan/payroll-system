@@ -5,8 +5,9 @@ import {
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize';
-import { PayrollRunStatus } from '@payroll-system/shared-types';
+import { PayrollRunStatus, Role } from '@payroll-system/shared-types';
 import { PayrollCalculationQueue } from '../../jobs/payroll-calculation.queue';
+import { auditOptions, SYSTEM_AUDIT_OPTIONS } from '../../common/audit/audit-actor';
 import { PayrollRun } from './entities/payroll-run.entity';
 import { PayrollRunRevertService } from './payroll-run-revert.service';
 import { CreatePayrollRunDto } from './dto/create-payroll-run.dto';
@@ -52,12 +53,19 @@ export class PayrollRunsService {
     return record;
   }
 
-  create(dto: CreatePayrollRunDto, createdBy: string): Promise<PayrollRun> {
-    return this.payrollRunModel.create({
-      period: dto.period,
-      status: PayrollRunStatus.DRAFT,
-      createdBy,
-    } as any);
+  create(
+    dto: CreatePayrollRunDto,
+    createdBy: string,
+    actorRole: Role,
+  ): Promise<PayrollRun> {
+    return this.payrollRunModel.create(
+      {
+        period: dto.period,
+        status: PayrollRunStatus.DRAFT,
+        createdBy,
+      } as any,
+      auditOptions({ id: createdBy, role: actorRole }),
+    );
   }
 
   // P8-T02 — enqueue the background calculation job and return immediately
@@ -81,23 +89,40 @@ export class PayrollRunsService {
   // cycle). Not an HTTP action.
   async markCalculated(id: string): Promise<PayrollRun> {
     const record = await this.assertTransition(id, PayrollRunStatus.CALCULATED);
-    return record.update({ status: PayrollRunStatus.CALCULATED });
+    return record.update(
+      { status: PayrollRunStatus.CALCULATED },
+      SYSTEM_AUDIT_OPTIONS,
+    );
   }
 
   // calculated → approved.
-  async approve(id: string, approvedBy: string): Promise<PayrollRun> {
+  async approve(
+    id: string,
+    approvedBy: string,
+    actorRole: Role,
+  ): Promise<PayrollRun> {
     const record = await this.assertTransition(id, PayrollRunStatus.APPROVED);
-    return record.update({ status: PayrollRunStatus.APPROVED, approvedBy });
+    return record.update(
+      { status: PayrollRunStatus.APPROVED, approvedBy },
+      auditOptions({ id: approvedBy, role: actorRole }),
+    );
   }
 
   // approved → disbursed. Sets locked_at; the run is now permanently immutable.
-  async disburse(id: string, disbursedBy: string): Promise<PayrollRun> {
+  async disburse(
+    id: string,
+    disbursedBy: string,
+    actorRole: Role,
+  ): Promise<PayrollRun> {
     const record = await this.assertTransition(id, PayrollRunStatus.DISBURSED);
-    return record.update({
-      status: PayrollRunStatus.DISBURSED,
-      lockedAt: new Date(),
-      disbursedBy,
-    });
+    return record.update(
+      {
+        status: PayrollRunStatus.DISBURSED,
+        lockedAt: new Date(),
+        disbursedBy,
+      },
+      auditOptions({ id: disbursedBy, role: actorRole }),
+    );
   }
 
   // calculated → draft. Only from `calculated` (§11 — an approved/disbursed run
@@ -113,8 +138,10 @@ export class PayrollRunsService {
     id: string,
     revertedBy: string,
     revertReason: string,
+    actorRole: Role,
   ): Promise<PayrollRun> {
     const record = await this.assertTransition(id, PayrollRunStatus.DRAFT);
+    const actor = auditOptions({ id: revertedBy, role: actorRole }, revertReason);
     // P8-T07 — closes the gap flagged in P8-T01: reverting throws away this
     // run's provisional payslips + line items (regenerated from corrected data
     // on recalc) and rolls back the kasbon installments they drew, then flips
@@ -125,7 +152,7 @@ export class PayrollRunsService {
     await this.sequelize.transaction(async (transaction) => {
       await record.update(
         { revertedBy, revertReason },
-        { transaction },
+        { transaction, ...actor },
       );
       await this.revertService.revertRunData(id, transaction);
       // The torn-down payslips/line items this run had calculated are gone,
@@ -135,7 +162,7 @@ export class PayrollRunsService {
       // (draft + totalCount > 0) never clears.
       await record.update(
         { status: PayrollRunStatus.DRAFT, processedCount: 0, totalCount: 0 },
-        { transaction },
+        { transaction, ...actor },
       );
     });
     return record;

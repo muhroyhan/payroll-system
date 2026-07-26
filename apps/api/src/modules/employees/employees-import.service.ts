@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import * as XLSX from 'xlsx';
+import type { Role } from '@payroll-system/shared-types';
 import { EmployeeTypesService } from '../organization/employee-types/employee-types.service';
 import { PositionsService } from '../organization/positions/positions.service';
 import { DepartmentsService } from '../organization/departments/departments.service';
@@ -29,6 +30,7 @@ export class EmployeesImportService {
   async importFromBuffer(
     buffer: Buffer,
     currentUserId: string,
+    actorRole: Role,
   ): Promise<BulkImportResult> {
     const rows = this.parseRows(buffer);
     if (rows.length === 0) {
@@ -119,6 +121,7 @@ export class EmployeesImportService {
         const created = await this.employeesService.create(
           createDto,
           currentUserId,
+          actorRole,
         );
         createdIds.push(created.id);
       } catch (error) {

@@ -65,7 +65,7 @@ export class PayrollRunsController {
     @Body() dto: CreatePayrollRunDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.payrollRunsService.create(dto, user.id);
+    return this.payrollRunsService.create(dto, user.id, user.role);
   }
 
   // P8-T02 — enqueue the calculation job and return immediately (202). The run
@@ -83,13 +83,13 @@ export class PayrollRunsController {
   @Put(':id/approve')
   @Roles(Role.ADMIN)
   approve(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.payrollRunsService.approve(id, user.id);
+    return this.payrollRunsService.approve(id, user.id, user.role);
   }
 
   @Put(':id/disburse')
   @Roles(Role.ADMIN)
   disburse(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.payrollRunsService.disburse(id, user.id);
+    return this.payrollRunsService.disburse(id, user.id, user.role);
   }
 
   @Put(':id/revert')
@@ -99,6 +99,11 @@ export class PayrollRunsController {
     @Body() dto: RevertPayrollRunDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.payrollRunsService.revertToDraft(id, user.id, dto.reason);
+    return this.payrollRunsService.revertToDraft(
+      id,
+      user.id,
+      dto.reason,
+      user.role,
+    );
   }
 }

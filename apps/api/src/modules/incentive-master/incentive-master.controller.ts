@@ -51,7 +51,7 @@ export class IncentiveMasterController {
     @Body() dto: CreateIncentiveMasterDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.incentiveMasterService.create(dto, user.id);
+    return this.incentiveMasterService.create(dto, user.id, user.role);
   }
 
   @Put(':id')
@@ -60,6 +60,6 @@ export class IncentiveMasterController {
     @Body() dto: UpdateIncentiveMasterDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.incentiveMasterService.update(id, dto, user.id);
+    return this.incentiveMasterService.update(id, dto, user.id, user.role);
   }
 }

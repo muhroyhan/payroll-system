@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Role } from '@payroll-system/shared-types';
+import { auditOptions } from '../../common/audit/audit-actor';
 import { EmployeesService } from '../employees/employees.service';
 import { ScopeResolverService } from '../scope-resolver/scope-resolver.service';
 import { ScopeValueValidator } from '../scope-resolver/scope-value-validator.service';
@@ -43,9 +45,13 @@ export class SalaryMasterService {
   async create(
     dto: CreateSalaryMasterDto,
     createdBy: string,
+    actorRole: Role,
   ): Promise<SalaryMaster> {
     await this.scopeValueValidator.validate(dto.scopeType, dto.scopeValue);
-    return this.salaryMasterModel.create({ ...dto, createdBy } as any);
+    return this.salaryMasterModel.create(
+      { ...dto, createdBy } as any,
+      auditOptions({ id: createdBy, role: actorRole }),
+    );
   }
 
   // §11/P8-T07-style audit fix — once PayrollRunCalculationService.
@@ -63,6 +69,7 @@ export class SalaryMasterService {
     id: string,
     dto: UpdateSalaryMasterDto,
     updatedBy: string,
+    actorRole: Role,
   ): Promise<SalaryMaster> {
     const record = await this.findByIdOrThrow(id);
     if (dto.scopeType && dto.scopeValue) {
@@ -70,7 +77,10 @@ export class SalaryMasterService {
     }
     await this.assertLockedFieldsUntouched(record, dto);
     assertRetireReasonProvided(record, dto);
-    return record.update({ ...dto, updatedBy });
+    return record.update(
+      { ...dto, updatedBy },
+      auditOptions({ id: updatedBy, role: actorRole }, dto.reason),
+    );
   }
 
   private async assertLockedFieldsUntouched(

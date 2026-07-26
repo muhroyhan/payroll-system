@@ -53,7 +53,7 @@ export class BpjsKetenagakerjaanMasterController {
     @Body() dto: CreateBpjsKetenagakerjaanMasterDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.bpjsKetenagakerjaanMasterService.create(dto, user.id);
+    return this.bpjsKetenagakerjaanMasterService.create(dto, user.id, user.role);
   }
 
   @Put(':id')
@@ -62,6 +62,11 @@ export class BpjsKetenagakerjaanMasterController {
     @Body() dto: UpdateBpjsKetenagakerjaanMasterDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.bpjsKetenagakerjaanMasterService.update(id, dto, user.id);
+    return this.bpjsKetenagakerjaanMasterService.update(
+      id,
+      dto,
+      user.id,
+      user.role,
+    );
   }
 }

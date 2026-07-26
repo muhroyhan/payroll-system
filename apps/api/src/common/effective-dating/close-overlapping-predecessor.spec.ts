@@ -12,6 +12,7 @@ describe('closeOverlappingPredecessor', () => {
   const transaction = { id: 'txn-1' } as any;
   const newRowId = 'new-row-1';
   const updatedBy = 'actor-1';
+  const actorRole = 'admin';
 
   it('does nothing when there is no open predecessor in this category', async () => {
     const model = makeModel([]);
@@ -23,6 +24,7 @@ describe('closeOverlappingPredecessor', () => {
       transaction,
       newRowId,
       updatedBy,
+      actorRole,
     );
 
     expect(model.findAll).toHaveBeenCalledWith({
@@ -46,6 +48,7 @@ describe('closeOverlappingPredecessor', () => {
       transaction,
       newRowId,
       updatedBy,
+      actorRole,
     );
 
     expect(predecessor.update).toHaveBeenCalledWith(
@@ -55,7 +58,11 @@ describe('closeOverlappingPredecessor', () => {
         supersedesId: newRowId,
         updatedBy,
       },
-      { transaction },
+      expect.objectContaining({
+        transaction,
+        actorId: updatedBy,
+        actorRole,
+      }),
     );
   });
 
@@ -74,6 +81,7 @@ describe('closeOverlappingPredecessor', () => {
       transaction,
       newRowId,
       updatedBy,
+      actorRole,
     );
 
     expect(predecessor.update).toHaveBeenCalledWith(
@@ -83,7 +91,11 @@ describe('closeOverlappingPredecessor', () => {
         supersedesId: newRowId,
         updatedBy,
       },
-      { transaction },
+      expect.objectContaining({
+        transaction,
+        actorId: updatedBy,
+        actorRole,
+      }),
     );
   });
 
@@ -101,6 +113,7 @@ describe('closeOverlappingPredecessor', () => {
         transaction,
         newRowId,
         updatedBy,
+        actorRole,
       ),
     ).rejects.toThrow(ConflictException);
   });
@@ -122,6 +135,7 @@ describe('closeOverlappingPredecessor', () => {
         transaction,
         newRowId,
         updatedBy,
+        actorRole,
       ),
     ).rejects.toThrow(ConflictException);
     expect(predecessor.update).not.toHaveBeenCalled();
@@ -143,6 +157,7 @@ describe('closeOverlappingPredecessor', () => {
         transaction,
         newRowId,
         updatedBy,
+        actorRole,
       ),
     ).rejects.toThrow(ConflictException);
     expect(predecessor.update).not.toHaveBeenCalled();

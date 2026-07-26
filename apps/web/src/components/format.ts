@@ -24,3 +24,18 @@ export function formatDate(value: string | Date): string {
   const date = typeof value === 'string' ? new Date(value) : value;
   return dateFormatter.format(date);
 }
+
+const dateTimeFormatter = new Intl.DateTimeFormat('id-ID', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+// Audit history (features/audit-events) — the only current consumer that
+// needs time-of-day, not just the date.
+export function formatDateTime(value: string | Date): string {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  return dateTimeFormatter.format(date);
+}

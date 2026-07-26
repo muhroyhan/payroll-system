@@ -4,6 +4,7 @@ import {
   Gender,
   MaritalStatus,
   PtkpStatus,
+  Role,
 } from '@payroll-system/shared-types';
 import { EmployeesService } from './employees.service';
 
@@ -67,7 +68,7 @@ describe('EmployeesService — ptkp override audit trail', () => {
   describe('create()', () => {
     it('does not set any override-tracking field when ptkpManuallyOverridden is not set', async () => {
       const { service, model } = makeService();
-      await service.create({ ...baseDto } as any, 'user-1');
+      await service.create({ ...baseDto } as any, 'user-1', Role.HR_STAFF);
       expect(model.create).toHaveBeenCalledWith(
         expect.objectContaining({
           ptkpManuallyOverridden: false,
@@ -75,6 +76,7 @@ describe('EmployeesService — ptkp override audit trail', () => {
           ptkpOverriddenAt: null,
           ptkpOverriddenReason: null,
         }),
+        expect.anything(),
       );
     });
 
@@ -88,6 +90,7 @@ describe('EmployeesService — ptkp override audit trail', () => {
           ptkpOverrideReason: 'SK Pengadilan terlampir',
         } as any,
         'user-logged-in',
+        Role.HR_STAFF,
       );
       expect(model.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -95,6 +98,10 @@ describe('EmployeesService — ptkp override audit trail', () => {
           ptkpOverriddenBy: 'user-logged-in',
           ptkpOverriddenAt: expect.any(Date),
           ptkpOverriddenReason: 'SK Pengadilan terlampir',
+        }),
+        expect.objectContaining({
+          actorId: 'user-logged-in',
+          actorRole: Role.HR_STAFF,
         }),
       );
     });
@@ -109,6 +116,7 @@ describe('EmployeesService — ptkp override audit trail', () => {
             ptkpStatus: PtkpStatus.K_1,
           } as any,
           'user-1',
+          Role.HR_STAFF,
         ),
       ).rejects.toThrow(BadRequestException);
       expect(model.create).not.toHaveBeenCalled();
@@ -127,6 +135,7 @@ describe('EmployeesService — ptkp override audit trail', () => {
           ptkpOverrideReason: 'Surat keterangan HR-042',
         } as any,
         'approver-2',
+        Role.ADMIN,
       );
       expect(r.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -135,6 +144,7 @@ describe('EmployeesService — ptkp override audit trail', () => {
           ptkpOverriddenAt: expect.any(Date),
           ptkpOverriddenReason: 'Surat keterangan HR-042',
         }),
+        expect.objectContaining({ actorId: 'approver-2', actorRole: Role.ADMIN }),
       );
     });
 
@@ -146,6 +156,7 @@ describe('EmployeesService — ptkp override audit trail', () => {
           'emp-1',
           { ptkpManuallyOverridden: true, ptkpStatus: PtkpStatus.K_1 } as any,
           'approver-2',
+          Role.ADMIN,
         ),
       ).rejects.toThrow(BadRequestException);
       expect(r.update).not.toHaveBeenCalled();
@@ -170,6 +181,7 @@ describe('EmployeesService — ptkp override audit trail', () => {
           ptkpOverrideReason: 'a different, unrelated reason',
         } as any,
         'someone-else',
+        Role.ADMIN,
       );
       const patch = (r.update as jest.Mock).mock.calls[0][0];
       expect(patch.ptkpOverriddenBy).toBeUndefined();
@@ -192,6 +204,7 @@ describe('EmployeesService — ptkp override audit trail', () => {
         'emp-1',
         { ptkpManuallyOverridden: false } as any,
         'someone-else',
+        Role.ADMIN,
       );
       expect(r.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -200,6 +213,7 @@ describe('EmployeesService — ptkp override audit trail', () => {
           ptkpOverriddenAt: null,
           ptkpOverriddenReason: null,
         }),
+        expect.anything(),
       );
     });
   });

@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { Role } from '@payroll-system/shared-types';
 import { BpjsKetenagakerjaanMasterService } from './bpjs-ketenagakerjaan-master.service';
 import { closeOverlappingPredecessor } from '../../../common/effective-dating/close-overlapping-predecessor';
 
@@ -74,7 +75,7 @@ describe('BpjsKetenagakerjaanMasterService', () => {
         jkmCompanyRate: '0.003',
         effectiveStartDate: '2026-01-01',
       };
-      await service.create(dto as any, 'user-1');
+      await service.create(dto as any, 'user-1', Role.ADMIN);
 
       expect(sequelize.transaction).toHaveBeenCalledTimes(1);
       expect(mockedCloseOverlappingPredecessor).toHaveBeenCalledWith(
@@ -84,12 +85,17 @@ describe('BpjsKetenagakerjaanMasterService', () => {
         'txn-1',
         expect.any(String),
         'user-1',
+        Role.ADMIN,
       );
       const [, , , , newRowId] =
         mockedCloseOverlappingPredecessor.mock.calls[0];
       expect(model.create).toHaveBeenCalledWith(
         { id: newRowId, ...dto, createdBy: 'user-1' },
-        { transaction: 'txn-1' },
+        expect.objectContaining({
+          transaction: 'txn-1',
+          actorId: 'user-1',
+          actorRole: Role.ADMIN,
+        }),
       );
     });
 
@@ -112,6 +118,7 @@ describe('BpjsKetenagakerjaanMasterService', () => {
             effectiveStartDate: '2026-01-01',
           } as any,
           'user-1',
+          Role.ADMIN,
         ),
       ).rejects.toThrow(ConflictException);
       expect(model.create).not.toHaveBeenCalled();
@@ -126,6 +133,7 @@ describe('BpjsKetenagakerjaanMasterService', () => {
         'bt-1',
         { jpWageCap: '11000000.00' },
         'user-1',
+        Role.ADMIN,
       );
 
       expect(effectiveRangePayslipChecker.isReferenced).toHaveBeenCalledWith({
@@ -150,9 +158,9 @@ describe('BpjsKetenagakerjaanMasterService', () => {
       async (_fieldName, patch) => {
         const { service } = makeService(record(), true);
 
-        await expect(service.update('bt-1', patch, 'user-1')).rejects.toThrow(
-          ConflictException,
-        );
+        await expect(
+          service.update('bt-1', patch, 'user-1', Role.ADMIN),
+        ).rejects.toThrow(ConflictException);
       },
     );
 
@@ -163,6 +171,7 @@ describe('BpjsKetenagakerjaanMasterService', () => {
         'bt-1',
         { effectiveEndDate: '2026-12-31', reason: 'Superseded by new rate' },
         'user-1',
+        Role.ADMIN,
       );
 
       expect(effectiveRangePayslipChecker.isReferenced).not.toHaveBeenCalled();
@@ -173,14 +182,19 @@ describe('BpjsKetenagakerjaanMasterService', () => {
       const { service } = makeService(record(), false);
 
       await expect(
-        service.update('bt-1', { effectiveEndDate: '2026-12-31' }, 'user-1'),
+        service.update(
+          'bt-1',
+          { effectiveEndDate: '2026-12-31' },
+          'user-1',
+          Role.ADMIN,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('does not query the checker when no locked field is touched', async () => {
       const { service, effectiveRangePayslipChecker } = makeService(record(), true);
 
-      await service.update('bt-1', {}, 'user-1');
+      await service.update('bt-1', {}, 'user-1', Role.ADMIN);
 
       expect(effectiveRangePayslipChecker.isReferenced).not.toHaveBeenCalled();
     });

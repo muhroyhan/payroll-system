@@ -29,6 +29,11 @@ interface EffectiveDatedMasterPageProps<T extends EffectiveDatedRecord> {
   /** Opens the edit form focused on effectiveEndDate — §11 says "retire",
    *  never delete, so there is deliberately no onDelete prop. */
   onRetire?: (record: T) => void;
+  /** Opens the caller's own audit-history Drawer/Modal for this row (see
+   *  features/audit-events/AuditHistoryPanel) — kept as a callback rather
+   *  than importing that panel directly here, since this file lives in the
+   *  generic components/ layer and audit-events is a feature module. */
+  onShowHistory?: (record: T) => void;
   /** The GET …/resolve preview panel — its query shape differs per master
    *  (employeeId vs employeeId+leaveTypeId), so the caller builds it. */
   resolvePreview?: ReactNode;
@@ -50,6 +55,7 @@ export function EffectiveDatedMasterPage<T extends EffectiveDatedRecord>({
   columns,
   primaryAction,
   onRetire,
+  onShowHistory,
   resolvePreview,
 }: EffectiveDatedMasterPageProps<T>) {
   // FE-T09 — expired rows are tagged (below) but excluded from the default
@@ -103,19 +109,29 @@ export function EffectiveDatedMasterPage<T extends EffectiveDatedRecord>({
     },
   ];
 
-  const retireColumn: ColumnsType<T> = onRetire
-    ? [
-        {
-          title: 'Aksi',
-          key: 'retire',
-          render: (_, record) => (
-            <Typography.Link onClick={() => onRetire(record)}>
-              Akhiri Masa Berlaku
-            </Typography.Link>
-          ),
-        },
-      ]
-    : [];
+  const retireColumn: ColumnsType<T> =
+    onRetire || onShowHistory
+      ? [
+          {
+            title: 'Aksi',
+            key: 'retire',
+            render: (_, record) => (
+              <Space size="small">
+                {onRetire && (
+                  <Typography.Link onClick={() => onRetire(record)}>
+                    Akhiri Masa Berlaku
+                  </Typography.Link>
+                )}
+                {onShowHistory && (
+                  <Typography.Link onClick={() => onShowHistory(record)}>
+                    Riwayat
+                  </Typography.Link>
+                )}
+              </Space>
+            ),
+          },
+        ]
+      : [];
 
   return (
     <div>

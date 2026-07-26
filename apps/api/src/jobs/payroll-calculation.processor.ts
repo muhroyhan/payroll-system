@@ -4,6 +4,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { Op } from 'sequelize';
 import { PayrollRunStatus } from '@payroll-system/shared-types';
+import { SYSTEM_AUDIT_OPTIONS } from '../common/audit/audit-actor';
 import { Employee } from '../modules/employees/entities/employee.entity';
 import { PayrollRun } from '../modules/payroll-runs/entities/payroll-run.entity';
 import { isTransitionAllowed } from '../modules/payroll-runs/payroll-run-transitions';
@@ -127,7 +128,10 @@ export class PayrollCalculationProcessor extends WorkerHost {
     // draft → calculated, through the same §5.8/§11 transition guard the
     // service uses (imported as a pure function to avoid a module cycle).
     if (isTransitionAllowed(run.status, PayrollRunStatus.CALCULATED)) {
-      await run.update({ status: PayrollRunStatus.CALCULATED });
+      await run.update(
+        { status: PayrollRunStatus.CALCULATED },
+        SYSTEM_AUDIT_OPTIONS,
+      );
 
       // P8-T05 — bulk-enqueue PDF generation for every payslip just created
       // in this run (one call, not a per-employee enqueue loop). Rides the

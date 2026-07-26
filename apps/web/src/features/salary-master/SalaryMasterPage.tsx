@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Button, Form } from 'antd';
+import { Button, Drawer, Form } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { AuditEntityType } from '@payroll-system/shared-types';
 import { EffectiveDatedMasterPage } from '../../components/EffectiveDatedMasterPage';
 import { FormDrawer } from '../../components/FormDrawer';
 import { formatIDR } from '../../components/format';
+import { AuditHistoryPanel } from '../audit-events/AuditHistoryPanel';
 import { useScopeReferenceData } from '../scope-resolver/useScopeReferenceData';
 import { SCOPE_TYPE_LABELS } from '../scope-resolver/labels';
 import { SalaryMasterFormFields } from './SalaryMasterFormFields';
@@ -27,6 +29,7 @@ export function SalaryMasterPage() {
   const [form] = Form.useForm<SalaryMasterFormRuntimeValues>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<SalaryMaster | null>(null);
+  const [historyRecord, setHistoryRecord] = useState<SalaryMaster | null>(null);
 
   const createMutation = useCreateSalaryMasterMutation();
   const updateMutation = useUpdateSalaryMasterMutation(editing?.id ?? '');
@@ -79,6 +82,7 @@ export function SalaryMasterPage() {
           </Button>
         }
         onRetire={openEdit}
+        onShowHistory={setHistoryRecord}
         resolvePreview={<SalaryResolvePreview />}
       />
       <FormDrawer<SalaryMasterFormRuntimeValues>
@@ -91,6 +95,19 @@ export function SalaryMasterPage() {
       >
         <SalaryMasterFormFields form={form} />
       </FormDrawer>
+      <Drawer
+        title="Histori Perubahan"
+        open={!!historyRecord}
+        onClose={() => setHistoryRecord(null)}
+        width={640}
+      >
+        {historyRecord && (
+          <AuditHistoryPanel
+            entityType={AuditEntityType.SALARY_MASTER}
+            entityId={historyRecord.id}
+          />
+        )}
+      </Drawer>
     </>
   );
 }

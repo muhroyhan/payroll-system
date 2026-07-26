@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { UniqueConstraintError } from 'sequelize';
-import { PtkpStatus } from '@payroll-system/shared-types';
+import { PtkpStatus, Role } from '@payroll-system/shared-types';
+import { auditOptions } from '../../common/audit/audit-actor';
 import { PtkpDerivationService } from '../ptkp/ptkp-derivation.service';
 import { ScopeContext } from '../scope-resolver/scope-resolver.types';
 import { Employee } from './entities/employee.entity';
@@ -54,7 +55,11 @@ export class EmployeesService {
     };
   }
 
-  async create(dto: CreateEmployeeDto, currentUserId: string): Promise<Employee> {
+  async create(
+    dto: CreateEmployeeDto,
+    currentUserId: string,
+    actorRole: Role,
+  ): Promise<Employee> {
     const ptkpManuallyOverridden = dto.ptkpManuallyOverridden ?? false;
     // §5.1a — DTO validation guarantees ptkpStatus is present when overridden;
     // otherwise propose it from the raw inputs instead of trusting the client.
@@ -77,16 +82,22 @@ export class EmployeesService {
     }
 
     try {
-      const created = await this.employeeModel.create({
-        ...dto,
-        ptkpStatus,
-        ptkpManuallyOverridden,
-        ptkpOverriddenBy: ptkpManuallyOverridden ? currentUserId : null,
-        ptkpOverriddenAt: ptkpManuallyOverridden ? new Date() : null,
-        ptkpOverriddenReason: ptkpManuallyOverridden
-          ? dto.ptkpOverrideReason
-          : null,
-      } as any);
+      const created = await this.employeeModel.create(
+        {
+          ...dto,
+          ptkpStatus,
+          ptkpManuallyOverridden,
+          ptkpOverriddenBy: ptkpManuallyOverridden ? currentUserId : null,
+          ptkpOverriddenAt: ptkpManuallyOverridden ? new Date() : null,
+          ptkpOverriddenReason: ptkpManuallyOverridden
+            ? dto.ptkpOverrideReason
+            : null,
+        } as any,
+        auditOptions(
+          { id: currentUserId, role: actorRole },
+          dto.ptkpOverrideReason,
+        ),
+      );
       return this.findByIdOrThrow(created.id);
     } catch (error) {
       throw this.translateUniqueConstraintError(error);
@@ -97,6 +108,7 @@ export class EmployeesService {
     id: string,
     dto: UpdateEmployeeDto,
     currentUserId: string,
+    actorRole: Role,
   ): Promise<Employee> {
     const record = await this.findByIdOrThrow(id);
 
@@ -140,7 +152,13 @@ export class EmployeesService {
     }
 
     try {
-      await record.update(patch);
+      await record.update(
+        patch,
+        auditOptions(
+          { id: currentUserId, role: actorRole },
+          dto.ptkpOverrideReason,
+        ),
+      );
       return this.findByIdOrThrow(id);
     } catch (error) {
       throw this.translateUniqueConstraintError(error);

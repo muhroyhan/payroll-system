@@ -53,7 +53,7 @@ export class BpjsKesehatanMasterController {
     @Body() dto: CreateBpjsKesehatanMasterDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.bpjsKesehatanMasterService.create(dto, user.id);
+    return this.bpjsKesehatanMasterService.create(dto, user.id, user.role);
   }
 
   @Put(':id')
@@ -62,6 +62,6 @@ export class BpjsKesehatanMasterController {
     @Body() dto: UpdateBpjsKesehatanMasterDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.bpjsKesehatanMasterService.update(id, dto, user.id);
+    return this.bpjsKesehatanMasterService.update(id, dto, user.id, user.role);
   }
 }

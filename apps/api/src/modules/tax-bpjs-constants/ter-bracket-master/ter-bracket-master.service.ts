@@ -2,11 +2,12 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize';
 import { randomUUID } from 'crypto';
-import { TerCategory } from '@payroll-system/shared-types';
+import { Role, TerCategory } from '@payroll-system/shared-types';
 import { resolveEffectiveRecords } from '../../../common/effective-dating/resolve-effective';
 import { EffectiveRangePayslipChecker } from '../../../common/effective-dating/effective-range-payslip-checker';
 import { closeOverlappingPredecessor } from '../../../common/effective-dating/close-overlapping-predecessor';
 import { assertRetireReasonProvided } from '../../../common/effective-dating/retire-reason';
+import { auditOptions } from '../../../common/audit/audit-actor';
 import { TerBracketMaster } from './entities/ter-bracket-master.entity';
 import { CreateTerBracketMasterDto } from './dto/create-ter-bracket-master.dto';
 import { UpdateTerBracketMasterDto } from './dto/update-ter-bracket-master.dto';
@@ -60,6 +61,7 @@ export class TerBracketMasterService {
   create(
     dto: CreateTerBracketMasterDto,
     createdBy: string,
+    actorRole: Role,
   ): Promise<TerBracketMaster> {
     return this.sequelize.transaction(async (transaction) => {
       const newRowId = randomUUID();
@@ -74,10 +76,11 @@ export class TerBracketMasterService {
         transaction,
         newRowId,
         createdBy,
+        actorRole,
       );
       return this.terBracketMasterModel.create(
         { id: newRowId, ...dto, createdBy } as any,
-        { transaction },
+        { transaction, ...auditOptions({ id: createdBy, role: actorRole }) },
       );
     });
   }
@@ -91,11 +94,15 @@ export class TerBracketMasterService {
     id: string,
     dto: UpdateTerBracketMasterDto,
     updatedBy: string,
+    actorRole: Role,
   ): Promise<TerBracketMaster> {
     const record = await this.findByIdOrThrow(id);
     await this.assertLockedFieldsUntouched(record, dto);
     assertRetireReasonProvided(record, dto);
-    return record.update({ ...dto, updatedBy });
+    return record.update(
+      { ...dto, updatedBy },
+      auditOptions({ id: updatedBy, role: actorRole }, dto.reason),
+    );
   }
 
   // effectiveEndDate is deliberately NOT locked (audit follow-up): closing a

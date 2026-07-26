@@ -52,7 +52,7 @@ export class TerBracketMasterController {
     @Body() dto: CreateTerBracketMasterDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.terBracketMasterService.create(dto, user.id);
+    return this.terBracketMasterService.create(dto, user.id, user.role);
   }
 
   @Put(':id')
@@ -61,6 +61,6 @@ export class TerBracketMasterController {
     @Body() dto: UpdateTerBracketMasterDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.terBracketMasterService.update(id, dto, user.id);
+    return this.terBracketMasterService.update(id, dto, user.id, user.role);
   }
 }

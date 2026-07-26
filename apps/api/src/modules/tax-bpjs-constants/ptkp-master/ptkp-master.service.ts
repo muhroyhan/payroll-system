@@ -2,7 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize';
 import { randomUUID } from 'crypto';
-import { PtkpStatus } from '@payroll-system/shared-types';
+import { PtkpStatus, Role } from '@payroll-system/shared-types';
 import {
   resolveEffectiveRecord,
   resolveEffectiveRecords,
@@ -10,6 +10,7 @@ import {
 import { EffectiveRangePayslipChecker } from '../../../common/effective-dating/effective-range-payslip-checker';
 import { closeOverlappingPredecessor } from '../../../common/effective-dating/close-overlapping-predecessor';
 import { assertRetireReasonProvided } from '../../../common/effective-dating/retire-reason';
+import { auditOptions } from '../../../common/audit/audit-actor';
 import { PtkpMaster } from './entities/ptkp-master.entity';
 import { CreatePtkpMasterDto } from './dto/create-ptkp-master.dto';
 import { UpdatePtkpMasterDto } from './dto/update-ptkp-master.dto';
@@ -67,7 +68,11 @@ export class PtkpMasterService {
   // new row starts, so two open-ended rows for the same status can never
   // coexist (the overlap gap EffectiveRangePayslipChecker's audit found).
   // See closeOverlappingPredecessor for when it refuses to guess instead.
-  create(dto: CreatePtkpMasterDto, createdBy: string): Promise<PtkpMaster> {
+  create(
+    dto: CreatePtkpMasterDto,
+    createdBy: string,
+    actorRole: Role,
+  ): Promise<PtkpMaster> {
     return this.sequelize.transaction(async (transaction) => {
       const newRowId = randomUUID();
       await closeOverlappingPredecessor(
@@ -77,10 +82,11 @@ export class PtkpMasterService {
         transaction,
         newRowId,
         createdBy,
+        actorRole,
       );
       return this.ptkpMasterModel.create(
         { id: newRowId, ...dto, createdBy } as any,
-        { transaction },
+        { transaction, ...auditOptions({ id: createdBy, role: actorRole }) },
       );
     });
   }
@@ -94,11 +100,15 @@ export class PtkpMasterService {
     id: string,
     dto: UpdatePtkpMasterDto,
     updatedBy: string,
+    actorRole: Role,
   ): Promise<PtkpMaster> {
     const record = await this.findByIdOrThrow(id);
     await this.assertLockedFieldsUntouched(record, dto);
     assertRetireReasonProvided(record, dto);
-    return record.update({ ...dto, updatedBy });
+    return record.update(
+      { ...dto, updatedBy },
+      auditOptions({ id: updatedBy, role: actorRole }, dto.reason),
+    );
   }
 
   // effectiveEndDate is deliberately NOT locked (audit follow-up): closing a

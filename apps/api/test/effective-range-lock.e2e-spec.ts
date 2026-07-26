@@ -11,6 +11,7 @@ import {
   PayrollRunStatus,
   PayslipLineSource,
   PtkpStatus,
+  Role,
   ScopeType,
   TerCategory,
 } from '@payroll-system/shared-types';
@@ -363,6 +364,7 @@ describe('Effective-dated master locks (integration, real DB)', () => {
         row.id,
         { amount: '99999999.00' } as any,
         'user-1',
+        Role.ADMIN,
       ),
     ).rejects.toThrow(ConflictException);
   });
@@ -384,6 +386,7 @@ describe('Effective-dated master locks (integration, real DB)', () => {
         row.id,
         { rate: '0.99999' } as any,
         'user-1',
+        Role.ADMIN,
       ),
     ).rejects.toThrow(ConflictException);
   });
@@ -404,6 +407,7 @@ describe('Effective-dated master locks (integration, real DB)', () => {
         row.id,
         { employeeRate: '0.99000' } as any,
         'user-1',
+        Role.ADMIN,
       ),
     ).rejects.toThrow(ConflictException);
   });
@@ -428,6 +432,7 @@ describe('Effective-dated master locks (integration, real DB)', () => {
         row.id,
         { jkkCompanyRate: '0.99000' } as any,
         'user-1',
+        Role.ADMIN,
       ),
     ).rejects.toThrow(ConflictException);
   });
@@ -457,6 +462,7 @@ describe('Effective-dated master locks (integration, real DB)', () => {
         row.id,
         { baseSalary: '9999999.00' } as any,
         'user-1',
+        Role.ADMIN,
       ),
     ).rejects.toThrow(ConflictException);
   });
@@ -487,6 +493,7 @@ describe('Effective-dated master locks (integration, real DB)', () => {
         row.id,
         { incentiveAmount: '9999999.00' } as any,
         'user-1',
+        Role.ADMIN,
       ),
     ).rejects.toThrow(ConflictException);
   });
@@ -529,6 +536,7 @@ describe('Effective-dated master locks (integration, real DB)', () => {
         row.id,
         { annualQuota: 24 } as any,
         'user-1',
+        Role.ADMIN,
       ),
     ).rejects.toThrow(ConflictException);
   });

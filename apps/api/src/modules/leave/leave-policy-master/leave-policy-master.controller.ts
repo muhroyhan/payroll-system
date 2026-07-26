@@ -52,7 +52,7 @@ export class LeavePolicyMasterController {
     @Body() dto: CreateLeavePolicyMasterDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.leavePolicyMasterService.create(dto, user.id);
+    return this.leavePolicyMasterService.create(dto, user.id, user.role);
   }
 
   @Put(':id')
@@ -61,6 +61,6 @@ export class LeavePolicyMasterController {
     @Body() dto: UpdateLeavePolicyMasterDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.leavePolicyMasterService.update(id, dto, user.id);
+    return this.leavePolicyMasterService.update(id, dto, user.id, user.role);
   }
 }

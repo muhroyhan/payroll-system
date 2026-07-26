@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Alert, Descriptions, Form, Input, Modal, Progress, Space, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { PayrollRunStatus } from '@payroll-system/shared-types';
+import { AuditEntityType, PayrollRunStatus } from '@payroll-system/shared-types';
 import { formatIDR } from '../../components/format';
 import type { PayrollRunExcludedEmployee } from './api';
 import { DetailPage } from '../../components/DetailPage';
 import { LockedAction } from '../../components/LockedAction';
 import { StatusTag } from '../../components/StatusTag';
 import { ApiErrorDisplay } from '../../components/ApiErrorDisplay';
+import { AuditHistoryPanel } from '../audit-events/AuditHistoryPanel';
 import { useAuth } from '../auth/useAuth';
 import { describeApiError, type ApiErrorPresentation } from '../../api/errors';
 import {
@@ -147,6 +148,25 @@ export function PayrollRunDetailPage() {
         title={record ? `Payroll Run — ${record.period}` : 'Payroll Run'}
         backTo="/payroll-runs"
         query={query}
+        // GET /audit-events is admin-only — hidden entirely for HR_STAFF
+        // rather than shown and 403ing (same "absent, not disabled" pattern
+        // as the lifecycle actions below).
+        tabs={
+          isAdmin && record
+            ? [
+                {
+                  key: 'audit-history',
+                  label: 'Histori Perubahan',
+                  children: (
+                    <AuditHistoryPanel
+                      entityType={AuditEntityType.PAYROLL_RUN}
+                      entityId={record.id}
+                    />
+                  ),
+                },
+              ]
+            : undefined
+        }
         actions={
           record && (
             <Space>

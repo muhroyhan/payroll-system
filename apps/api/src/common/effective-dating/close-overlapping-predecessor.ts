@@ -1,5 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import { Model, ModelStatic, Op, Transaction, WhereOptions } from 'sequelize';
+import { auditOptions } from '../audit/audit-actor';
 import { EffectiveDatedFields } from './resolve-effective';
 
 // Audit-trail follow-up (dispute-traceability review, §1C) — the retire
@@ -45,6 +46,11 @@ export async function closeOverlappingPredecessor<
   // predecessor row directly.
   newRowId: string,
   updatedBy: string,
+  // Audit follow-up (audit_events, phase 1) — threaded through so the
+  // auto-retire of the predecessor row (below) is attributed to the same
+  // actor/role as the create() call that triggered it, even though that
+  // actor never touched the predecessor row directly.
+  actorRole: string,
 ): Promise<void> {
   const openPredecessors = await model.findAll({
     where: {
@@ -85,6 +91,12 @@ export async function closeOverlappingPredecessor<
       supersedesId: newRowId,
       updatedBy,
     },
-    { transaction },
+    {
+      transaction,
+      ...auditOptions(
+        { id: updatedBy, role: actorRole },
+        `Digantikan baris baru: ${newRowId}`,
+      ),
+    },
   );
 }

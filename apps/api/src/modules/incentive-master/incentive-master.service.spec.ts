@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
-import { ScopeType } from '@payroll-system/shared-types';
+import { Role, ScopeType } from '@payroll-system/shared-types';
 import { IncentiveMasterService } from './incentive-master.service';
 
 describe('IncentiveMasterService', () => {
@@ -56,6 +56,7 @@ describe('IncentiveMasterService', () => {
       'im-1',
       { incentiveAmount: '750000.00' },
       'user-1',
+      Role.ADMIN,
     );
 
     expect(payslipReferenceChecker.isReferencedByPayslip).toHaveBeenCalledWith(
@@ -70,7 +71,12 @@ describe('IncentiveMasterService', () => {
     const { service } = makeService(record(), false);
 
     await expect(
-      service.update('im-1', { effectiveEndDate: '2026-12-31' }, 'user-1'),
+      service.update(
+        'im-1',
+        { effectiveEndDate: '2026-12-31' },
+        'user-1',
+        Role.ADMIN,
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -86,16 +92,16 @@ describe('IncentiveMasterService', () => {
     async (_fieldName, patch) => {
       const { service } = makeService(record(), true);
 
-      await expect(service.update('im-1', patch, 'user-1')).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.update('im-1', patch, 'user-1', Role.ADMIN),
+      ).rejects.toThrow(ConflictException);
     },
   );
 
   it('update() does not query the reference checker when no locked field is touched', async () => {
     const { service, payslipReferenceChecker } = makeService(record(), true);
 
-    await service.update('im-1', {}, 'user-1');
+    await service.update('im-1', {}, 'user-1', Role.ADMIN);
 
     expect(payslipReferenceChecker.isReferencedByPayslip).not.toHaveBeenCalled();
   });

@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Button, Form } from 'antd';
+import { Button, Drawer, Form } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { AuditEntityType } from '@payroll-system/shared-types';
 import { EffectiveDatedMasterPage } from '../../../components/EffectiveDatedMasterPage';
 import { FormDrawer } from '../../../components/FormDrawer';
 import { formatIDR } from '../../../components/format';
 import { StatusTag } from '../../../components/StatusTag';
+import { AuditHistoryPanel } from '../../audit-events/AuditHistoryPanel';
 import { TerBracketMasterFormFields } from './TerBracketMasterFormFields';
 import { TerBracketEffectivePreview } from './TerBracketEffectivePreview';
 import { TER_CATEGORY_LABELS } from './labels';
@@ -26,6 +28,7 @@ export function TerBracketMasterPage() {
   const [form] = Form.useForm<TerBracketMasterFormRuntimeValues>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<TerBracketMaster | null>(null);
+  const [historyRecord, setHistoryRecord] = useState<TerBracketMaster | null>(null);
 
   const createMutation = useCreateTerBracketMasterMutation();
   const updateMutation = useUpdateTerBracketMasterMutation(editing?.id ?? '');
@@ -84,6 +87,7 @@ export function TerBracketMasterPage() {
           </Button>
         }
         onRetire={openEdit}
+        onShowHistory={setHistoryRecord}
         resolvePreview={<TerBracketEffectivePreview />}
       />
       <FormDrawer<TerBracketMasterFormRuntimeValues>
@@ -96,6 +100,19 @@ export function TerBracketMasterPage() {
       >
         <TerBracketMasterFormFields />
       </FormDrawer>
+      <Drawer
+        title="Histori Perubahan"
+        open={!!historyRecord}
+        onClose={() => setHistoryRecord(null)}
+        width={640}
+      >
+        {historyRecord && (
+          <AuditHistoryPanel
+            entityType={AuditEntityType.TER_BRACKET_MASTER}
+            entityId={historyRecord.id}
+          />
+        )}
+      </Drawer>
     </>
   );
 }

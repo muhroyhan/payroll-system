@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Button, Form, Tag } from 'antd';
+import { Button, Drawer, Form, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { AuditEntityType } from '@payroll-system/shared-types';
 import { EffectiveDatedMasterPage } from '../../components/EffectiveDatedMasterPage';
 import { FormDrawer } from '../../components/FormDrawer';
 import { formatIDR } from '../../components/format';
+import { AuditHistoryPanel } from '../audit-events/AuditHistoryPanel';
 import { useScopeReferenceData } from '../scope-resolver/useScopeReferenceData';
 import { SCOPE_TYPE_LABELS } from '../scope-resolver/labels';
 import { IncentiveMasterFormFields } from './IncentiveMasterFormFields';
@@ -30,6 +32,7 @@ export function IncentiveMasterPage() {
   const [form] = Form.useForm<IncentiveMasterFormRuntimeValues>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<IncentiveMaster | null>(null);
+  const [historyRecord, setHistoryRecord] = useState<IncentiveMaster | null>(null);
 
   const createMutation = useCreateIncentiveMasterMutation();
   const updateMutation = useUpdateIncentiveMasterMutation(editing?.id ?? '');
@@ -88,6 +91,7 @@ export function IncentiveMasterPage() {
           </Button>
         }
         onRetire={openEdit}
+        onShowHistory={setHistoryRecord}
         resolvePreview={<IncentiveResolvePreview />}
       />
       <FormDrawer<IncentiveMasterFormRuntimeValues>
@@ -100,6 +104,19 @@ export function IncentiveMasterPage() {
       >
         <IncentiveMasterFormFields form={form} />
       </FormDrawer>
+      <Drawer
+        title="Histori Perubahan"
+        open={!!historyRecord}
+        onClose={() => setHistoryRecord(null)}
+        width={640}
+      >
+        {historyRecord && (
+          <AuditHistoryPanel
+            entityType={AuditEntityType.INCENTIVE_MASTER}
+            entityId={historyRecord.id}
+          />
+        )}
+      </Drawer>
     </>
   );
 }

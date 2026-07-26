@@ -47,7 +47,7 @@ export class EmployeesController {
     @Body() dto: CreateEmployeeDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.employeesService.create(dto, user.id);
+    return this.employeesService.create(dto, user.id, user.role);
   }
 
   @Put(':id')
@@ -56,7 +56,7 @@ export class EmployeesController {
     @Body() dto: UpdateEmployeeDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.employeesService.update(id, dto, user.id);
+    return this.employeesService.update(id, dto, user.id, user.role);
   }
 
   @Post('import')
@@ -70,6 +70,10 @@ export class EmployeesController {
         'No file uploaded (expected multipart field "file")',
       );
     }
-    return this.employeesImportService.importFromBuffer(file.buffer, user.id);
+    return this.employeesImportService.importFromBuffer(
+      file.buffer,
+      user.id,
+      user.role,
+    );
   }
 }

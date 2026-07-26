@@ -29,6 +29,7 @@ import { PayslipTempComponentsModule } from './modules/payslip-temp-components/p
 import { PayrollCalculationModule } from './modules/payroll-calculation/payroll-calculation.module';
 import { PayrollRunsModule } from './modules/payroll-runs/payroll-runs.module';
 import { PayslipsModule } from './modules/payslips/payslips.module';
+import { AuditModule } from './common/audit/audit.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -90,6 +91,7 @@ import { AppService } from './app.service';
     PayrollCalculationModule,
     PayrollRunsModule,
     PayslipsModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -50,7 +50,7 @@ export class SalaryMasterController {
     @Body() dto: CreateSalaryMasterDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.salaryMasterService.create(dto, user.id);
+    return this.salaryMasterService.create(dto, user.id, user.role);
   }
 
   @Put(':id')
@@ -59,6 +59,6 @@ export class SalaryMasterController {
     @Body() dto: UpdateSalaryMasterDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.salaryMasterService.update(id, dto, user.id);
+    return this.salaryMasterService.update(id, dto, user.id, user.role);
   }
 }

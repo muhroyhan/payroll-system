@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button, Descriptions, Typography } from 'antd';
+import { AuditEntityType } from '@payroll-system/shared-types';
 import { DetailPage } from '../../components/DetailPage';
 import { StatusTag } from '../../components/StatusTag';
 import { formatDate, formatIDR } from '../../components/format';
 import { useEmployeeQuery } from './hooks';
 import { useResolveSalaryQuery } from '../salary-master/hooks';
+import { useAuth } from '../auth/useAuth';
+import { AuditHistoryPanel } from '../audit-events/AuditHistoryPanel';
 import { EmployeeFormDrawer } from './EmployeeFormDrawer';
 import {
   EMPLOYEE_ACTIVE_STATUS_LABELS,
@@ -20,6 +23,7 @@ import {
 // the `status` field inside the same edit drawer used here.
 export function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { isAdmin } = useAuth();
   const employeeQuery = useEmployeeQuery(id);
   const salaryQuery = useResolveSalaryQuery(id);
   const [editOpen, setEditOpen] = useState(false);
@@ -30,6 +34,24 @@ export function EmployeeDetailPage() {
         title={employeeQuery.data?.name ?? 'Karyawan'}
         backTo="/employees"
         query={employeeQuery}
+        // GET /audit-events is admin-only — only ptkpManuallyOverridden is
+        // tracked for Employee (phase-1 scope), but the tab is generic.
+        tabs={
+          isAdmin && employeeQuery.data
+            ? [
+                {
+                  key: 'audit-history',
+                  label: 'Histori Perubahan',
+                  children: (
+                    <AuditHistoryPanel
+                      entityType={AuditEntityType.EMPLOYEE}
+                      entityId={employeeQuery.data.id}
+                    />
+                  ),
+                },
+              ]
+            : undefined
+        }
         actions={
           <Button type="primary" onClick={() => setEditOpen(true)}>
             Ubah

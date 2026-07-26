@@ -11,3 +11,4 @@ export * from "./enums/letters";
 export * from "./enums/kasbon";
 export * from "./enums/payroll-run";
 export * from "./enums/payslip-line-source";
+export * from "./enums/audit-event";

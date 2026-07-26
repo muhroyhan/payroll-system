@@ -1,5 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { PayrollRunStatus } from '@payroll-system/shared-types';
+import { PayrollRunStatus, Role } from '@payroll-system/shared-types';
+import { SYSTEM_AUDIT_OPTIONS } from '../../common/audit/audit-actor';
 import { PayrollRunsService } from './payroll-runs.service';
 
 describe('PayrollRunsService (P8-T01)', () => {
@@ -48,13 +49,14 @@ describe('PayrollRunsService (P8-T01)', () => {
 
   it('create() starts a run in draft', async () => {
     const { service, model } = makeService();
-    await service.create({ period: '2026-07' }, 'user-1');
+    await service.create({ period: '2026-07' }, 'user-1', Role.ADMIN);
     expect(model.create).toHaveBeenCalledWith(
       expect.objectContaining({
         period: '2026-07',
         status: PayrollRunStatus.DRAFT,
         createdBy: 'user-1',
       }),
+      expect.objectContaining({ actorId: 'user-1', actorRole: Role.ADMIN }),
     );
   });
 
@@ -87,29 +89,42 @@ describe('PayrollRunsService (P8-T01)', () => {
     const { service } = makeService(r);
     const result = await service.markCalculated('run-1');
     expect(result.status).toBe(PayrollRunStatus.CALCULATED);
+    // Audit follow-up — this transition is system-triggered (no @CurrentUser()
+    // available), so it's tagged with the 'system' actor role, not a user id.
+    expect(r.update).toHaveBeenCalledWith(
+      { status: PayrollRunStatus.CALCULATED },
+      SYSTEM_AUDIT_OPTIONS,
+    );
   });
 
   it('approve: calculated → approved, sets approvedBy', async () => {
     const r = run(PayrollRunStatus.CALCULATED);
     const { service } = makeService(r);
-    const result = await service.approve('run-1', 'approver-1');
-    expect(r.update).toHaveBeenCalledWith({
-      status: PayrollRunStatus.APPROVED,
-      approvedBy: 'approver-1',
-    });
+    const result = await service.approve('run-1', 'approver-1', Role.ADMIN);
+    expect(r.update).toHaveBeenCalledWith(
+      {
+        status: PayrollRunStatus.APPROVED,
+        approvedBy: 'approver-1',
+      },
+      expect.objectContaining({ actorId: 'approver-1', actorRole: Role.ADMIN }),
+    );
     expect(result.status).toBe(PayrollRunStatus.APPROVED);
   });
 
   it('disburse: approved → disbursed, sets lockedAt and disbursedBy', async () => {
     const r = run(PayrollRunStatus.APPROVED);
     const { service } = makeService(r);
-    const result = await service.disburse('run-1', 'disburser-1');
+    const result = await service.disburse('run-1', 'disburser-1', Role.ADMIN);
     expect(result.status).toBe(PayrollRunStatus.DISBURSED);
     expect(result.lockedAt).toBeInstanceOf(Date);
     // Audit-trail follow-up (§1B/HIGH) — the money-out step's actor, from
     // whichever user the controller resolved via @CurrentUser(), not a
     // dto/body value.
     expect(result.disbursedBy).toBe('disburser-1');
+    expect(r.update).toHaveBeenCalledWith(
+      expect.objectContaining({ disbursedBy: 'disburser-1' }),
+      expect.objectContaining({ actorId: 'disburser-1', actorRole: Role.ADMIN }),
+    );
   });
 
   // Audit-trail follow-up (dispute-traceability review, §1B/HIGH) —
@@ -122,6 +137,7 @@ describe('PayrollRunsService (P8-T01)', () => {
         'run-1',
         'reverter-1',
         'Data absensi Juli salah, perlu dihitung ulang',
+        Role.ADMIN,
       );
       expect(result.status).toBe(PayrollRunStatus.DRAFT);
       // Teardown runs, and it runs inside a transaction (atomic with the flip).
@@ -132,7 +148,12 @@ describe('PayrollRunsService (P8-T01)', () => {
           revertedBy: 'reverter-1',
           revertReason: 'Data absensi Juli salah, perlu dihitung ulang',
         },
-        { transaction: 'txn' },
+        {
+          transaction: 'txn',
+          actorId: 'reverter-1',
+          actorRole: Role.ADMIN,
+          auditReason: 'Data absensi Juli salah, perlu dihitung ulang',
+        },
       );
     });
 
@@ -155,7 +176,7 @@ describe('PayrollRunsService (P8-T01)', () => {
         };
       });
 
-      await service.revertToDraft('run-1', 'reverter-1', 'Alasan revert');
+      await service.revertToDraft('run-1', 'reverter-1', 'Alasan revert', Role.ADMIN);
 
       expect(callOrder).toEqual(['write-actor-reason', 'teardown']);
     });
@@ -171,7 +192,12 @@ describe('PayrollRunsService (P8-T01)', () => {
       totalCount: 21,
     });
     const { service } = makeService(r);
-    const result = await service.revertToDraft('run-1', 'reverter-1', 'Alasan revert');
+    const result = await service.revertToDraft(
+      'run-1',
+      'reverter-1',
+      'Alasan revert',
+      Role.ADMIN,
+    );
     expect(result.processedCount).toBe(0);
     expect(result.totalCount).toBe(0);
   });
@@ -181,7 +207,7 @@ describe('PayrollRunsService (P8-T01)', () => {
       run(PayrollRunStatus.APPROVED),
     );
     await expect(
-      service.revertToDraft('run-1', 'reverter-1', 'Alasan revert'),
+      service.revertToDraft('run-1', 'reverter-1', 'Alasan revert', Role.ADMIN),
     ).rejects.toThrow(ConflictException);
     // The guard throws before any teardown — an approved run's payslips are safe.
     expect(revertService.revertRunData).not.toHaveBeenCalled();
@@ -190,7 +216,7 @@ describe('PayrollRunsService (P8-T01)', () => {
   // §11 / TC-PAYROLL-05 — the guarded rejections.
   it('rejects approving a draft run (stage skip)', async () => {
     const { service } = makeService(run(PayrollRunStatus.DRAFT));
-    await expect(service.approve('run-1', 'u')).rejects.toThrow(
+    await expect(service.approve('run-1', 'u', Role.ADMIN)).rejects.toThrow(
       ConflictException,
     );
   });
@@ -198,21 +224,21 @@ describe('PayrollRunsService (P8-T01)', () => {
   it('rejects reverting an approved run', async () => {
     const { service } = makeService(run(PayrollRunStatus.APPROVED));
     await expect(
-      service.revertToDraft('run-1', 'reverter-1', 'Alasan revert'),
+      service.revertToDraft('run-1', 'reverter-1', 'Alasan revert', Role.ADMIN),
     ).rejects.toThrow(ConflictException);
   });
 
   it('rejects reverting a disbursed run (terminal, no revert path)', async () => {
     const { service } = makeService(run(PayrollRunStatus.DISBURSED));
     await expect(
-      service.revertToDraft('run-1', 'reverter-1', 'Alasan revert'),
+      service.revertToDraft('run-1', 'reverter-1', 'Alasan revert', Role.ADMIN),
     ).rejects.toThrow(ConflictException);
   });
 
   it('rejects disbursing a run that is not yet approved', async () => {
     const { service } = makeService(run(PayrollRunStatus.CALCULATED));
-    await expect(service.disburse('run-1', 'disburser-1')).rejects.toThrow(
-      ConflictException,
-    );
+    await expect(
+      service.disburse('run-1', 'disburser-1', Role.ADMIN),
+    ).rejects.toThrow(ConflictException);
   });
 });
