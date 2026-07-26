@@ -1,10 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/sequelize';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectConnection, InjectModel } from '@nestjs/sequelize';
+import { Sequelize } from 'sequelize';
 import { PtkpStatus } from '@payroll-system/shared-types';
 import {
   resolveEffectiveRecord,
   resolveEffectiveRecords,
 } from '../../../common/effective-dating/resolve-effective';
+import { EffectiveRangePayslipChecker } from '../../../common/effective-dating/effective-range-payslip-checker';
+import { closeOverlappingPredecessor } from '../../../common/effective-dating/close-overlapping-predecessor';
 import { PtkpMaster } from './entities/ptkp-master.entity';
 import { CreatePtkpMasterDto } from './dto/create-ptkp-master.dto';
 import { UpdatePtkpMasterDto } from './dto/update-ptkp-master.dto';
@@ -12,8 +15,10 @@ import { UpdatePtkpMasterDto } from './dto/update-ptkp-master.dto';
 @Injectable()
 export class PtkpMasterService {
   constructor(
+    @InjectConnection() private readonly sequelize: Sequelize,
     @InjectModel(PtkpMaster)
     private readonly ptkpMasterModel: typeof PtkpMaster,
+    private readonly effectiveRangePayslipChecker: EffectiveRangePayslipChecker,
   ) {}
 
   // Admin view: every row, active or not — HR needs to see expired/future rows
@@ -55,13 +60,71 @@ export class PtkpMasterService {
     return record;
   }
 
+  // §11 audit follow-up — auto-closes whatever row is still open
+  // (effectiveEndDate IS NULL) for this same ptkpStatus the day before this
+  // new row starts, so two open-ended rows for the same status can never
+  // coexist (the overlap gap EffectiveRangePayslipChecker's audit found).
+  // See closeOverlappingPredecessor for when it refuses to guess instead.
   create(dto: CreatePtkpMasterDto, createdBy: string): Promise<PtkpMaster> {
-    return this.ptkpMasterModel.create({ ...dto, createdBy } as any);
+    return this.sequelize.transaction(async (transaction) => {
+      await closeOverlappingPredecessor(
+        this.ptkpMasterModel,
+        { ptkpStatus: dto.ptkpStatus },
+        dto.effectiveStartDate,
+        transaction,
+      );
+      return this.ptkpMasterModel.create({ ...dto, createdBy } as any, {
+        transaction,
+      });
+    });
   }
 
+  // §11/P8-T07-style audit fix — computeDecemberPph21 resolves this row by
+  // (ptkpStatus, periodDate) for every payslip's annual true-up; its
+  // payslip_line_items row has source_id=null (no per-row FK, see
+  // EffectiveRangePayslipChecker's doc comment), so the lock is checked by
+  // period + ptkpStatus instead of by id.
   async update(id: string, dto: UpdatePtkpMasterDto): Promise<PtkpMaster> {
     const record = await this.findByIdOrThrow(id);
+    await this.assertLockedFieldsUntouched(record, dto);
     return record.update(dto);
+  }
+
+  // effectiveEndDate is deliberately NOT locked (audit follow-up): closing a
+  // row's range off doesn't change any historical calculation — it can only
+  // ever narrow which future periods this row would still resolve for. A row
+  // that's already "referenced" (§11) must stay closeable, or an overlap
+  // this codebase is otherwise trying to prevent (see
+  // closeOverlappingPredecessor) becomes permanently un-fixable.
+  private async assertLockedFieldsUntouched(
+    record: PtkpMaster,
+    dto: UpdatePtkpMasterDto,
+  ): Promise<void> {
+    const lockedFields: Array<keyof UpdatePtkpMasterDto> = [
+      'ptkpStatus',
+      'amount',
+      'effectiveStartDate',
+    ];
+    const touched = lockedFields.find((field) => dto[field] !== undefined);
+    if (!touched) {
+      return;
+    }
+
+    const referenced = await this.effectiveRangePayslipChecker.isReferenced(
+      {
+        effectiveStartDate: record.effectiveStartDate,
+        effectiveEndDate: record.effectiveEndDate,
+      },
+      (employee) => employee.ptkpStatus === record.ptkpStatus,
+    );
+    if (referenced) {
+      throw new ConflictException(
+        `PTKP master ${record.id}'s ${touched} is locked — a payslip already ` +
+          `exists for a period this row covers, for an employee with ` +
+          `ptkpStatus ${record.ptkpStatus} (§11/P8-T07); retire it via ` +
+          `effectiveEndDate and add a new row instead of editing this one`,
+      );
+    }
   }
 
   // No remove() — tax/BPJS constant tables are never hard-deleted (§11); retire

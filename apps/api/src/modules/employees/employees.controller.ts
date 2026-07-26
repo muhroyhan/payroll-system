@@ -15,6 +15,7 @@ import { Role } from '@payroll-system/shared-types';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { SPREADSHEET_MULTER_OPTIONS } from '../../common/bulk-import/spreadsheet-file-validation';
 import { EmployeesService } from './employees.service';
 import { EmployeesImportService } from './employees-import.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
@@ -50,7 +51,7 @@ export class EmployeesController {
   }
 
   @Post('import')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', SPREADSHEET_MULTER_OPTIONS))
   importFile(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException(

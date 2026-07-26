@@ -16,6 +16,7 @@ import { Role } from '@payroll-system/shared-types';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { SPREADSHEET_MULTER_OPTIONS } from '../../common/bulk-import/spreadsheet-file-validation';
 import { AttendanceRawLogsService } from './attendance-raw-logs.service';
 import { AttendanceRawLogsImportService } from './attendance-raw-logs-import.service';
 import { CreateAttendanceRawLogDto } from './dto/create-attendance-raw-log.dto';
@@ -47,7 +48,7 @@ export class AttendanceRawLogsController {
 
   // File-pull path: a CSV/Excel export of the device's scan log.
   @Post('import')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', SPREADSHEET_MULTER_OPTIONS))
   importFile(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException(

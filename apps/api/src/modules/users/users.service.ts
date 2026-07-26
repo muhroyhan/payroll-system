@@ -1,4 +1,8 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import * as bcrypt from 'bcryptjs';
 import { User } from './entities/user.entity';
@@ -44,5 +48,20 @@ export class UsersService {
     } as any);
 
     return this.findById(user.id) as Promise<User>;
+  }
+
+  // Auth audit fix — the only way to revoke a compromised/offboarded
+  // account's access. Deliberately allows an admin to deactivate their own
+  // account (no special-case block) — that's a legitimate action, not a
+  // footgun worth guarding against here. Idempotent: deactivating an
+  // already-inactive user (or reactivating an already-active one) just
+  // succeeds, no error.
+  async setActive(id: string, isActive: boolean): Promise<User> {
+    const user = await this.userModel.findByPk(id);
+    if (!user) {
+      throw new NotFoundException(`User ${id} not found`);
+    }
+    await user.update({ isActive });
+    return this.findById(id) as Promise<User>;
   }
 }

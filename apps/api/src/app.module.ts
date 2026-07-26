@@ -4,6 +4,7 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { BullModule } from '@nestjs/bullmq';
 import databaseConfig from './config/database.config';
 import redisConfig from './config/redis.config';
+import { envValidationSchema } from './config/env-validation.schema';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { EmployeeTypesModule } from './modules/organization/employee-types/employee-types.module';
@@ -36,6 +37,11 @@ import { AppService } from './app.service';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [databaseConfig, redisConfig],
+      // Security-hygiene audit fix — fail fast at boot if JWT_SECRET is
+      // missing, too short, or still the .env.example placeholder, instead
+      // of silently signing sessions with a guessable/public secret.
+      validationSchema: envValidationSchema,
+      validationOptions: { abortEarly: false },
     }),
     SequelizeModule.forRootAsync({
       inject: [ConfigService],

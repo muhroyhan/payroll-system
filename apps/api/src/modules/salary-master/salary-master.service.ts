@@ -1,9 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { EmployeesService } from '../employees/employees.service';
 import { ScopeResolverService } from '../scope-resolver/scope-resolver.service';
 import { ScopeValueValidator } from '../scope-resolver/scope-value-validator.service';
 import { ScopeResolution } from '../scope-resolver/scope-resolver.types';
+import { PAYSLIP_REFERENCE_CHECKER } from '../../common/payslip-reference/payslip-reference-checker.interface';
+import type { PayslipReferenceChecker } from '../../common/payslip-reference/payslip-reference-checker.interface';
 import { SalaryMaster } from './entities/salary-master.entity';
 import { CreateSalaryMasterDto } from './dto/create-salary-master.dto';
 import { UpdateSalaryMasterDto } from './dto/update-salary-master.dto';
@@ -16,6 +23,8 @@ export class SalaryMasterService {
     private readonly scopeResolver: ScopeResolverService,
     private readonly scopeValueValidator: ScopeValueValidator,
     private readonly employeesService: EmployeesService,
+    @Inject(PAYSLIP_REFERENCE_CHECKER)
+    private readonly payslipReferenceChecker: PayslipReferenceChecker,
   ) {}
 
   list(): Promise<SalaryMaster[]> {
@@ -38,12 +47,54 @@ export class SalaryMasterService {
     return this.salaryMasterModel.create({ ...dto, createdBy } as any);
   }
 
+  // §11/P8-T07-style audit fix — once PayrollRunCalculationService.
+  // resolveEarnings() has pulled this row into a payslip_line_item
+  // (source='salary_master', source_id=this row's id), the fields that
+  // determine what the resolver returns must stay put: mutating baseSalary,
+  // scopeType/scopeValue, or the effective-date range in place would silently
+  // change what "the resolver would have returned at that run's period"
+  // means, breaking §11's reproducibility guarantee for every already-issued
+  // payslip that cites it. Same lock question as PayslipComponentsService.
+  // assertMutableFieldsUntouched — reused via the same PayslipReferenceChecker
+  // (source='salary_master' is real here: it's exactly the string
+  // resolveEarnings() writes, not a placeholder).
   async update(id: string, dto: UpdateSalaryMasterDto): Promise<SalaryMaster> {
     const record = await this.findByIdOrThrow(id);
     if (dto.scopeType && dto.scopeValue) {
       await this.scopeValueValidator.validate(dto.scopeType, dto.scopeValue);
     }
+    await this.assertLockedFieldsUntouched(record, dto);
     return record.update(dto);
+  }
+
+  private async assertLockedFieldsUntouched(
+    record: SalaryMaster,
+    dto: UpdateSalaryMasterDto,
+  ): Promise<void> {
+    const lockedFields: Array<keyof UpdateSalaryMasterDto> = [
+      'scopeType',
+      'scopeValue',
+      'baseSalary',
+      'effectiveStartDate',
+      'effectiveEndDate',
+    ];
+    const touched = lockedFields.find((field) => dto[field] !== undefined);
+    if (!touched) {
+      return;
+    }
+
+    const referenced = await this.payslipReferenceChecker.isReferencedByPayslip(
+      'salary_master',
+      record.id,
+    );
+    if (referenced) {
+      throw new ConflictException(
+        `Salary master ${record.id}'s ${touched} is locked — it has already ` +
+          `been resolved into a payslip line item (§11/P8-T07); a correction ` +
+          `is a new row (with its own effective-date range), not an edit to ` +
+          `this one`,
+      );
+    }
   }
 
   // §5.2 — resolve the base salary that applies to one employee for a period.
