@@ -31,7 +31,9 @@ docker compose up -d
 
 # 3. Configure environment
 cp apps/api/.env.example apps/api/.env
-# edit apps/api/.env if your local MySQL/Redis differ from the defaults
+cp apps/web/.env.example apps/web/.env
+# edit apps/api/.env if your local MySQL/Redis differ from the defaults;
+# apps/web/.env only needs changing if the API doesn't run on localhost:3000
 
 # 4. Build shared types (required before running api/web)
 pnpm --filter @payroll-system/shared-types build
@@ -40,13 +42,48 @@ pnpm --filter @payroll-system/shared-types build
 pnpm --filter @payroll-system/api db:migrate
 pnpm --filter @payroll-system/api db:seed
 
-# 6. Run
+# 6. Run (two terminals)
 pnpm dev:api    # NestJS on http://localhost:3000
 pnpm dev:web    # Vite dev server on http://localhost:3001
 ```
 
 Default seeded admin login: `admin@payroll-system.local` / `ChangeMe123!` (override via
-`ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env` before seeding).
+`ADMIN_EMAIL`/`ADMIN_PASSWORD` in `apps/api/.env` before seeding).
+
+### Environment variables
+
+**`apps/api/.env`** (see `apps/api/.env.example`):
+
+| Variable | Default | Notes |
+|---|---|---|
+| `NODE_ENV` | `development` | |
+| `PORT` | `3000` | API port |
+| `DB_HOST` / `DB_PORT` | `127.0.0.1` / `3306` | MySQL, matches `docker-compose.yml` |
+| `DB_USERNAME` / `DB_PASSWORD` | `payroll` / `payroll` | |
+| `DB_DATABASE` | `payroll_system` | |
+| `DB_LOGGING` | `false` | Set `true` to log every SQL query |
+| `REDIS_HOST` / `REDIS_PORT` | `127.0.0.1` / `6379` | BullMQ (payroll calculation + PDF generation queues) |
+| `JWT_SECRET` | `change-me-in-production` | **Must** be changed for any non-local deployment |
+| `JWT_EXPIRES_IN` | `8h` | No refresh-token endpoint exists — session ends when this expires |
+| `CORS_ORIGIN` | `http://localhost:3001` | Comma-separated allowed origins for `apps/web` |
+| `ADMIN_NAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `Default Admin` / `admin@payroll-system.local` / `ChangeMe123!` | Used only by the `seed-admin-user` seeder |
+
+**`apps/web/.env`** (see `apps/web/.env.example`):
+
+| Variable | Default | Notes |
+|---|---|---|
+| `VITE_API_BASE_URL` | `http://localhost:3000` | Must match (or be allowed by) the API's `CORS_ORIGIN` |
+
+### Docker (MySQL + Redis only)
+
+`docker compose up -d` starts two containers defined in `docker-compose.yml`:
+
+- `mysql:8.4` on `3306`, database `payroll_system`, user/password `payroll`/`payroll`
+- `redis:7-alpine` on `6379`
+
+Both persist data in named volumes (`payroll_mysql_data`, `payroll_redis_data`) so `docker
+compose down` (without `-v`) keeps your data across restarts. The API and web app themselves
+run directly on the host via `pnpm dev:api` / `pnpm dev:web` — they are not containerized.
 
 ## Monorepo Structure
 
@@ -60,19 +97,35 @@ docker-compose.yml     Local MySQL + Redis
 
 ## Documentation
 
-- **./manuals/user_manual.docs** — how to use the application
-- **./manuals/tech_manual.docs** — architecture, API reference, database schema
-- **[docs/](./docs/)** — the original project spec this system was built against
-  (rules, phased build plan, test/boundary definitions)
+- **[manuals/user_manual.docx](./manuals/user_manual.docx)** — how to use the application,
+  written for HR staff/admin (non-technical)
+- **[manuals/tech_manual.docx](./manuals/tech_manual.docx)** — architecture, backend design
+  patterns, frontend conventions, and the payroll run lock system, written for
+  developers/maintainers
+- **[docs/](./docs/)** — the original project spec this system was built against (rules,
+  phased build plan, screen-by-screen frontend structure, test/boundary definitions); these
+  stay as internal technical references, not end-user documentation
 
 ## Project Status
 
-Phases 1–8 (core payroll build) and Phase 10 (testing & go-live validation) are complete.
-Phase 9 (nice-to-have features) is deferred — not implemented, not required for
-production use.
+**Backend** — Phases 1–8 (core payroll build) and Phase 10 (testing & go-live validation)
+are complete. Phase 9 (nice-to-have features: gross-up, multi-location, fingerprint API
+polling) is deferred — a deliberate decision, not an oversight; not implemented, not
+required for production use.
 
-Two pre-production open items remain — see
-[docs/04_STEPS.md](./docs/04_STEPS.md) for details:
-- Annual/December PPh21 rounding mode is unverified (monthly rounding is confirmed).
+**Frontend** — FE-T01 through FE-T34 are complete: the full admin UI (employees, attendance,
+leave, HR letters, kasbon, temp salary components, tax/BPJS constants, payroll run lifecycle,
+payslips, dashboard) is built against `apps/api`, role-gated for `admin`/`hr_staff`, and has
+passed a full lock-audit + role-audit + end-to-end UI smoke test (see
+`manuals/tech_manual.docx` for the state machine and lock system, and the sign-off checklist
+referenced there).
+
+Open items, none of which block current use — see
+[docs/04_STEPS.md](./docs/04_STEPS.md) and `manuals/tech_manual.docx` for details:
+- Annual/December PPh21 rounding mode is unverified against an official DJP calculator
+  (monthly rounding is confirmed).
 - BPJS JKK company rate needs confirming against this employer's actual registered risk
   class.
+- A handful of smaller backend gaps (no server-side pagination, two tax-constant tables
+  without an admin UI, two §11 locks not yet exposed as a flag the frontend can pre-empt)
+  are accepted with their consequence documented in the frontend code — see the tech manual.
