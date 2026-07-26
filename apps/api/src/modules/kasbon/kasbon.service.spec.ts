@@ -385,4 +385,59 @@ describe('KasbonService', () => {
       expect(reversed).toBe(0);
     });
   });
+
+  // Task B — narrower per-employee reversal, used when ONE employee (not the
+  // whole run) is excluded for a negative net pay. Regression coverage for
+  // the bug found while integration-testing Task B: deductInstallment's
+  // writes commit immediately (they're never passed `{ transaction }`), so
+  // throwing inside the payroll calculation's transaction does NOT undo
+  // them — this explicit call is what actually has to.
+  describe('reverseInstallmentsForEmployeeInRun', () => {
+    it("restores only this employee's kasbon deduction for this run", async () => {
+      const kasbon = record({
+        id: 'kb-1',
+        status: KasbonStatus.APPROVED,
+        amount: '6000000.00',
+        remainingBalance: '0.00', // fully drawn by the one installment below
+      });
+      const deduction = {
+        kasbonId: 'kb-1',
+        amount: '6000000.00',
+        destroy: jest.fn().mockResolvedValue(undefined),
+      };
+      const { service, model, deductionModel } = makeService(kasbon, null);
+      model.findAll = jest.fn().mockResolvedValue([{ id: 'kb-1' }]);
+      deductionModel.findAll = jest.fn().mockResolvedValue([deduction]);
+      model.findByPk = jest.fn().mockResolvedValue(kasbon);
+
+      const reversed = await service.reverseInstallmentsForEmployeeInRun(
+        'emp-1',
+        'run-1',
+      );
+
+      expect(model.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { employeeId: 'emp-1' } }),
+      );
+      expect(deductionModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ payrollRunId: 'run-1' }),
+        }),
+      );
+      expect(reversed).toBe(1);
+      expect(kasbon.remainingBalance).toBe('6000000.00'); // restored
+      expect(deduction.destroy).toHaveBeenCalled();
+    });
+
+    it('is a no-op when the employee has no kasbon at all', async () => {
+      const { service, model } = makeService(null, null);
+      model.findAll = jest.fn().mockResolvedValue([]);
+
+      const reversed = await service.reverseInstallmentsForEmployeeInRun(
+        'emp-1',
+        'run-1',
+      );
+
+      expect(reversed).toBe(0);
+    });
+  });
 });

@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Descriptions, Modal, Progress, Space, Typography } from 'antd';
+import { Alert, Descriptions, Modal, Progress, Space, Table, Typography } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { PayrollRunStatus } from '@payroll-system/shared-types';
+import { formatIDR } from '../../components/format';
+import type { PayrollRunExcludedEmployee } from './api';
 import { DetailPage } from '../../components/DetailPage';
 import { LockedAction } from '../../components/LockedAction';
 import { StatusTag } from '../../components/StatusTag';
@@ -19,6 +22,33 @@ import { PayrollRunStatusSteps } from './PayrollRunStatusSteps';
 import { PAYROLL_RUN_STATUS_LABELS } from './labels';
 
 const ADMIN_ONLY_REASON = 'Hanya admin yang dapat melakukan tindakan ini.';
+
+// Task B — mirrors EmployeeImportPage's per-row error table: partial failure
+// (here, partial exclusion) is the normal outcome and renders as a table,
+// never collapsed into a single toast. HR reads the reason, fixes the
+// underlying data (e.g. an oversized kasbon installment), then re-runs
+// "Hitung" — a reverted-and-recalculated run re-evaluates every exclusion
+// from scratch (payroll-run-revert.service.ts clears stale ones).
+const excludedEmployeeColumns: ColumnsType<PayrollRunExcludedEmployee> = [
+  {
+    title: 'Karyawan',
+    key: 'employee',
+    render: (_, record) => record.employee?.name ?? record.employeeId,
+  },
+  { title: 'Alasan', dataIndex: 'reason', key: 'reason' },
+  {
+    title: 'Gaji Kotor',
+    dataIndex: 'grossPay',
+    key: 'grossPay',
+    render: (value: string) => formatIDR(Number(value)),
+  },
+  {
+    title: 'Take-Home (Negatif)',
+    dataIndex: 'netPay',
+    key: 'netPay',
+    render: (value: string) => formatIDR(Number(value)),
+  },
+];
 
 // FE-T26/T27/T28 (09_FRONTEND_STEPS.md), §15.12 (08_FRONTEND_STRUCTURE.md).
 // All four lifecycle actions are rendered ONLY when the current status
@@ -182,6 +212,24 @@ export function PayrollRunDetailPage() {
                   Jika perhitungan diulang setelah gagal di tengah jalan, progres akan mulai
                   kembali dari awal (bukan melanjutkan) — lihat catatan P8-T04.
                 </Typography.Text>
+              </div>
+            )}
+            {!!data.excludedEmployees?.length && (
+              <div style={{ marginTop: 16 }}>
+                <Alert
+                  type="warning"
+                  showIcon
+                  message={`${data.excludedEmployees.length} karyawan dikecualikan dari perhitungan ini`}
+                  description="Karyawan di bawah tetap tidak mendapat payslip pada run ini. Perbaiki data penyebabnya (mis. kurangi potongan kasbon), lalu hitung ulang — run yang dihitung ulang akan mengevaluasi ulang setiap pengecualian dari awal."
+                />
+                <Table<PayrollRunExcludedEmployee>
+                  style={{ marginTop: 12 }}
+                  size="small"
+                  rowKey="id"
+                  columns={excludedEmployeeColumns}
+                  dataSource={data.excludedEmployees}
+                  pagination={false}
+                />
               </div>
             )}
             <Descriptions bordered column={2} size="small" style={{ marginTop: 16 }}>

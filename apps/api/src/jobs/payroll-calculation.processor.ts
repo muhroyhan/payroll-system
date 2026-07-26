@@ -2,14 +2,15 @@ import { Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import {
-  EmployeeActiveStatus,
-  PayrollRunStatus,
-} from '@payroll-system/shared-types';
+import { Op } from 'sequelize';
+import { PayrollRunStatus } from '@payroll-system/shared-types';
 import { Employee } from '../modules/employees/entities/employee.entity';
 import { PayrollRun } from '../modules/payroll-runs/entities/payroll-run.entity';
 import { isTransitionAllowed } from '../modules/payroll-runs/payroll-run-transitions';
-import { PayrollRunCalculationService } from '../modules/payroll-calculation/payroll-run-calculation.service';
+import {
+  PayrollRunCalculationService,
+  periodMonthRange,
+} from '../modules/payroll-calculation/payroll-run-calculation.service';
 import { Payslip } from '../modules/payslips/entities/payslip.entity';
 import { PdfGenerationQueue } from './pdf-generation.queue';
 import { PAYROLL_CALCULATION_QUEUE } from './payroll-calculation.queue';
@@ -68,7 +69,24 @@ export class PayrollCalculationProcessor extends WorkerHost {
       return;
     }
 
-    const where = { status: EmployeeActiveStatus.ACTIVE };
+    // Task A — big-test finding: filtering by `status: ACTIVE` alone made a
+    // run "all-or-nothing by status flag" — an employee who resigned DURING
+    // this period (status flipped to inactive, endDate inside the period)
+    // vanished from the run entirely instead of getting a prorated final
+    // payslip. The correct filter is a date-range OVERLAP against the
+    // employee's employment window [startDate, endDate ?? ∞), not the
+    // current status: it naturally includes a full-month active employee, a
+    // mid-month joiner (startDate inside the period), and a mid-month
+    // resignee (endDate inside the period) — and excludes anyone whose
+    // employment window doesn't touch this period at all (resigned before
+    // it, or not yet hired). Task A's prorate.core.ts then handles the
+    // partial-month math for whichever of these applies.
+    const { start: periodStart, endExclusive: periodEndExclusive } =
+      periodMonthRange(run.period);
+    const where = {
+      startDate: { [Op.lt]: periodEndExclusive },
+      [Op.or]: [{ endDate: null }, { endDate: { [Op.gte]: periodStart } }],
+    };
     const total = await this.employeeModel.count({ where });
     await run.update({ totalCount: total, processedCount: 0 });
 

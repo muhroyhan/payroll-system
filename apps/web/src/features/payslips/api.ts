@@ -32,6 +32,12 @@ export interface Payslip {
   // only used as a truthiness check for whether the PDF download button
   // should be enabled. Fetch the file through GET /:id/pdf instead.
   pdfPath: string | null;
+  // Task A — prorate proporsional (join/resign mid-period), working-days
+  // basis. Both null for a payslip generated before this feature existed
+  // (genuinely untracked, not zero) — the detail page only renders the
+  // "Prorata" indicator when both are present AND workedDays < totalWorkingDays.
+  workedDays: string | null;
+  totalWorkingDays: number | null;
 }
 
 // Verified against payslip-line-item.entity.ts: `component` is a BelongsTo

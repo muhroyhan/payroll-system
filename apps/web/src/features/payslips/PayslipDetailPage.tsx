@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import { Descriptions, Table, Typography } from 'antd';
+import { Alert, Descriptions, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Link } from 'react-router-dom';
 import { PayslipLineSource } from '@payroll-system/shared-types';
@@ -84,8 +84,31 @@ export function PayslipDetailPage() {
           </LockedAction>
         )
       }
-      renderSummary={(data) => (
+      renderSummary={(data) => {
+        // Task A — only shown when the payslip actually has prorate data
+        // (post-migration) AND the employee worked fewer than the period's
+        // full working days — a full-month payslip renders nothing extra
+        // here, so this is purely additive for the join/resign mid-period
+        // case (FE-T30/31).
+        const workedDays =
+          data.workedDays !== null ? Number(data.workedDays) : null;
+        const totalWorkingDays = data.totalWorkingDays;
+        const isProrated =
+          workedDays !== null &&
+          totalWorkingDays !== null &&
+          workedDays < totalWorkingDays;
+
+        return (
         <>
+          {isProrated && (
+            <Alert
+              style={{ marginBottom: 16 }}
+              type="info"
+              showIcon
+              message={`Prorata (${formatWorkedDays(workedDays!)} dari ${totalWorkingDays} hari kerja)`}
+              description="Karyawan bergabung atau berhenti di tengah periode ini — gaji kena pajak dan potongan sudah dihitung proporsional terhadap hari kerja, bukan angka penuh sebulan."
+            />
+          )}
           <Descriptions bordered column={2} size="small">
             <Descriptions.Item label="Karyawan">
               {data.employee?.name ?? data.employeeId}
@@ -144,7 +167,16 @@ export function PayslipDetailPage() {
             </div>
           ))}
         </>
-      )}
+        );
+      }}
     />
   );
+}
+
+// Strips a trailing ".00" (a full-day count) but keeps genuine fractions
+// (e.g. a holiday landing mid-window could yield "9.5" workedWorkingDays in
+// principle, though the current calculation always produces whole days) —
+// defensive formatting rather than assuming the API only ever sends integers.
+function formatWorkedDays(days: number): string {
+  return Number.isInteger(days) ? String(days) : days.toFixed(2);
 }

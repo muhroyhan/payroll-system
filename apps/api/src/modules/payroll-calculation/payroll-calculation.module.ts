@@ -5,10 +5,12 @@ import { PtkpMasterModule } from '../tax-bpjs-constants/ptkp-master/ptkp-master.
 import { BpjsKesehatanMasterModule } from '../tax-bpjs-constants/bpjs-kesehatan-master/bpjs-kesehatan-master.module';
 import { BpjsKetenagakerjaanMasterModule } from '../tax-bpjs-constants/bpjs-ketenagakerjaan-master/bpjs-ketenagakerjaan-master.module';
 import { EmployeesModule } from '../employees/employees.module';
+import { HolidaysModule } from '../holidays/holidays.module';
 import { KasbonModule } from '../kasbon/kasbon.module';
 import { PayslipTempComponentsModule } from '../payslip-temp-components/payslip-temp-components.module';
 import { Payslip } from '../payslips/entities/payslip.entity';
 import { PayslipLineItem } from '../payslips/entities/payslip-line-item.entity';
+import { PayrollRunExcludedEmployee } from '../payroll-runs/entities/payroll-run-excluded-employee.entity';
 import { SalaryMaster } from '../salary-master/entities/salary-master.entity';
 import { IncentiveMaster } from '../incentive-master/entities/incentive-master.entity';
 import { SuratPeringatan } from '../letters/surat-peringatan/entities/surat-peringatan.entity';
@@ -37,6 +39,7 @@ import { PayrollRunCalculationService } from './payroll-run-calculation.service'
       KasbonDeduction,
       BiayaJabatanMaster,
       Pasal17BracketMaster,
+      PayrollRunExcludedEmployee,
     ]),
     TerBracketMasterModule,
     PtkpMasterModule,
@@ -45,6 +48,7 @@ import { PayrollRunCalculationService } from './payroll-run-calculation.service'
     EmployeesModule,
     KasbonModule,
     PayslipTempComponentsModule,
+    HolidaysModule,
   ],
   providers: [MonthlyPayslipCalculationService, PayrollRunCalculationService],
   exports: [MonthlyPayslipCalculationService, PayrollRunCalculationService],

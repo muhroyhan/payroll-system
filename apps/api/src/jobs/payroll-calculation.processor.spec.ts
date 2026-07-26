@@ -3,6 +3,7 @@ import { PayrollCalculationProcessor } from './payroll-calculation.processor';
 
 interface MockRun {
   id: string;
+  period: string;
   status: PayrollRunStatus;
   totalCount?: number;
   processedCount?: number;
@@ -61,6 +62,7 @@ describe('PayrollCalculationProcessor (P8-T02)', () => {
   function draftRun(): MockRun {
     const run: MockRun = {
       id: 'run-1',
+      period: '2026-07',
       status: PayrollRunStatus.DRAFT,
       update: jest
         .fn<Promise<MockRun>, [Partial<MockRun>]>()

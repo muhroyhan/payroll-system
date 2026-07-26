@@ -79,6 +79,17 @@ export class Payslip extends Model {
   @Column(DataType.STRING)
   declare pdfPath: string | null;
 
+  // Task A — prorate proporsional (join/resign mid-period), working-days
+  // basis (prorate.core.ts). Null for payslips generated before this
+  // feature existed — a genuine "not tracked", not zero. When
+  // workedDays < totalWorkingDays the payslip detail screen renders
+  // "Prorata (X dari Y hari kerja)" (FE-T30/31).
+  @Column(DataType.DECIMAL(5, 2))
+  declare workedDays: string | null;
+
+  @Column(DataType.INTEGER)
+  declare totalWorkingDays: number | null;
+
   @HasMany(() => PayslipLineItem)
   declare lineItems: PayslipLineItem[];
 }

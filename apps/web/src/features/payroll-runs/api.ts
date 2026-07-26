@@ -10,6 +10,18 @@ import { apiClient } from '../../api/client';
 // status. Allowed transitions: draft→calculated, calculated→approved,
 // calculated→draft (revert), approved→disbursed(terminal). No other edge
 // exists — approved/disbursed never move backward, no stage-skipping.
+// Task B — one employee excluded from this run's payslip generation instead
+// of failing the whole run (negative computed net pay). Mirrors
+// apps/api/src/modules/payroll-runs/entities/payroll-run-excluded-employee.entity.ts.
+export interface PayrollRunExcludedEmployee {
+  id: string;
+  employeeId: string;
+  employee: { id: string; name: string } | null;
+  reason: string;
+  grossPay: string;
+  netPay: string;
+}
+
 export interface PayrollRun {
   id: string;
   period: string;
@@ -19,6 +31,11 @@ export interface PayrollRun {
   lockedAt: string | null;
   processedCount: number;
   totalCount: number;
+  // Eager-loaded ONLY by GET /payroll-runs/:id (payroll-runs.service.ts
+  // findByIdOrThrow) — GET /payroll-runs (the list) does NOT include it, so
+  // this is absent there. Empty array until the run has actually been
+  // calculated with at least one exclusion.
+  excludedEmployees?: PayrollRunExcludedEmployee[];
 }
 
 // Mirrors CreatePayrollRunDto — period ('YYYY-MM') is the ONLY field. There

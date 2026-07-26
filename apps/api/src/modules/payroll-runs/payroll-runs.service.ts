@@ -29,8 +29,15 @@ export class PayrollRunsService {
     return this.payrollRunModel.findAll();
   }
 
+  // Task B — eager-loads excludedEmployees (+ each one's employee name) so
+  // the run detail / calculate-progress screen (FE-T27) can render who was
+  // excluded and why without a second round-trip. Harmless for every other
+  // caller of this method (assertTransition, revert, etc.) — it's read-only
+  // extra data alongside the run's own columns.
   async findByIdOrThrow(id: string): Promise<PayrollRun> {
-    const record = await this.payrollRunModel.findByPk(id);
+    const record = await this.payrollRunModel.findByPk(id, {
+      include: [{ association: 'excludedEmployees', include: ['employee'] }],
+    });
     if (!record) {
       throw new NotFoundException(`Payroll run ${id} not found`);
     }

@@ -15,7 +15,9 @@ import {
 } from '../../common/effective-dating/resolve-effective';
 import { Employee } from '../employees/entities/employee.entity';
 import { EmployeesService } from '../employees/employees.service';
+import { HolidaysService } from '../holidays/holidays.service';
 import { PayrollRun } from '../payroll-runs/entities/payroll-run.entity';
+import { PayrollRunExcludedEmployee } from '../payroll-runs/entities/payroll-run-excluded-employee.entity';
 import { Payslip } from '../payslips/entities/payslip.entity';
 import { PayslipLineItem } from '../payslips/entities/payslip-line-item.entity';
 import { SalaryMaster } from '../salary-master/entities/salary-master.entity';
@@ -36,12 +38,31 @@ import { resolveTerCategory } from '../tax-bpjs-constants/ter-bracket-master/ter
 import { PerRunScopeCache } from '../scope-resolver/per-run-scope-cache';
 import { isNpwpMissing } from './npwp';
 import { calculateOvertimePay } from './overtime-pay.core';
+import { calculateProration } from './prorate.core';
 import {
   ResolvedDeduction,
   ResolvedEarning,
   calculateEmployeePayslip,
 } from './employee-payslip.core';
 import { calculateAnnualPph21Trueup } from './pph21-annual-trueup.core';
+
+// Task B — thrown INSIDE the per-employee transaction so the transaction
+// rolls back (undoing the kasbon installment deduction it may have already
+// applied — same "must be rolled back because it mutated real state" reason
+// documented in PayrollRunRevertService), then caught by calculateEmployee to
+// record the exclusion instead of failing the whole run/chunk.
+class NegativeNetPayError extends Error {
+  constructor(
+    readonly netPay: number,
+    readonly grossPay: number,
+  ) {
+    super(`Net pay ${netPay} is negative (gross ${grossPay})`);
+  }
+}
+
+function formatRupiah(amount: number): string {
+  return Math.round(amount).toLocaleString('id-ID');
+}
 
 // P8-T04 — the DB-facing §9 assembly. Resolves each employee's inputs (scope
 // cache for salary/incentive, temp components, sanctions, kasbon), calls the
@@ -67,8 +88,11 @@ export class PayrollRunCalculationService {
     private readonly biayaJabatanModel: typeof BiayaJabatanMaster,
     @InjectModel(Pasal17BracketMaster)
     private readonly pasal17Model: typeof Pasal17BracketMaster,
+    @InjectModel(PayrollRunExcludedEmployee)
+    private readonly excludedEmployeeModel: typeof PayrollRunExcludedEmployee,
     private readonly employeesService: EmployeesService,
     private readonly kasbonService: KasbonService,
+    private readonly holidaysService: HolidaysService,
     private readonly tempComponentsService: PayslipTempComponentsService,
     private readonly terBracketMasterService: TerBracketMasterService,
     private readonly ptkpMasterService: PtkpMasterService,
@@ -85,10 +109,12 @@ export class PayrollRunCalculationService {
     return new PerRunScopeCache(periodDate);
   }
 
-  // One employee → one payslip (+ line items), idempotent. A payslip that
-  // already exists for (run, employee) means this employee is done — skip
-  // (retry-safe pre-check). The DB unique constraint is the real guard against
-  // a concurrent race (caught below).
+  // One employee → one payslip (+ line items) OR one exclusion record,
+  // idempotent either way. A payslip that already exists for (run, employee)
+  // means this employee is done — skip (retry-safe pre-check). Likewise an
+  // existing exclusion record means this employee was already evaluated and
+  // excluded — skip, don't re-evaluate. The DB unique constraints are the
+  // real guard against a concurrent race (caught below).
   async calculateEmployee(
     run: PayrollRun,
     employee: Employee,
@@ -100,21 +126,50 @@ export class PayrollRunCalculationService {
     if (existing) {
       return;
     }
+    const existingExclusion = await this.excludedEmployeeModel.findOne({
+      where: { payrollRunId: run.id, employeeId: employee.id },
+    });
+    if (existingExclusion) {
+      return;
+    }
 
     const periodDate = `${run.period}-01`;
     const month = Number(run.period.slice(5, 7));
+
+    // Task A — prorate proporsional. Working-days basis (prorate.core.ts):
+    // the ratio of the employee's actual working days in this period (join/
+    // resign clipped against the period, Mon–Fri minus active holidays) to
+    // the period's total working days. 1 for an employee present the whole
+    // month — every existing full-month payslip is unaffected.
+    const monthRange = periodMonthRange(run.period);
+    const activeHolidayDates = (
+      await this.holidaysService.list(monthRange.start, monthRange.endExclusive)
+    )
+      .filter((h) => h.isActive)
+      .map((h) => h.date);
+    const prorate = calculateProration(
+      monthRange.start,
+      monthRange.endExclusive,
+      employee.startDate,
+      employee.endDate,
+      activeHolidayDates,
+    );
 
     const earnings = await this.resolveEarnings(
       run,
       employee,
       periodDate,
       scopeCache,
+      prorate.factor,
     );
 
     try {
       await this.sequelize.transaction(async (transaction) => {
-        // Deductions mutate state (kasbon), so they run inside the txn: if the
-        // payslip insert loses a race, the kasbon deduction rolls back too.
+        // Deductions mutate state (kasbon) via KasbonService.deductInstallment,
+        // which commits immediately and does NOT participate in this
+        // transaction (see its own comment). So a thrown error below rolls
+        // back the payslip/line-item inserts but NOT the kasbon deduction —
+        // the Task B catch block below explicitly reverses that separately.
         const deductions = await this.resolveDeductions(
           run,
           employee,
@@ -151,6 +206,17 @@ export class PayrollRunCalculationService {
           pph21Override,
         });
 
+        // Task B — deductions (kasbon/sanction/tax/BPJS) exceeding gross pay
+        // is a per-employee data problem (e.g. an oversized kasbon
+        // installment), not a reason to fail every other employee in this
+        // run. Throwing here rolls back the payslip/line-item inserts (never
+        // attempted anyway); the catch block below records the exclusion AND
+        // separately reverses the kasbon deduction above (it already
+        // committed — see the comment on resolveDeductions' call site).
+        if (result.netPay < 0) {
+          throw new NegativeNetPayError(result.netPay, result.grossPay);
+        }
+
         const payslipId = randomUUID();
         await this.payslipModel.create(
           {
@@ -169,6 +235,8 @@ export class PayrollRunCalculationService {
             bpjsJkkCompany: result.bpjsJkkCompany.toFixed(2),
             bpjsJkmCompany: result.bpjsJkmCompany.toFixed(2),
             netPay: result.netPay.toFixed(2),
+            workedDays: prorate.workedWorkingDays.toFixed(2),
+            totalWorkingDays: prorate.workingDaysInMonth,
           } as any,
           { transaction },
         );
@@ -194,17 +262,63 @@ export class PayrollRunCalculationService {
         );
         return;
       }
+      if (error instanceof NegativeNetPayError) {
+        // Reverse any kasbon installment resolveDeductions already committed
+        // for this employee/run above — it happened outside the (rolled-
+        // back) transaction, so it needs this explicit compensating call,
+        // same pattern as PayrollRunRevertService's whole-run reversal.
+        await this.kasbonService.reverseInstallmentsForEmployeeInRun(
+          employee.id,
+          run.id,
+        );
+        const totalDeductions = error.grossPay - error.netPay;
+        const reason =
+          `Take-home negatif: potongan Rp ${formatRupiah(totalDeductions)} ` +
+          `> gaji Rp ${formatRupiah(error.grossPay)}`;
+        try {
+          await this.excludedEmployeeModel.create({
+            id: randomUUID(),
+            payrollRunId: run.id,
+            employeeId: employee.id,
+            reason,
+            grossPay: error.grossPay.toFixed(2),
+            netPay: error.netPay.toFixed(2),
+          } as any);
+        } catch (createError) {
+          if (createError instanceof UniqueConstraintError) {
+            // A concurrent worker already recorded this exclusion. Idempotent.
+            this.logger.log(
+              `Exclusion for run ${run.id} / employee ${employee.id} already recorded concurrently — skipped`,
+            );
+            return;
+          }
+          throw createError;
+        }
+        this.logger.warn(
+          `Employee ${employee.id} excluded from run ${run.id}: ${reason}`,
+        );
+        return;
+      }
       throw error;
     }
   }
 
   // §9 Step 1 — gross earnings: base salary + incentive (scope cache) + active
   // temp earning components + overtime pay (R9).
+  //
+  // Task A — prorateFactor (1 for a full-month employee) scales base_salary
+  // and incentive only: these are the recurring, days-worked-scaled wage
+  // components. Overtime is NOT scaled here — a verified overtime_letter is
+  // already date-bound to days the employee genuinely worked (queried by
+  // this period's range below), so it needs no separate proration. Temp
+  // components are one-off/ad hoc (bonus, allowance) and are NOT assumed to
+  // scale with days worked either.
   private async resolveEarnings(
     run: PayrollRun,
     employee: Employee,
     periodDate: string,
     scopeCache: PerRunScopeCache,
+    prorateFactor: number,
   ): Promise<ResolvedEarning[]> {
     const earnings: ResolvedEarning[] = [];
     const context = await this.employeesService.getScopeContext(employee.id);
@@ -213,9 +327,14 @@ export class PayrollRunCalculationService {
       this.salaryMasterModel,
       context,
     );
+    // The FULL (non-prorated) monthly rate — PP 35/2021's hourly divisor
+    // (÷173, overtime-pay.core.ts) is always against the full monthly wage,
+    // never a partial-month figure, even for a joiner/leaver.
+    let fullBaseSalary = 0;
     let baseSalary = 0;
     if (salary.resolved) {
-      baseSalary = Number(salary.record.baseSalary);
+      fullBaseSalary = Number(salary.record.baseSalary);
+      baseSalary = Math.round(fullBaseSalary * prorateFactor);
       earnings.push({
         source: PayslipLineSource.SALARY_MASTER,
         sourceId: salary.record.id,
@@ -235,7 +354,7 @@ export class PayrollRunCalculationService {
         source: PayslipLineSource.INCENTIVE_MASTER,
         sourceId: incentive.record.id,
         componentId: null,
-        amount: Number(incentive.record.incentiveAmount),
+        amount: Math.round(Number(incentive.record.incentiveAmount) * prorateFactor),
         isTaxable: true,
         // P8-T04b — read from incentive_master (data-driven), not hardcoded.
         isBpjsEligible: incentive.record.isBpjsEligible,
@@ -254,7 +373,7 @@ export class PayrollRunCalculationService {
     });
     for (const letter of overtimeLetters) {
       const pay = calculateOvertimePay(
-        baseSalary,
+        fullBaseSalary,
         Number(letter.actualOvertimeHours),
       );
       if (pay > 0) {
@@ -415,6 +534,17 @@ export class PayrollRunCalculationService {
     const result = calculateAnnualPph21Trueup({
       annualGrossTaxable:
         sum((p) => Number(p.taxableGross)) + decemberTaxableGross,
+      // Task A — wires the previously-unused `monthsWorked` (see
+      // pph21-annual-trueup.core.ts): the number of months this employee
+      // actually had a payslip generated this year (Jan–Nov `prior` rows +
+      // this December one), NOT a hardcoded 12. A mid-year hire/termination
+      // (TC-TAX-07) correctly gets a prorated biaya jabatan cap instead of
+      // silently assuming a full year of employment. Each monthly
+      // taxableGross summed above is itself already prorate-adjusted
+      // (Task A §2), so the annual true-up naturally stays consistent with
+      // what was actually withheld — never re-derived from a full,
+      // un-prorated gross.
+      monthsWorked: prior.length + 1,
       biayaJabatan: {
         rate: Number(biayaJabatan?.rate ?? 0),
         monthlyCap: Number(biayaJabatan?.monthlyCap ?? 0),
@@ -467,8 +597,11 @@ export class PayrollRunCalculationService {
 
 // Half-open [start, endExclusive) covering one 'YYYY-MM' period. Avoids the
 // invalid `YYYY-MM-31` upper bound (e.g. 2026-11-31), which a DATEONLY column
-// casts to null and silently matches nothing.
-function periodMonthRange(period: string): {
+// casts to null and silently matches nothing. Exported so the calculation
+// job (payroll-calculation.processor.ts) can filter employees by the exact
+// same period boundaries this service uses (Task A employee-inclusion fix) —
+// two independent reimplementations of the same date math would drift.
+export function periodMonthRange(period: string): {
   start: string;
   endExclusive: string;
 } {

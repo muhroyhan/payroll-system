@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Transaction, UniqueConstraintError } from 'sequelize';
+import { Op, Transaction, UniqueConstraintError } from 'sequelize';
 import { KasbonStatus } from '@payroll-system/shared-types';
 import { assertPendingStatus } from '../../common/approval-workflow/assert-pending';
 import { Kasbon } from './entities/kasbon.entity';
@@ -171,6 +171,46 @@ export class KasbonService {
       where: { payrollRunId },
       transaction,
     });
+    return this.restoreDeductions(deductions, transaction);
+  }
+
+  // Task B — narrower than reverseInstallmentsForRun above: undoes ONLY the
+  // deductions belonging to ONE employee's kasbons within ONE run, for when
+  // that single employee is excluded from the run (negative net pay) rather
+  // than the whole run being reverted.
+  //
+  // This is a REQUIRED explicit call, not automatic: deductInstallment's
+  // writes (above) are never passed a `transaction` — they commit
+  // immediately, independent of whatever the payroll calculation service
+  // does afterward in ITS OWN transaction. Throwing inside that transaction
+  // rolls back the (never-attempted) payslip/line-item inserts, but does
+  // NOTHING to a kasbon deduction that already committed moments earlier —
+  // exactly why PayrollRunRevertService needs its own explicit
+  // reverseInstallmentsForRun call for the whole-run case instead of relying
+  // on any transaction to do it. This method is that same compensating
+  // action, scoped to one employee.
+  async reverseInstallmentsForEmployeeInRun(
+    employeeId: string,
+    payrollRunId: string,
+  ): Promise<number> {
+    const kasbons = await this.kasbonModel.findAll({
+      where: { employeeId },
+      attributes: ['id'],
+    });
+    const kasbonIds = kasbons.map((k) => k.id);
+    if (kasbonIds.length === 0) {
+      return 0;
+    }
+    const deductions = await this.kasbonDeductionModel.findAll({
+      where: { kasbonId: { [Op.in]: kasbonIds }, payrollRunId },
+    });
+    return this.restoreDeductions(deductions);
+  }
+
+  private async restoreDeductions(
+    deductions: KasbonDeduction[],
+    transaction?: Transaction,
+  ): Promise<number> {
     for (const deduction of deductions) {
       const kasbon = await this.kasbonModel.findByPk(deduction.kasbonId, {
         transaction,
