@@ -1,4 +1,5 @@
 import { Col, DatePicker, Form, InputNumber, Row } from 'antd';
+import { RetireReasonFormItem } from '../../../components/RetireReasonFormItem';
 
 const rateField = (name: string, label: string) => (
   <Col span={12} key={name}>
@@ -49,6 +50,7 @@ export function BpjsKetenagakerjaanMasterFormFields() {
           </Form.Item>
         </Col>
       </Row>
+      <RetireReasonFormItem />
     </>
   );
 }

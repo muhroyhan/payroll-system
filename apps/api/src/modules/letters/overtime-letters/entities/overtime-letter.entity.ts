@@ -51,6 +51,15 @@ export class OvertimeLetter extends Model {
   @Column(DataType.UUID)
   declare verifiedBy: string | null;
 
+  @Column(DataType.UUID)
+  declare rejectedBy: string | null;
+
+  @Column(DataType.TEXT)
+  declare rejectReason: string | null;
+
+  @Column(DataType.UUID)
+  declare createdBy: string | null;
+
   // Populated asynchronously by the PDF generation job once verified — never
   // generated synchronously in the request handler (§3, no exceptions).
   @Column(DataType.STRING)

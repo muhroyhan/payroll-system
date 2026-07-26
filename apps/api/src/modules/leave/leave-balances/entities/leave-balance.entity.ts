@@ -10,6 +10,7 @@ import {
 } from 'sequelize-typescript';
 import { Employee } from '../../../employees/entities/employee.entity';
 import { LeaveType } from '../../leave-types/entities/leave-type.entity';
+import { LeavePolicyMaster } from '../../leave-policy-master/entities/leave-policy-master.entity';
 
 // §5.4 — per-employee leave balance. quota is initially resolved from
 // leave_policy_master via the scope resolver, then directly HR-editable
@@ -54,4 +55,20 @@ export class LeaveBalance extends Model {
   @Default(false)
   @Column(DataType.BOOLEAN)
   declare manuallyAdjusted: boolean;
+
+  // Audit-trail follow-up (§1C) — who/why for the last manual quota edit.
+  // Written together, never one without the other — see updateQuota().
+  @Column(DataType.UUID)
+  declare adjustedBy: string | null;
+
+  @Column(DataType.TEXT)
+  declare adjustmentReason: string | null;
+
+  // The leave_policy_master row resolveOne() actually resolved this balance
+  // from, if any (null for rows that predate this column). Lets
+  // LeavePolicyMasterService answer "has this policy row ever been used"
+  // without re-running the scope resolver — see its assertLockedFieldsUntouched.
+  @ForeignKey(() => LeavePolicyMaster)
+  @Column(DataType.UUID)
+  declare resolvedFromPolicyId: string | null;
 }

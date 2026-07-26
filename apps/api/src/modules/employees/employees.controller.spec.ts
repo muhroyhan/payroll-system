@@ -34,7 +34,16 @@ describe('EmployeesController — import file validation (audit fix)', () => {
       ],
     })
       .overrideGuard(JwtAuthGuard)
-      .useValue({ canActivate: () => true })
+      .useValue({
+        // importFile() now reads @CurrentUser() (audit-trail follow-up, §D) —
+        // the real JwtAuthGuard populates request.user from the JWT; this
+        // stand-in does the same so the handler doesn't 500 on `user.id`.
+        canActivate: (context: import('@nestjs/common').ExecutionContext) => {
+          const request = context.switchToHttp().getRequest();
+          request.user = { id: 'test-user-1', email: 'test@example.com', role: 'admin' };
+          return true;
+        },
+      })
       .overrideGuard(RolesGuard)
       .useValue({ canActivate: () => true })
       .compile();

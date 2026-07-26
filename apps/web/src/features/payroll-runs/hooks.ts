@@ -90,7 +90,7 @@ export function useDisbursePayrollRunMutation(id: string) {
 export function useRevertPayrollRunMutation(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => revertPayrollRunToDraft(id),
+    mutationFn: (reason: string) => revertPayrollRunToDraft(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payroll-runs'] });
       queryClient.invalidateQueries({ queryKey: ['payroll-runs', id] });

@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ScopeType } from '@payroll-system/shared-types';
 import { SalaryMasterService } from './salary-master.service';
 
@@ -51,23 +51,37 @@ describe('SalaryMasterService', () => {
   it('update() allows changing baseSalary/scope/effective dates when unreferenced', async () => {
     const { service, payslipReferenceChecker } = makeService(record(), false);
 
-    const updated = await service.update('sm-1', {
-      baseSalary: '6000000.00',
-      effectiveEndDate: '2026-12-31',
-    });
+    const updated = await service.update(
+      'sm-1',
+      {
+        baseSalary: '6000000.00',
+        effectiveEndDate: '2026-12-31',
+        reason: 'Retired for year-end review',
+      },
+      'user-1',
+    );
 
     expect(payslipReferenceChecker.isReferencedByPayslip).toHaveBeenCalledWith(
       'salary_master',
       'sm-1',
     );
     expect(updated.baseSalary).toBe('6000000.00');
+    expect(updated.updatedBy).toBe('user-1');
+  });
+
+  it('update() rejects a manual retire (effectiveEndDate null -> set) with no reason', async () => {
+    const { service } = makeService(record(), false);
+
+    await expect(
+      service.update('sm-1', { effectiveEndDate: '2026-12-31' }, 'user-1'),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('update() rejects changing baseSalary once resolved into a payslip line item', async () => {
     const { service } = makeService(record(), true);
 
     await expect(
-      service.update('sm-1', { baseSalary: '7000000.00' }),
+      service.update('sm-1', { baseSalary: '7000000.00' }, 'user-1'),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -82,7 +96,7 @@ describe('SalaryMasterService', () => {
     async (_fieldName, patch) => {
       const { service } = makeService(record(), true);
 
-      await expect(service.update('sm-1', patch)).rejects.toThrow(
+      await expect(service.update('sm-1', patch, 'user-1')).rejects.toThrow(
         ConflictException,
       );
     },
@@ -93,7 +107,7 @@ describe('SalaryMasterService', () => {
 
     // UpdateSalaryMasterDto only has locked fields today, but the guard must
     // stay a no-op on an empty patch regardless (mirrors PayslipComponents).
-    await service.update('sm-1', {});
+    await service.update('sm-1', {}, 'user-1');
 
     expect(payslipReferenceChecker.isReferencedByPayslip).not.toHaveBeenCalled();
   });

@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { BpjsKetenagakerjaanMasterService } from './bpjs-ketenagakerjaan-master.service';
 import { closeOverlappingPredecessor } from '../../../common/effective-dating/close-overlapping-predecessor';
 
@@ -82,9 +82,13 @@ describe('BpjsKetenagakerjaanMasterService', () => {
         {},
         '2026-01-01',
         'txn-1',
+        expect.any(String),
+        'user-1',
       );
+      const [, , , , newRowId] =
+        mockedCloseOverlappingPredecessor.mock.calls[0];
       expect(model.create).toHaveBeenCalledWith(
-        { ...dto, createdBy: 'user-1' },
+        { id: newRowId, ...dto, createdBy: 'user-1' },
         { transaction: 'txn-1' },
       );
     });
@@ -118,13 +122,18 @@ describe('BpjsKetenagakerjaanMasterService', () => {
     it('allows changing rates/cap/effectiveStartDate when unreferenced', async () => {
       const { service, effectiveRangePayslipChecker } = makeService(record(), false);
 
-      const updated = await service.update('bt-1', { jpWageCap: '11000000.00' });
+      const updated = await service.update(
+        'bt-1',
+        { jpWageCap: '11000000.00' },
+        'user-1',
+      );
 
       expect(effectiveRangePayslipChecker.isReferenced).toHaveBeenCalledWith({
         effectiveStartDate: '2026-01-01',
         effectiveEndDate: null,
       });
       expect(updated.jpWageCap).toBe('11000000.00');
+      expect(updated.updatedBy).toBe('user-1');
     });
 
     it.each([
@@ -141,27 +150,37 @@ describe('BpjsKetenagakerjaanMasterService', () => {
       async (_fieldName, patch) => {
         const { service } = makeService(record(), true);
 
-        await expect(service.update('bt-1', patch)).rejects.toThrow(
+        await expect(service.update('bt-1', patch, 'user-1')).rejects.toThrow(
           ConflictException,
         );
       },
     );
 
-    it('allows changing effectiveEndDate even when the row IS referenced (not a dead-lock)', async () => {
+    it('allows changing effectiveEndDate even when the row IS referenced (not a dead-lock), given a reason', async () => {
       const { service, effectiveRangePayslipChecker } = makeService(record(), true);
 
-      const updated = await service.update('bt-1', {
-        effectiveEndDate: '2026-12-31',
-      });
+      const updated = await service.update(
+        'bt-1',
+        { effectiveEndDate: '2026-12-31', reason: 'Superseded by new rate' },
+        'user-1',
+      );
 
       expect(effectiveRangePayslipChecker.isReferenced).not.toHaveBeenCalled();
       expect(updated.effectiveEndDate).toBe('2026-12-31');
     });
 
+    it('rejects a manual retire (effectiveEndDate null -> set) with no reason', async () => {
+      const { service } = makeService(record(), false);
+
+      await expect(
+        service.update('bt-1', { effectiveEndDate: '2026-12-31' }, 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
     it('does not query the checker when no locked field is touched', async () => {
       const { service, effectiveRangePayslipChecker } = makeService(record(), true);
 
-      await service.update('bt-1', {});
+      await service.update('bt-1', {}, 'user-1');
 
       expect(effectiveRangePayslipChecker.isReferenced).not.toHaveBeenCalled();
     });

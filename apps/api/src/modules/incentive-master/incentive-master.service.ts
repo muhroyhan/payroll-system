@@ -11,6 +11,7 @@ import { ScopeValueValidator } from '../scope-resolver/scope-value-validator.ser
 import { ScopeResolution } from '../scope-resolver/scope-resolver.types';
 import { PAYSLIP_REFERENCE_CHECKER } from '../../common/payslip-reference/payslip-reference-checker.interface';
 import type { PayslipReferenceChecker } from '../../common/payslip-reference/payslip-reference-checker.interface';
+import { assertRetireReasonProvided } from '../../common/effective-dating/retire-reason';
 import { IncentiveMaster } from './entities/incentive-master.entity';
 import { CreateIncentiveMasterDto } from './dto/create-incentive-master.dto';
 import { UpdateIncentiveMasterDto } from './dto/update-incentive-master.dto';
@@ -58,13 +59,15 @@ export class IncentiveMasterService {
   async update(
     id: string,
     dto: UpdateIncentiveMasterDto,
+    updatedBy: string,
   ): Promise<IncentiveMaster> {
     const record = await this.findByIdOrThrow(id);
     if (dto.scopeType && dto.scopeValue) {
       await this.scopeValueValidator.validate(dto.scopeType, dto.scopeValue);
     }
     await this.assertLockedFieldsUntouched(record, dto);
-    return record.update(dto);
+    assertRetireReasonProvided(record, dto);
+    return record.update({ ...dto, updatedBy });
   }
 
   private async assertLockedFieldsUntouched(

@@ -80,6 +80,7 @@ describe('LeaveBalancesService', () => {
         quota: 12,
         used: 0,
         manuallyAdjusted: false,
+        resolvedFromPolicyId: 'policy-1',
       }),
     );
     expect(result.quota).toBe(12);
@@ -113,16 +114,23 @@ describe('LeaveBalancesService', () => {
     expect(model.create).not.toHaveBeenCalled();
   });
 
-  // TC-LEAVE-02 — the HR-facing update path: always marks manuallyAdjusted.
-  it('TC-LEAVE-02: updateQuota() sets the new quota and marks manuallyAdjusted:true', async () => {
+  // TC-LEAVE-02 — the HR-facing update path: always marks manuallyAdjusted,
+  // and (audit-trail follow-up §1C) records who/why.
+  it('TC-LEAVE-02: updateQuota() sets the new quota, marks manuallyAdjusted:true, and records adjustedBy/adjustmentReason', async () => {
     const record = balance({ quota: 12, manuallyAdjusted: false });
     const { service } = makeService(record);
 
-    const result = await service.updateQuota('bal-1', { quota: 20 });
+    const result = await service.updateQuota(
+      'bal-1',
+      { quota: 20, reason: 'Carried over unused days' },
+      'user-1',
+    );
 
     expect(record.update).toHaveBeenCalledWith({
       quota: 20,
       manuallyAdjusted: true,
+      adjustedBy: 'user-1',
+      adjustmentReason: 'Carried over unused days',
     });
     expect(result.quota).toBe(20);
     expect(result.manuallyAdjusted).toBe(true);
@@ -136,7 +144,11 @@ describe('LeaveBalancesService', () => {
     const record = balance({ quota: 12, manuallyAdjusted: false });
     const { service, model, leavePolicyMasterService } = makeService(record);
 
-    await service.updateQuota('bal-1', { quota: 20 });
+    await service.updateQuota(
+      'bal-1',
+      { quota: 20, reason: 'Carried over unused days' },
+      'user-1',
+    );
     expect(record.quota).toBe(20);
     expect(record.manuallyAdjusted).toBe(true);
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Alert, Descriptions, Modal, Progress, Space, Table, Typography } from 'antd';
+import { Alert, Descriptions, Form, Input, Modal, Progress, Space, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PayrollRunStatus } from '@payroll-system/shared-types';
 import { formatIDR } from '../../components/format';
@@ -71,6 +71,11 @@ export function PayrollRunDetailPage() {
   const revertMutation = useRevertPayrollRunMutation(id ?? '');
 
   const [actionError, setActionError] = useState<ApiErrorPresentation | null>(null);
+  // Audit-trail follow-up (dispute-traceability review, §1B) — revert now
+  // requires a reason, which Modal.confirm's imperative API can't validate
+  // before onOk fires, so this is a controlled Modal + Form instead.
+  const [revertModalOpen, setRevertModalOpen] = useState(false);
+  const [revertForm] = Form.useForm<{ reason: string }>();
   // Bridges the brief window between "202 accepted" and the BullMQ worker
   // actually picking up the job and writing totalCount — the steady-state
   // poll (usePayrollRunQuery's refetchInterval) only activates once
@@ -112,27 +117,28 @@ export function PayrollRunDetailPage() {
   };
 
   const handleRevert = () => {
-    Modal.confirm({
-      title: 'Kembalikan payroll run ke draft?',
-      content: (
-        <div>
-          <p>Tindakan ini akan:</p>
-          <ul>
-            <li>Menghapus semua payslip dan rincian payslip yang sudah dibuat run ini.</li>
-            <li>
-              Mengembalikan (rollback) potongan cicilan kasbon yang sudah ditarik oleh run ini —
-              saldo kasbon karyawan terkait akan dipulihkan.
-            </li>
-            <li>Membuka kembali kunci absensi untuk periode ini (dapat diubah lagi).</li>
-          </ul>
-          <p>Data absensi/komponen sementara periode ini harus dihitung ulang dari awal.</p>
-        </div>
-      ),
-      okText: 'Ya, kembalikan ke draft',
-      okButtonProps: { danger: true },
-      cancelText: 'Batal',
-      onOk: () => runAction(() => revertMutation.mutateAsync()),
-    });
+    revertForm.resetFields();
+    setRevertModalOpen(true);
+  };
+
+  const handleRevertSubmit = async () => {
+    let values: { reason: string };
+    try {
+      values = await revertForm.validateFields();
+    } catch {
+      // antd already renders the inline "wajib diisi"/"minimal 5 karakter"
+      // errors on the field — nothing else to do here.
+      return;
+    }
+    setActionError(null);
+    try {
+      await revertMutation.mutateAsync(values.reason);
+      // Only close on success — keep it open (with the entered reason still
+      // filled in) so a 409/validation failure doesn't force re-typing.
+      setRevertModalOpen(false);
+    } catch (err) {
+      setActionError(describeApiError(err));
+    }
   };
 
   return (
@@ -244,10 +250,58 @@ export function PayrollRunDetailPage() {
               <Descriptions.Item label="Terkunci Sejak" span={2}>
                 {data.lockedAt ?? '—'}
               </Descriptions.Item>
+              {/* Audit-trail follow-up (§1B) — the money-out step's actor,
+                  rendered by name (disbursedByUser is eager-loaded by
+                  findByIdOrThrow) rather than raw user ID like the two
+                  fields above, per the review's explicit ask. */}
+              <Descriptions.Item label="Dicairkan Oleh" span={2}>
+                {data.disbursedByUser ? `Dicairkan oleh: ${data.disbursedByUser.name}` : '—'}
+              </Descriptions.Item>
+              {data.revertedBy && (
+                <Descriptions.Item label="Terakhir Dikembalikan ke Draft (User ID)" span={2}>
+                  {data.revertedBy} — "{data.revertReason}"
+                </Descriptions.Item>
+              )}
             </Descriptions>
           </>
         )}
       />
+      <Modal
+        title="Kembalikan payroll run ke draft?"
+        open={revertModalOpen}
+        onCancel={() => setRevertModalOpen(false)}
+        onOk={handleRevertSubmit}
+        okText="Ya, kembalikan ke draft"
+        okButtonProps={{ danger: true, loading: revertMutation.isPending }}
+        cancelText="Batal"
+        destroyOnClose
+      >
+        <p>Tindakan ini akan:</p>
+        <ul>
+          <li>Menghapus semua payslip dan rincian payslip yang sudah dibuat run ini.</li>
+          <li>
+            Mengembalikan (rollback) potongan cicilan kasbon yang sudah ditarik oleh run ini —
+            saldo kasbon karyawan terkait akan dipulihkan.
+          </li>
+          <li>Membuka kembali kunci absensi untuk periode ini (dapat diubah lagi).</li>
+        </ul>
+        <p>Data absensi/komponen sementara periode ini harus dihitung ulang dari awal.</p>
+        <Form form={revertForm} layout="vertical">
+          <Form.Item
+            name="reason"
+            label="Alasan revert"
+            rules={[
+              { required: true, message: 'Alasan revert wajib diisi' },
+              { min: 5, message: 'Alasan revert minimal 5 karakter' },
+            ]}
+          >
+            <Input.TextArea
+              rows={3}
+              placeholder="Jelaskan kenapa run ini perlu dikembalikan ke draft (mis. data absensi salah, kasbon salah dihitung)…"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
       <ApiErrorDisplay error={actionError} onDismiss={() => setActionError(null)} />
     </>
   );

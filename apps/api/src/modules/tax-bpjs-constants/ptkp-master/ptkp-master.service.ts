@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize';
+import { randomUUID } from 'crypto';
 import { PtkpStatus } from '@payroll-system/shared-types';
 import {
   resolveEffectiveRecord,
@@ -8,6 +9,7 @@ import {
 } from '../../../common/effective-dating/resolve-effective';
 import { EffectiveRangePayslipChecker } from '../../../common/effective-dating/effective-range-payslip-checker';
 import { closeOverlappingPredecessor } from '../../../common/effective-dating/close-overlapping-predecessor';
+import { assertRetireReasonProvided } from '../../../common/effective-dating/retire-reason';
 import { PtkpMaster } from './entities/ptkp-master.entity';
 import { CreatePtkpMasterDto } from './dto/create-ptkp-master.dto';
 import { UpdatePtkpMasterDto } from './dto/update-ptkp-master.dto';
@@ -67,15 +69,19 @@ export class PtkpMasterService {
   // See closeOverlappingPredecessor for when it refuses to guess instead.
   create(dto: CreatePtkpMasterDto, createdBy: string): Promise<PtkpMaster> {
     return this.sequelize.transaction(async (transaction) => {
+      const newRowId = randomUUID();
       await closeOverlappingPredecessor(
         this.ptkpMasterModel,
         { ptkpStatus: dto.ptkpStatus },
         dto.effectiveStartDate,
         transaction,
+        newRowId,
+        createdBy,
       );
-      return this.ptkpMasterModel.create({ ...dto, createdBy } as any, {
-        transaction,
-      });
+      return this.ptkpMasterModel.create(
+        { id: newRowId, ...dto, createdBy } as any,
+        { transaction },
+      );
     });
   }
 
@@ -84,10 +90,15 @@ export class PtkpMasterService {
   // payslip_line_items row has source_id=null (no per-row FK, see
   // EffectiveRangePayslipChecker's doc comment), so the lock is checked by
   // period + ptkpStatus instead of by id.
-  async update(id: string, dto: UpdatePtkpMasterDto): Promise<PtkpMaster> {
+  async update(
+    id: string,
+    dto: UpdatePtkpMasterDto,
+    updatedBy: string,
+  ): Promise<PtkpMaster> {
     const record = await this.findByIdOrThrow(id);
     await this.assertLockedFieldsUntouched(record, dto);
-    return record.update(dto);
+    assertRetireReasonProvided(record, dto);
+    return record.update({ ...dto, updatedBy });
   }
 
   // effectiveEndDate is deliberately NOT locked (audit follow-up): closing a

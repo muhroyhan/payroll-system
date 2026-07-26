@@ -70,7 +70,7 @@ export function useApproveLeaveRequestMutation(id: string) {
 export function useRejectLeaveRequestMutation(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => rejectLeaveRequest(id),
+    mutationFn: (reason: string) => rejectLeaveRequest(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['leave-requests', id] });

@@ -26,7 +26,10 @@ export class EmployeesImportService {
     private readonly divisionsService: DivisionsService,
   ) {}
 
-  async importFromBuffer(buffer: Buffer): Promise<BulkImportResult> {
+  async importFromBuffer(
+    buffer: Buffer,
+    currentUserId: string,
+  ): Promise<BulkImportResult> {
     const rows = this.parseRows(buffer);
     if (rows.length === 0) {
       throw new BadRequestException('The uploaded file contains no data rows');
@@ -97,6 +100,7 @@ export class EmployeesImportService {
         wifeIncomeCombined: rowDto.wifeIncomeCombined,
         spouseNoIncomeCertificate: rowDto.spouseNoIncomeCertificate,
         ptkpManuallyOverridden: rowDto.ptkpManuallyOverridden,
+        ptkpOverrideReason: rowDto.ptkpOverrideReason,
         employmentStatus: rowDto.employmentStatus,
         employeeTypeId: employeeTypeId as string,
         positionId: positionId as string,
@@ -112,7 +116,10 @@ export class EmployeesImportService {
       };
 
       try {
-        const created = await this.employeesService.create(createDto);
+        const created = await this.employeesService.create(
+          createDto,
+          currentUserId,
+        );
         createdIds.push(created.id);
       } catch (error) {
         errors.push({

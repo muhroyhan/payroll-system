@@ -18,6 +18,7 @@ import type { AuthenticatedUser } from '../../auth/types/authenticated-user';
 import { LeaveRequestsService } from './leave-requests.service';
 import { CreateLeaveRequestDto } from './dto/create-leave-request.dto';
 import { UpdateLeaveRequestDto } from './dto/update-leave-request.dto';
+import { RejectLeaveRequestDto } from './dto/reject-leave-request.dto';
 
 @Controller('leave-requests')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -36,8 +37,11 @@ export class LeaveRequestsController {
   }
 
   @Post()
-  create(@Body() dto: CreateLeaveRequestDto) {
-    return this.leaveRequestsService.create(dto);
+  create(
+    @Body() dto: CreateLeaveRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.leaveRequestsService.create(dto, user.id);
   }
 
   @Put(':id')
@@ -56,7 +60,11 @@ export class LeaveRequestsController {
   }
 
   @Put(':id/reject')
-  reject(@Param('id') id: string) {
-    return this.leaveRequestsService.reject(id);
+  reject(
+    @Param('id') id: string,
+    @Body() dto: RejectLeaveRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.leaveRequestsService.reject(id, user.id, dto.reason);
   }
 }

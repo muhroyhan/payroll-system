@@ -42,17 +42,21 @@ describe('KasbonService', () => {
 
   it('create() always starts pending with remaining_balance left null', async () => {
     const { service, model } = makeService();
-    await service.create({
-      employeeId: 'emp-1',
-      amount: '3000000',
-      requestDate: '2026-07-23',
-      installmentCount: 3,
-      installmentAmount: '1000000',
-    });
+    await service.create(
+      {
+        employeeId: 'emp-1',
+        amount: '3000000',
+        requestDate: '2026-07-23',
+        installmentCount: 3,
+        installmentAmount: '1000000',
+      },
+      'user-1',
+    );
     expect(model.create).toHaveBeenCalledWith(
       expect.objectContaining({
         status: KasbonStatus.PENDING,
         remainingBalance: null,
+        createdBy: 'user-1',
       }),
     );
   });
@@ -80,13 +84,17 @@ describe('KasbonService', () => {
     expect(result.remainingBalance).toBe('3000000.00');
   });
 
-  it('reject() flips status and leaves remaining_balance null', async () => {
+  it('reject() flips status, records rejectedBy/rejectReason, and leaves remaining_balance null', async () => {
     const r = record();
     const { service } = makeService(r);
 
-    await service.reject('kb-1');
+    await service.reject('kb-1', 'rejecter-1', 'Insufficient tenure');
 
-    expect(r.update).toHaveBeenCalledWith({ status: KasbonStatus.REJECTED });
+    expect(r.update).toHaveBeenCalledWith({
+      status: KasbonStatus.REJECTED,
+      rejectedBy: 'rejecter-1',
+      rejectReason: 'Insufficient tenure',
+    });
   });
 
   it('approve()/reject() are rejected on an already-decided kasbon (reused assertPendingStatus)', async () => {
@@ -99,7 +107,9 @@ describe('KasbonService', () => {
     await expect(service.approve('kb-1', 'approver-2')).rejects.toThrow(
       ConflictException,
     );
-    await expect(service.reject('kb-1')).rejects.toThrow(ConflictException);
+    await expect(
+      service.reject('kb-1', 'rejecter-1', 'too late'),
+    ).rejects.toThrow(ConflictException);
   });
 
   it('update()/remove() succeed while pending', async () => {

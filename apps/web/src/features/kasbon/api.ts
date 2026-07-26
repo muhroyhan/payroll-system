@@ -29,6 +29,9 @@ export interface Kasbon {
   remainingBalance: string | null;
   status: KasbonStatus;
   approvedBy: string | null;
+  rejectedBy: string | null;
+  rejectReason: string | null;
+  createdBy: string | null;
 }
 
 export interface KasbonFormValues {
@@ -75,7 +78,7 @@ export async function approveKasbon(id: string): Promise<Kasbon> {
   return data;
 }
 
-export async function rejectKasbon(id: string): Promise<Kasbon> {
-  const { data } = await apiClient.put<Kasbon>(`/kasbon/${id}/reject`);
+export async function rejectKasbon(id: string, reason: string): Promise<Kasbon> {
+  const { data } = await apiClient.put<Kasbon>(`/kasbon/${id}/reject`, { reason });
   return data;
 }

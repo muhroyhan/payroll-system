@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Descriptions, Popconfirm, Space } from 'antd';
+import { Descriptions, Form, Input, Modal, Popconfirm, Space } from 'antd';
 import { SuratIjinStatus } from '@payroll-system/shared-types';
 import { DetailPage } from '../../../components/DetailPage';
 import { LockedAction } from '../../../components/LockedAction';
@@ -36,6 +36,9 @@ export function SuratIjinDetailPage() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [actionError, setActionError] = useState<ApiErrorPresentation | null>(null);
+  // Audit-trail follow-up (§1A) — reject now requires a reason.
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectForm] = Form.useForm<{ reason: string }>();
 
   const record = query.data;
   const isPending = record?.status === SuratIjinStatus.PENDING;
@@ -57,6 +60,19 @@ export function SuratIjinDetailPage() {
     });
   };
 
+  const handleRejectSubmit = async () => {
+    let values: { reason: string };
+    try {
+      values = await rejectForm.validateFields();
+    } catch {
+      return;
+    }
+    await runAction(async () => {
+      await rejectMutation.mutateAsync(values.reason);
+      setRejectModalOpen(false);
+    });
+  };
+
   return (
     <>
       <DetailPage
@@ -72,7 +88,10 @@ export function SuratIjinDetailPage() {
                 approving={approveMutation.isPending}
                 rejecting={rejectMutation.isPending}
                 onApprove={() => runAction(() => approveMutation.mutateAsync())}
-                onReject={() => runAction(() => rejectMutation.mutateAsync())}
+                onReject={() => {
+                  rejectForm.resetFields();
+                  setRejectModalOpen(true);
+                }}
               />
             )}
             <LockedAction
@@ -104,18 +123,49 @@ export function SuratIjinDetailPage() {
             </Descriptions.Item>
             <Descriptions.Item label="Jam">{data.timeRequested}</Descriptions.Item>
             <Descriptions.Item label="Tanggal">{formatDate(data.date)}</Descriptions.Item>
-            <Descriptions.Item label="Disetujui/Ditolak Oleh (User ID)">
+            <Descriptions.Item label="Dibuat Oleh (User ID)">
+              {data.createdBy ?? '—'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Disetujui Oleh (User ID)">
               {data.approvedBy ?? '—'}
             </Descriptions.Item>
-            <Descriptions.Item label="Alasan" span={2}>
+            <Descriptions.Item label="Alasan Pengajuan" span={2}>
               {data.reason}
             </Descriptions.Item>
+            {data.rejectedBy && (
+              <Descriptions.Item label="Ditolak Oleh (User ID)" span={2}>
+                {data.rejectedBy} — "{data.rejectReason}"
+              </Descriptions.Item>
+            )}
           </Descriptions>
         )}
       />
       {record && (
         <SuratIjinFormDrawer open={editOpen} onClose={() => setEditOpen(false)} suratIjin={record} />
       )}
+      <Modal
+        title="Tolak surat ijin ini?"
+        open={rejectModalOpen}
+        onCancel={() => setRejectModalOpen(false)}
+        onOk={handleRejectSubmit}
+        okText="Ya, tolak"
+        okButtonProps={{ danger: true, loading: rejectMutation.isPending }}
+        cancelText="Batal"
+        destroyOnClose
+      >
+        <Form form={rejectForm} layout="vertical">
+          <Form.Item
+            name="reason"
+            label="Alasan penolakan"
+            rules={[
+              { required: true, message: 'Alasan penolakan wajib diisi' },
+              { min: 5, message: 'Alasan penolakan minimal 5 karakter' },
+            ]}
+          >
+            <Input.TextArea rows={3} placeholder="Jelaskan kenapa surat ijin ini ditolak…" />
+          </Form.Item>
+        </Form>
+      </Modal>
       <ApiErrorDisplay error={actionError} onDismiss={() => setActionError(null)} />
     </>
   );

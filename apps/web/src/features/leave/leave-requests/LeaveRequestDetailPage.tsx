@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Descriptions, Popconfirm, Space, Typography } from 'antd';
+import { Button, Descriptions, Form, Input, Modal, Popconfirm, Space, Typography } from 'antd';
 import { LeaveRequestStatus } from '@payroll-system/shared-types';
 import { DetailPage } from '../../../components/DetailPage';
 import { LockedAction } from '../../../components/LockedAction';
@@ -37,6 +37,10 @@ export function LeaveRequestDetailPage() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [actionError, setActionError] = useState<ApiErrorPresentation | null>(null);
+  // Audit-trail follow-up (§1A) — reject now requires a reason, same
+  // controlled Modal + Form pattern as PayrollRunDetailPage's revert.
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectForm] = Form.useForm<{ reason: string }>();
 
   const employeeName = (employeeId: string) =>
     employeesQuery.data?.find((employee) => employee.id === employeeId)?.name ?? employeeId;
@@ -53,10 +57,22 @@ export function LeaveRequestDetailPage() {
     }
   };
 
-  const handleReject = async () => {
+  const handleReject = () => {
+    rejectForm.resetFields();
+    setRejectModalOpen(true);
+  };
+
+  const handleRejectSubmit = async () => {
+    let values: { reason: string };
+    try {
+      values = await rejectForm.validateFields();
+    } catch {
+      return;
+    }
     setActionError(null);
     try {
-      await rejectMutation.mutateAsync();
+      await rejectMutation.mutateAsync(values.reason);
+      setRejectModalOpen(false);
     } catch (err) {
       setActionError(describeApiError(err));
     }
@@ -89,7 +105,7 @@ export function LeaveRequestDetailPage() {
                 <Button type="primary" onClick={handleApprove} loading={approveMutation.isPending}>
                   Setujui
                 </Button>
-                <Button danger onClick={handleReject} loading={rejectMutation.isPending}>
+                <Button danger onClick={handleReject}>
                   Tolak
                 </Button>
               </>
@@ -130,13 +146,21 @@ export function LeaveRequestDetailPage() {
               <Descriptions.Item label="Status">
                 <StatusTag value={data.status} labels={LEAVE_REQUEST_STATUS_LABELS} />
               </Descriptions.Item>
-              {/* approvedBy is a user id (the admin/HR staff who decided),
-                  not an employee id — GET /users is admin-only (§15.14), so
-                  it isn't resolvable to a name for every viewer here; shown
-                  as-is rather than guessed at. */}
+              {/* approvedBy/rejectedBy/createdBy are user ids (admin/HR
+                  staff), not employee ids — GET /users is admin-only
+                  (§15.14), so they aren't resolvable to a name for every
+                  viewer here; shown as-is rather than guessed at. */}
+              <Descriptions.Item label="Dibuat Oleh (User ID)">
+                {data.createdBy ?? '—'}
+              </Descriptions.Item>
               <Descriptions.Item label="Diputuskan Oleh (User ID)">
                 {data.approvedBy ?? '—'}
               </Descriptions.Item>
+              {data.rejectedBy && (
+                <Descriptions.Item label="Ditolak Oleh (User ID)" span={2}>
+                  {data.rejectedBy} — "{data.rejectReason}"
+                </Descriptions.Item>
+              )}
               <Descriptions.Item label="Tanggal Cuti" span={2}>
                 {formatDate(data.startDate)} — {formatDate(data.endDate)}
                 <br />
@@ -153,6 +177,29 @@ export function LeaveRequestDetailPage() {
       {request && (
         <LeaveRequestFormDrawer open={editOpen} onClose={() => setEditOpen(false)} request={request} />
       )}
+      <Modal
+        title="Tolak pengajuan cuti ini?"
+        open={rejectModalOpen}
+        onCancel={() => setRejectModalOpen(false)}
+        onOk={handleRejectSubmit}
+        okText="Ya, tolak"
+        okButtonProps={{ danger: true, loading: rejectMutation.isPending }}
+        cancelText="Batal"
+        destroyOnClose
+      >
+        <Form form={rejectForm} layout="vertical">
+          <Form.Item
+            name="reason"
+            label="Alasan penolakan"
+            rules={[
+              { required: true, message: 'Alasan penolakan wajib diisi' },
+              { min: 5, message: 'Alasan penolakan minimal 5 karakter' },
+            ]}
+          >
+            <Input.TextArea rows={3} placeholder="Jelaskan kenapa pengajuan ini ditolak…" />
+          </Form.Item>
+        </Form>
+      </Modal>
       <ApiErrorDisplay error={actionError} onDismiss={() => setActionError(null)} />
     </>
   );

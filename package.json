@@ -15,7 +15,8 @@
   },
   "pnpm": {
     "overrides": {
-      "follow-redirects": "1.16.0"
+      "follow-redirects": "1.16.0",
+      "dotenv": "17.4.2"
     }
   }
 }

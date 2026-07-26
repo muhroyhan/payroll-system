@@ -71,6 +71,7 @@ export class LeaveBalancesService {
       quota: resolution.record.annualQuota,
       used: 0,
       manuallyAdjusted: false,
+      resolvedFromPolicyId: resolution.record.id,
     } as any);
   }
 
@@ -104,12 +105,20 @@ export class LeaveBalancesService {
   }
 
   // HR direct edit — always marks manuallyAdjusted (§5.4/TC-LEAVE-02).
+  // Audit-trail follow-up (§1C) — adjustedBy/adjustmentReason recorded
+  // together, same shape as every other actor+reason pair in this codebase.
   async updateQuota(
     id: string,
     dto: UpdateLeaveBalanceQuotaDto,
+    adjustedBy: string,
   ): Promise<LeaveBalance> {
     const record = await this.findByIdOrThrow(id);
-    return record.update({ quota: dto.quota, manuallyAdjusted: true });
+    return record.update({
+      quota: dto.quota,
+      manuallyAdjusted: true,
+      adjustedBy,
+      adjustmentReason: dto.reason,
+    });
   }
 
   // Called only by the leave_requests approval workflow (§11) — never exposed

@@ -1,5 +1,6 @@
 import { Col, DatePicker, Form, InputNumber, Row, type FormInstance } from 'antd';
 import { ScopeSelector } from '../scope-resolver/ScopeSelector';
+import { RetireReasonFormItem } from '../../components/RetireReasonFormItem';
 import type { SalaryMasterFormRuntimeValues } from './formValues';
 
 interface SalaryMasterFormFieldsProps {
@@ -39,6 +40,7 @@ export function SalaryMasterFormFields({ form }: SalaryMasterFormFieldsProps) {
           </Form.Item>
         </Col>
       </Row>
+      <RetireReasonFormItem />
     </>
   );
 }

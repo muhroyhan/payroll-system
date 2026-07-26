@@ -36,7 +36,15 @@ export class PayrollRunsService {
   // extra data alongside the run's own columns.
   async findByIdOrThrow(id: string): Promise<PayrollRun> {
     const record = await this.payrollRunModel.findByPk(id, {
-      include: [{ association: 'excludedEmployees', include: ['employee'] }],
+      include: [
+        { association: 'excludedEmployees', include: ['employee'] },
+        // Caught during live verification (audit-trail follow-up) — without
+        // this attributes restriction, Sequelize's default eager-load
+        // returned every User column, including passwordHash, straight out
+        // over the API. Only id/name are ever needed for the "Dicairkan
+        // oleh: {nama}" display (PayrollRunDetailPage).
+        { association: 'disbursedByUser', attributes: ['id', 'name'] },
+      ],
     });
     if (!record) {
       throw new NotFoundException(`Payroll run ${id} not found`);
@@ -83,17 +91,29 @@ export class PayrollRunsService {
   }
 
   // approved → disbursed. Sets locked_at; the run is now permanently immutable.
-  async disburse(id: string): Promise<PayrollRun> {
+  async disburse(id: string, disbursedBy: string): Promise<PayrollRun> {
     const record = await this.assertTransition(id, PayrollRunStatus.DISBURSED);
     return record.update({
       status: PayrollRunStatus.DISBURSED,
       lockedAt: new Date(),
+      disbursedBy,
     });
   }
 
   // calculated → draft. Only from `calculated` (§11 — an approved/disbursed run
   // has no revert path, TC-PAYROLL-05).
-  async revertToDraft(id: string): Promise<PayrollRun> {
+  //
+  // Audit-trail follow-up (dispute-traceability review, §1B) — reverted_by/
+  // revert_reason are written INSIDE the same transaction as the teardown,
+  // and specifically BEFORE revertRunData() runs: if the teardown throws
+  // partway through, the transaction rolls back everything together (the
+  // status flip, the actor/reason, AND the deletes) rather than leaving a
+  // run that's still `calculated` but already missing its payslips.
+  async revertToDraft(
+    id: string,
+    revertedBy: string,
+    revertReason: string,
+  ): Promise<PayrollRun> {
     const record = await this.assertTransition(id, PayrollRunStatus.DRAFT);
     // P8-T07 — closes the gap flagged in P8-T01: reverting throws away this
     // run's provisional payslips + line items (regenerated from corrected data
@@ -103,6 +123,10 @@ export class PayrollRunsService {
     // sanction/overtime letter they had locked (§11 — that lock is derived
     // from the reference, see PayrollRunRevertService).
     await this.sequelize.transaction(async (transaction) => {
+      await record.update(
+        { revertedBy, revertReason },
+        { transaction },
+      );
       await this.revertService.revertRunData(id, transaction);
       // The torn-down payslips/line items this run had calculated are gone,
       // so the P8-T02 progress counters must go back to 0 too — otherwise a

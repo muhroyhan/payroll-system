@@ -35,15 +35,21 @@ describe('SuratIjinService', () => {
 
   it('create() always starts a new letter as pending, regardless of input', async () => {
     const { service, model } = makeService();
-    await service.create({
-      employeeId: 'emp-1',
-      date: '2026-07-20',
-      type: SuratIjinType.LATE_ARRIVAL,
-      reason: 'r',
-      timeRequested: '09:00',
-    });
+    await service.create(
+      {
+        employeeId: 'emp-1',
+        date: '2026-07-20',
+        type: SuratIjinType.LATE_ARRIVAL,
+        reason: 'r',
+        timeRequested: '09:00',
+      },
+      'user-1',
+    );
     expect(model.create).toHaveBeenCalledWith(
-      expect.objectContaining({ status: SuratIjinStatus.PENDING }),
+      expect.objectContaining({
+        status: SuratIjinStatus.PENDING,
+        createdBy: 'user-1',
+      }),
     );
   });
 
@@ -68,14 +74,16 @@ describe('SuratIjinService', () => {
     expect(result.status).toBe(SuratIjinStatus.APPROVED);
   });
 
-  it('reject() flips status and never enqueues a PDF job', async () => {
+  it('reject() flips status, records rejectedBy/rejectReason, and never enqueues a PDF job', async () => {
     const record = pendingRecord();
     const { service, pdfGenerationQueue } = makeService(record);
 
-    await service.reject('si-1');
+    await service.reject('si-1', 'rejecter-1', 'Not backed by a real reason');
 
     expect(record.update).toHaveBeenCalledWith({
       status: SuratIjinStatus.REJECTED,
+      rejectedBy: 'rejecter-1',
+      rejectReason: 'Not backed by a real reason',
     });
     expect(pdfGenerationQueue.enqueueSuratIjin).not.toHaveBeenCalled();
   });

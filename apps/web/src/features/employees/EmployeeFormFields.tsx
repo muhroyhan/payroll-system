@@ -164,13 +164,30 @@ export function EmployeeFormFields({
       </Form.Item>
 
       {ptkpManuallyOverridden ? (
-        <Form.Item
-          name="ptkpStatus"
-          label="Status PTKP"
-          rules={[{ required: true, message: 'Status PTKP wajib dipilih saat ditimpa manual' }]}
-        >
-          <Select options={enumSelectOptions(PTKP_STATUS_LABELS)} />
-        </Form.Item>
+        <>
+          <Form.Item
+            name="ptkpStatus"
+            label="Status PTKP"
+            rules={[{ required: true, message: 'Status PTKP wajib dipilih saat ditimpa manual' }]}
+          >
+            <Select options={enumSelectOptions(PTKP_STATUS_LABELS)} />
+          </Form.Item>
+          {/* Audit-trail follow-up (dispute-traceability review, §D) — the
+              API rejects activating the override without a reason
+              (BadRequestException), only at the false -> true transition;
+              shown/required here whenever the switch is on, since the form
+              has no cheap way to know "was this already on before this
+              edit" and resending the same reason on an unrelated edit is
+              harmless (the service ignores it once already active). */}
+          <Form.Item
+            name="ptkpOverrideReason"
+            label="Alasan Timpa Manual"
+            rules={[{ required: true, message: 'Alasan wajib diisi saat mengaktifkan timpa manual' }]}
+            extra="Dokumentasikan alasan (mis. rujukan dokumen/keputusan HR) — tercatat bersama nama & waktu pengaktifan."
+          >
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </>
       ) : (
         <Form.Item label="Status PTKP">
           {currentPtkpStatus ? (

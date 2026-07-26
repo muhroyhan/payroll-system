@@ -12,6 +12,8 @@ import { Role } from '@payroll-system/shared-types';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../auth/types/authenticated-user';
 import { LeaveBalancesService } from './leave-balances.service';
 import { ResolveLeaveBalanceDto } from './dto/resolve-leave-balance.dto';
 import { ResolveLeaveBalancesForLeaveTypeDto } from './dto/resolve-leave-balances-for-leave-type.dto';
@@ -52,7 +54,8 @@ export class LeaveBalancesController {
   updateQuota(
     @Param('id') id: string,
     @Body() dto: UpdateLeaveBalanceQuotaDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.leaveBalancesService.updateQuota(id, dto);
+    return this.leaveBalancesService.updateQuota(id, dto, user.id);
   }
 }

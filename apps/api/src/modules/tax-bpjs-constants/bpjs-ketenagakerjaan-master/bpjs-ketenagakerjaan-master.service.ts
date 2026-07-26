@@ -1,9 +1,11 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize';
+import { randomUUID } from 'crypto';
 import { resolveEffectiveRecord } from '../../../common/effective-dating/resolve-effective';
 import { EffectiveRangePayslipChecker } from '../../../common/effective-dating/effective-range-payslip-checker';
 import { closeOverlappingPredecessor } from '../../../common/effective-dating/close-overlapping-predecessor';
+import { assertRetireReasonProvided } from '../../../common/effective-dating/retire-reason';
 import { BpjsKetenagakerjaanMaster } from './entities/bpjs-ketenagakerjaan-master.entity';
 import { CreateBpjsKetenagakerjaanMasterDto } from './dto/create-bpjs-ketenagakerjaan-master.dto';
 import { UpdateBpjsKetenagakerjaanMasterDto } from './dto/update-bpjs-ketenagakerjaan-master.dto';
@@ -62,14 +64,17 @@ export class BpjsKetenagakerjaanMasterService {
     createdBy: string,
   ): Promise<BpjsKetenagakerjaanMaster> {
     return this.sequelize.transaction(async (transaction) => {
+      const newRowId = randomUUID();
       await closeOverlappingPredecessor(
         this.bpjsKetenagakerjaanMasterModel,
         {},
         dto.effectiveStartDate,
         transaction,
+        newRowId,
+        createdBy,
       );
       return this.bpjsKetenagakerjaanMasterModel.create(
-        { ...dto, createdBy } as any,
+        { id: newRowId, ...dto, createdBy } as any,
         { transaction },
       );
     });
@@ -81,10 +86,12 @@ export class BpjsKetenagakerjaanMasterService {
   async update(
     id: string,
     dto: UpdateBpjsKetenagakerjaanMasterDto,
+    updatedBy: string,
   ): Promise<BpjsKetenagakerjaanMaster> {
     const record = await this.findByIdOrThrow(id);
     await this.assertLockedFieldsUntouched(record, dto);
-    return record.update(dto);
+    assertRetireReasonProvided(record, dto);
+    return record.update({ ...dto, updatedBy });
   }
 
   // effectiveEndDate is deliberately NOT locked (audit follow-up): closing a

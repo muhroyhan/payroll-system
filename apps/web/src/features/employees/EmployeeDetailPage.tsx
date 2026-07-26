@@ -62,7 +62,13 @@ export function EmployeeDetailPage() {
               {/* Server-derived (§5.1a) — never recomputed client-side, R-10. */}
               <StatusTag value={employee.ptkpStatus} labels={PTKP_STATUS_LABELS} />
               {employee.ptkpManuallyOverridden && (
-                <Typography.Text type="secondary"> (ditimpa manual)</Typography.Text>
+                <Typography.Text type="secondary">
+                  {' '}
+                  (ditimpa manual{employee.ptkpOverriddenReason
+                    ? ` — alasan: ${employee.ptkpOverriddenReason}`
+                    : ''}
+                  )
+                </Typography.Text>
               )}
             </Descriptions.Item>
             <Descriptions.Item label="Jenis Karyawan">

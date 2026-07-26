@@ -91,6 +91,15 @@ export class ImportEmployeeRowDto {
   @IsBoolean()
   ptkpManuallyOverridden?: boolean;
 
+  // Audit-trail follow-up (dispute-traceability review, §D) — required by
+  // EmployeesService.create() whenever ptkpManuallyOverridden is true (same
+  // rule as the single-employee create form).
+  @IsOptional()
+  @Transform(emptyToUndefined)
+  @IsString()
+  @MinLength(3, { message: 'ptkpOverrideReason minimal 3 karakter' })
+  ptkpOverrideReason?: string;
+
   @IsEnum(EmploymentStatus)
   employmentStatus: EmploymentStatus;
 

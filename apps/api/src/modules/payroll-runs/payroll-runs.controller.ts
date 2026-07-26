@@ -20,6 +20,7 @@ import { PayrollRunsService } from './payroll-runs.service';
 import { PayrollRunSummaryService } from './payroll-run-summary.service';
 import { renderPayrollRunSummaryCsv } from './payroll-run-summary.csv';
 import { CreatePayrollRunDto } from './dto/create-payroll-run.dto';
+import { RevertPayrollRunDto } from './dto/revert-payroll-run.dto';
 
 @Controller('payroll-runs')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -87,13 +88,17 @@ export class PayrollRunsController {
 
   @Put(':id/disburse')
   @Roles(Role.ADMIN)
-  disburse(@Param('id') id: string) {
-    return this.payrollRunsService.disburse(id);
+  disburse(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.payrollRunsService.disburse(id, user.id);
   }
 
   @Put(':id/revert')
   @Roles(Role.ADMIN)
-  revert(@Param('id') id: string) {
-    return this.payrollRunsService.revertToDraft(id);
+  revert(
+    @Param('id') id: string,
+    @Body() dto: RevertPayrollRunDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.payrollRunsService.revertToDraft(id, user.id, dto.reason);
   }
 }

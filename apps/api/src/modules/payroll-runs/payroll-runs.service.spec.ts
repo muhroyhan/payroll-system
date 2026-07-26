@@ -100,22 +100,65 @@ describe('PayrollRunsService (P8-T01)', () => {
     expect(result.status).toBe(PayrollRunStatus.APPROVED);
   });
 
-  it('disburse: approved → disbursed, sets lockedAt', async () => {
+  it('disburse: approved → disbursed, sets lockedAt and disbursedBy', async () => {
     const r = run(PayrollRunStatus.APPROVED);
     const { service } = makeService(r);
-    const result = await service.disburse('run-1');
+    const result = await service.disburse('run-1', 'disburser-1');
     expect(result.status).toBe(PayrollRunStatus.DISBURSED);
     expect(result.lockedAt).toBeInstanceOf(Date);
+    // Audit-trail follow-up (§1B/HIGH) — the money-out step's actor, from
+    // whichever user the controller resolved via @CurrentUser(), not a
+    // dto/body value.
+    expect(result.disbursedBy).toBe('disburser-1');
   });
 
-  it('revertToDraft: calculated → draft, tearing down payslips + kasbon in a txn', async () => {
-    const r = run(PayrollRunStatus.CALCULATED);
-    const { service, revertService, sequelize } = makeService(r);
-    const result = await service.revertToDraft('run-1');
-    expect(result.status).toBe(PayrollRunStatus.DRAFT);
-    // Teardown runs, and it runs inside a transaction (atomic with the flip).
-    expect(sequelize.transaction).toHaveBeenCalledTimes(1);
-    expect(revertService.revertRunData).toHaveBeenCalledWith('run-1', 'txn');
+  // Audit-trail follow-up (dispute-traceability review, §1B/HIGH) —
+  // revert-to-draft previously recorded no actor and no reason at all.
+  describe('revertToDraft — actor + reason (audit-trail follow-up)', () => {
+    it('records revertedBy/revertReason and tears down payslips + kasbon in a txn', async () => {
+      const r = run(PayrollRunStatus.CALCULATED);
+      const { service, revertService, sequelize } = makeService(r);
+      const result = await service.revertToDraft(
+        'run-1',
+        'reverter-1',
+        'Data absensi Juli salah, perlu dihitung ulang',
+      );
+      expect(result.status).toBe(PayrollRunStatus.DRAFT);
+      // Teardown runs, and it runs inside a transaction (atomic with the flip).
+      expect(sequelize.transaction).toHaveBeenCalledTimes(1);
+      expect(revertService.revertRunData).toHaveBeenCalledWith('run-1', 'txn');
+      expect(r.update).toHaveBeenCalledWith(
+        {
+          revertedBy: 'reverter-1',
+          revertReason: 'Data absensi Juli salah, perlu dihitung ulang',
+        },
+        { transaction: 'txn' },
+      );
+    });
+
+    it('writes revertedBy/revertReason BEFORE tearing down the run\'s data — order matters (see service comment)', async () => {
+      const r = run(PayrollRunStatus.CALCULATED);
+      const { service, revertService } = makeService(r);
+      const callOrder: string[] = [];
+      (r.update as jest.Mock).mockImplementation(function (this: any, patch: any) {
+        if ('revertedBy' in patch) callOrder.push('write-actor-reason');
+        Object.assign(this, patch);
+        return Promise.resolve(this);
+      });
+      revertService.revertRunData.mockImplementation(async () => {
+        callOrder.push('teardown');
+        return {
+          deletedPayslips: 0,
+          deletedLineItems: 0,
+          reversedKasbonDeductions: 0,
+          deletedExclusions: 0,
+        };
+      });
+
+      await service.revertToDraft('run-1', 'reverter-1', 'Alasan revert');
+
+      expect(callOrder).toEqual(['write-actor-reason', 'teardown']);
+    });
   });
 
   it('revertToDraft: resets the P8-T02 progress counters back to 0', async () => {
@@ -128,7 +171,7 @@ describe('PayrollRunsService (P8-T01)', () => {
       totalCount: 21,
     });
     const { service } = makeService(r);
-    const result = await service.revertToDraft('run-1');
+    const result = await service.revertToDraft('run-1', 'reverter-1', 'Alasan revert');
     expect(result.processedCount).toBe(0);
     expect(result.totalCount).toBe(0);
   });
@@ -137,9 +180,9 @@ describe('PayrollRunsService (P8-T01)', () => {
     const { service, revertService } = makeService(
       run(PayrollRunStatus.APPROVED),
     );
-    await expect(service.revertToDraft('run-1')).rejects.toThrow(
-      ConflictException,
-    );
+    await expect(
+      service.revertToDraft('run-1', 'reverter-1', 'Alasan revert'),
+    ).rejects.toThrow(ConflictException);
     // The guard throws before any teardown — an approved run's payslips are safe.
     expect(revertService.revertRunData).not.toHaveBeenCalled();
   });
@@ -154,20 +197,22 @@ describe('PayrollRunsService (P8-T01)', () => {
 
   it('rejects reverting an approved run', async () => {
     const { service } = makeService(run(PayrollRunStatus.APPROVED));
-    await expect(service.revertToDraft('run-1')).rejects.toThrow(
-      ConflictException,
-    );
+    await expect(
+      service.revertToDraft('run-1', 'reverter-1', 'Alasan revert'),
+    ).rejects.toThrow(ConflictException);
   });
 
   it('rejects reverting a disbursed run (terminal, no revert path)', async () => {
     const { service } = makeService(run(PayrollRunStatus.DISBURSED));
-    await expect(service.revertToDraft('run-1')).rejects.toThrow(
-      ConflictException,
-    );
+    await expect(
+      service.revertToDraft('run-1', 'reverter-1', 'Alasan revert'),
+    ).rejects.toThrow(ConflictException);
   });
 
   it('rejects disbursing a run that is not yet approved', async () => {
     const { service } = makeService(run(PayrollRunStatus.CALCULATED));
-    await expect(service.disburse('run-1')).rejects.toThrow(ConflictException);
+    await expect(service.disburse('run-1', 'disburser-1')).rejects.toThrow(
+      ConflictException,
+    );
   });
 });

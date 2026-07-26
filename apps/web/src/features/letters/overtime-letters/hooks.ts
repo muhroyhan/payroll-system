@@ -66,7 +66,7 @@ export function useVerifyOvertimeLetterMutation(id: string) {
 export function useRejectOvertimeLetterMutation(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => rejectOvertimeLetter(id),
+    mutationFn: (reason: string) => rejectOvertimeLetter(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['overtime-letters'] });
       queryClient.invalidateQueries({ queryKey: ['overtime-letters', id] });

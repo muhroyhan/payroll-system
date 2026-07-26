@@ -56,7 +56,11 @@ export class LeavePolicyMasterController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateLeavePolicyMasterDto) {
-    return this.leavePolicyMasterService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateLeavePolicyMasterDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.leavePolicyMasterService.update(id, dto, user.id);
   }
 }

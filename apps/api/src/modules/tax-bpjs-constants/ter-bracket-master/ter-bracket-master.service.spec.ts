@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Op } from 'sequelize';
 import { PtkpStatus, TerCategory } from '@payroll-system/shared-types';
 import { TerBracketMasterService } from './ter-bracket-master.service';
@@ -87,9 +87,13 @@ describe('TerBracketMasterService', () => {
         },
         '2026-01-01',
         'txn-1',
+        expect.any(String),
+        'user-1',
       );
+      const [, , , , newRowId] =
+        mockedCloseOverlappingPredecessor.mock.calls[0];
       expect(model.create).toHaveBeenCalledWith(
-        { ...dto, createdBy: 'user-1' },
+        { id: newRowId, ...dto, createdBy: 'user-1' },
         { transaction: 'txn-1' },
       );
     });
@@ -116,6 +120,8 @@ describe('TerBracketMasterService', () => {
         },
         '2026-01-01',
         'txn-1',
+        expect.any(String),
+        'user-1',
       );
     });
 
@@ -214,9 +220,16 @@ describe('TerBracketMasterService', () => {
         'user-1',
       );
 
-      // The exact-match predecessor (same category + same bounds) is closed.
+      // The exact-match predecessor (same category + same bounds) is closed,
+      // with reason/supersedesId/updatedBy set to the new row + actor.
+      const [createdCallArg] = model.create.mock.calls[0];
       expect(sameRangePredecessor.update).toHaveBeenCalledWith(
-        { effectiveEndDate: '2025-12-31' },
+        {
+          effectiveEndDate: '2025-12-31',
+          reason: `Digantikan baris baru: ${createdCallArg.id}`,
+          supersedesId: createdCallArg.id,
+          updatedBy: 'user-1',
+        },
         { transaction: 'txn-1' },
       );
       // The different-income-range bracket in the SAME category must coexist
@@ -229,19 +242,24 @@ describe('TerBracketMasterService', () => {
   it('update() allows changing bounds/rate/effective dates when unreferenced', async () => {
     const { service, effectiveRangePayslipChecker } = makeService(record(), false);
 
-    const updated = await service.update('ter-1', { rate: '0.005' });
+    const updated = await service.update(
+      'ter-1',
+      { rate: '0.005' },
+      'user-1',
+    );
 
     expect(effectiveRangePayslipChecker.isReferenced).toHaveBeenCalledWith(
       { effectiveStartDate: '2026-01-01', effectiveEndDate: null },
       expect.any(Function),
     );
     expect(updated.rate).toBe('0.005');
+    expect(updated.updatedBy).toBe('user-1');
   });
 
   it("passes a category matcher that re-derives TER category from the employee's ptkpStatus", async () => {
     const { service, effectiveRangePayslipChecker } = makeService(record(), false);
 
-    await service.update('ter-1', { rate: '0.005' });
+    await service.update('ter-1', { rate: '0.005' }, 'user-1');
 
     const [, matcher] = effectiveRangePayslipChecker.isReferenced.mock.calls[0];
     // TK/0 -> category A (matches this row); K/1 -> category B (does not).
@@ -260,31 +278,41 @@ describe('TerBracketMasterService', () => {
     async (_fieldName, patch) => {
       const { service } = makeService(record(), true);
 
-      await expect(service.update('ter-1', patch)).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.update('ter-1', patch, 'user-1'),
+      ).rejects.toThrow(ConflictException);
     },
   );
 
   // Audit follow-up: effectiveEndDate must stay editable even when the row
   // is referenced — closing a row's range never changes a historical
   // calculation, and blocking it would make an already-overlapping row
-  // permanently un-fixable.
-  it('update() allows changing effectiveEndDate even when the row IS referenced (not a dead-lock)', async () => {
+  // permanently un-fixable. Retiring it still requires a reason though.
+  it('update() allows changing effectiveEndDate even when the row IS referenced (not a dead-lock), given a reason', async () => {
     const { service, effectiveRangePayslipChecker } = makeService(record(), true);
 
-    const updated = await service.update('ter-1', {
-      effectiveEndDate: '2026-03-01',
-    });
+    const updated = await service.update(
+      'ter-1',
+      { effectiveEndDate: '2026-03-01', reason: 'Superseded by new bracket' },
+      'user-1',
+    );
 
     expect(effectiveRangePayslipChecker.isReferenced).not.toHaveBeenCalled();
     expect(updated.effectiveEndDate).toBe('2026-03-01');
   });
 
+  it('update() rejects a manual retire (effectiveEndDate null -> set) with no reason', async () => {
+    const { service } = makeService(record(), false);
+
+    await expect(
+      service.update('ter-1', { effectiveEndDate: '2026-03-01' }, 'user-1'),
+    ).rejects.toThrow(BadRequestException);
+  });
+
   it('update() does not query the checker when no locked field is touched', async () => {
     const { service, effectiveRangePayslipChecker } = makeService(record(), true);
 
-    await service.update('ter-1', {});
+    await service.update('ter-1', {}, 'user-1');
 
     expect(effectiveRangePayslipChecker.isReferenced).not.toHaveBeenCalled();
   });

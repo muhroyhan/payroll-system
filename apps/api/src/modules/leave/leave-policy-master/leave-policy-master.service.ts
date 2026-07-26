@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { EmployeesService } from '../../employees/employees.service';
 import { ScopeResolverService } from '../../scope-resolver/scope-resolver.service';
 import { ScopeValueValidator } from '../../scope-resolver/scope-value-validator.service';
 import { ScopeResolution } from '../../scope-resolver/scope-resolver.types';
+import { assertRetireReasonProvided } from '../../../common/effective-dating/retire-reason';
+import { LeaveBalance } from '../leave-balances/entities/leave-balance.entity';
 import { LeavePolicyMaster } from './entities/leave-policy-master.entity';
 import { CreateLeavePolicyMasterDto } from './dto/create-leave-policy-master.dto';
 import { UpdateLeavePolicyMasterDto } from './dto/update-leave-policy-master.dto';
@@ -13,6 +15,8 @@ export class LeavePolicyMasterService {
   constructor(
     @InjectModel(LeavePolicyMaster)
     private readonly leavePolicyMasterModel: typeof LeavePolicyMaster,
+    @InjectModel(LeaveBalance)
+    private readonly leaveBalanceModel: typeof LeaveBalance,
     private readonly scopeResolver: ScopeResolverService,
     private readonly scopeValueValidator: ScopeValueValidator,
     private readonly employeesService: EmployeesService,
@@ -38,46 +42,64 @@ export class LeavePolicyMasterService {
     return this.leavePolicyMasterModel.create({ ...dto, createdBy } as any);
   }
 
-  // §11 audit note (deliberately NOT guarded — see rationale below): §11 groups
-  // leave_policy_master with salary_master/incentive_master under "past payroll
-  // runs must stay reproducible," but unlike those two, this row is never
-  // consumed by payroll calculation at all — grep the payroll-calculation
-  // module and it doesn't appear. The only consumer is resolveForEmployee()
-  // below, called from LeaveBalancesService.resolveOne() to seed a
-  // leave_balances row's `quota` — and that call site does NOT persist which
-  // policy row produced it (no foreign key from leave_balances back here), so
-  // there is no reliable way to ask "has this exact row already been used."
+  // §11 audit follow-up (dispute-traceability review, §1C) — this master was
+  // previously the one gap among the 7: it's never consumed by payroll
+  // calculation directly (grep payroll-calculation, it doesn't appear), only
+  // via resolveForEmployee() below -> LeaveBalancesService.resolveOne(), and
+  // that call site didn't persist which policy row it resolved, so there was
+  // no reliable "has this row been used" check. Closed by adding
+  // leave_balances.resolved_from_policy_id, set whenever resolveOne() actually
+  // resolves a new balance row (see LeaveBalancesService) — an exact per-row
+  // reference, the same shape as PayslipReferenceChecker's (source, source_id)
+  // used by salary_master/incentive_master, just against leave_balances
+  // instead of payslip_line_items.
   //
-  // Two ways were considered and rejected instead of guessing:
-  //  1. A period+leaveType-only check (year within effectiveStartDate/
-  //     effectiveEndDate) ignoring scope — but scopeType/scopeValue can pick a
-  //     DIFFERENT overlapping row for the same leaveType+year (§5.2 priority:
-  //     employee > division > department > position > employee_type), so this
-  //     would sometimes lock a row that was never actually resolved for the
-  //     balance in question — exactly the "fabricated restriction" this audit
-  //     fix was told to avoid.
-  //  2. Re-running scopeResolver.resolve() per existing leave_balances row to
-  //     check if it would still select this row — accurate, but requires
-  //     injecting LeaveBalance into this service, and LeaveBalancesService
-  //     already depends on LeavePolicyMasterService (resolveForEmployee) —
-  //     a circular module dependency (LeavePolicyMasterModule ->
-  //     LeaveBalancesModule -> LeavePolicyMasterModule) with no clean forwardRef
-  //     seam here, not a same-shape drop-in like the other 6 services.
-  //
-  // Reported to the user rather than shipped as either a no-op or a
-  // wrong-in-either-direction lock. Real fix needs a product/schema decision:
-  // add `resolved_from_policy_id` to leave_balances (enables option 2 cleanly),
-  // or confirm leave is intentionally excluded from the §11 reproducibility
-  // guarantee since it never reaches a payslip.
+  // effectiveEndDate is deliberately NOT locked, same reasoning as
+  // ptkp/ter-bracket/bpjs-*: closing a row's range off doesn't change any
+  // balance already resolved from it — it only narrows which future periods
+  // this row would still resolve for. A referenced row must stay closeable or
+  // it can never be retired.
   async update(
     id: string,
     dto: UpdateLeavePolicyMasterDto,
+    updatedBy: string,
   ): Promise<LeavePolicyMaster> {
     const record = await this.findByIdOrThrow(id);
     if (dto.scopeType && dto.scopeValue) {
       await this.scopeValueValidator.validate(dto.scopeType, dto.scopeValue);
     }
-    return record.update(dto);
+    await this.assertLockedFieldsUntouched(record, dto);
+    assertRetireReasonProvided(record, dto);
+    return record.update({ ...dto, updatedBy });
+  }
+
+  private async assertLockedFieldsUntouched(
+    record: LeavePolicyMaster,
+    dto: UpdateLeavePolicyMasterDto,
+  ): Promise<void> {
+    const lockedFields: Array<keyof UpdateLeavePolicyMasterDto> = [
+      'leaveTypeId',
+      'scopeType',
+      'scopeValue',
+      'annualQuota',
+      'effectiveStartDate',
+    ];
+    const touched = lockedFields.find((field) => dto[field] !== undefined);
+    if (!touched) {
+      return;
+    }
+
+    const referencedCount = await this.leaveBalanceModel.count({
+      where: { resolvedFromPolicyId: record.id },
+    });
+    if (referencedCount > 0) {
+      throw new ConflictException(
+        `Leave policy master ${record.id}'s ${touched} is locked — it has ` +
+          `already been resolved into at least one leave_balances row ` +
+          `(§11/§1C); retire it via effectiveEndDate and add a new row ` +
+          `instead of editing this one`,
+      );
+    }
   }
 
   // §5.4 — resolve the leave quota for one employee + leave type for a period.

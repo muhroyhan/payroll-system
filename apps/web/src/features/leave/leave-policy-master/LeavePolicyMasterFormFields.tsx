@@ -1,5 +1,6 @@
 import { Col, DatePicker, Form, InputNumber, Row, Select, type FormInstance } from 'antd';
 import { ScopeSelector } from '../../scope-resolver/ScopeSelector';
+import { RetireReasonFormItem } from '../../../components/RetireReasonFormItem';
 import { useLeaveTypesQuery } from '../leave-types/hooks';
 import type { LeavePolicyMasterFormRuntimeValues } from './formValues';
 
@@ -51,6 +52,7 @@ export function LeavePolicyMasterFormFields({ form }: LeavePolicyMasterFormField
           </Form.Item>
         </Col>
       </Row>
+      <RetireReasonFormItem />
     </>
   );
 }

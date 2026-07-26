@@ -15,6 +15,9 @@ export interface PtkpMaster {
   effectiveStartDate: string;
   effectiveEndDate: string | null;
   createdBy: string;
+  updatedBy: string | null;
+  reason: string | null;
+  supersedesId: string | null;
 }
 
 export interface PtkpMasterFormValues {
@@ -22,6 +25,7 @@ export interface PtkpMasterFormValues {
   amount: string;
   effectiveStartDate: string;
   effectiveEndDate?: string;
+  reason?: string;
 }
 
 export async function listPtkpMasters(): Promise<PtkpMaster[]> {

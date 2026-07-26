@@ -11,6 +11,7 @@ import { ScopeValueValidator } from '../scope-resolver/scope-value-validator.ser
 import { ScopeResolution } from '../scope-resolver/scope-resolver.types';
 import { PAYSLIP_REFERENCE_CHECKER } from '../../common/payslip-reference/payslip-reference-checker.interface';
 import type { PayslipReferenceChecker } from '../../common/payslip-reference/payslip-reference-checker.interface';
+import { assertRetireReasonProvided } from '../../common/effective-dating/retire-reason';
 import { SalaryMaster } from './entities/salary-master.entity';
 import { CreateSalaryMasterDto } from './dto/create-salary-master.dto';
 import { UpdateSalaryMasterDto } from './dto/update-salary-master.dto';
@@ -58,13 +59,18 @@ export class SalaryMasterService {
   // assertMutableFieldsUntouched — reused via the same PayslipReferenceChecker
   // (source='salary_master' is real here: it's exactly the string
   // resolveEarnings() writes, not a placeholder).
-  async update(id: string, dto: UpdateSalaryMasterDto): Promise<SalaryMaster> {
+  async update(
+    id: string,
+    dto: UpdateSalaryMasterDto,
+    updatedBy: string,
+  ): Promise<SalaryMaster> {
     const record = await this.findByIdOrThrow(id);
     if (dto.scopeType && dto.scopeValue) {
       await this.scopeValueValidator.validate(dto.scopeType, dto.scopeValue);
     }
     await this.assertLockedFieldsUntouched(record, dto);
-    return record.update(dto);
+    assertRetireReasonProvided(record, dto);
+    return record.update({ ...dto, updatedBy });
   }
 
   private async assertLockedFieldsUntouched(

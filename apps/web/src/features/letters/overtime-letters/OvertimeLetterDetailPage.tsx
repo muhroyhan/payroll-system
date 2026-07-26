@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Descriptions, Popconfirm, Space, Typography } from 'antd';
+import { Button, Descriptions, Form, Input, Modal, Popconfirm, Space, Typography } from 'antd';
 import { OvertimeLetterStatus } from '@payroll-system/shared-types';
 import { DetailPage } from '../../../components/DetailPage';
 import { LockedAction } from '../../../components/LockedAction';
@@ -40,6 +40,9 @@ export function OvertimeLetterDetailPage() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [actionError, setActionError] = useState<ApiErrorPresentation | null>(null);
+  // Audit-trail follow-up (§1A) — reject now requires a reason.
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectForm] = Form.useForm<{ reason: string }>();
 
   const record = query.data;
   const isPending = record?.status === OvertimeLetterStatus.PENDING;
@@ -61,6 +64,19 @@ export function OvertimeLetterDetailPage() {
     });
   };
 
+  const handleRejectSubmit = async () => {
+    let values: { reason: string };
+    try {
+      values = await rejectForm.validateFields();
+    } catch {
+      return;
+    }
+    await runAction(async () => {
+      await rejectMutation.mutateAsync(values.reason);
+      setRejectModalOpen(false);
+    });
+  };
+
   return (
     <>
       <DetailPage
@@ -76,7 +92,10 @@ export function OvertimeLetterDetailPage() {
                 approving={verifyMutation.isPending}
                 rejecting={rejectMutation.isPending}
                 onApprove={() => runAction(() => verifyMutation.mutateAsync())}
-                onReject={() => runAction(() => rejectMutation.mutateAsync())}
+                onReject={() => {
+                  rejectForm.resetFields();
+                  setRejectModalOpen(true);
+                }}
               />
             )}
             <LockedAction
@@ -102,9 +121,17 @@ export function OvertimeLetterDetailPage() {
               <StatusTag value={data.status} labels={OVERTIME_LETTER_STATUS_LABELS} />
             </Descriptions.Item>
             <Descriptions.Item label="Tanggal">{formatDate(data.date)}</Descriptions.Item>
-            <Descriptions.Item label="Diverifikasi/Ditolak Oleh (User ID)">
+            <Descriptions.Item label="Dibuat Oleh (User ID)">
+              {data.createdBy ?? '—'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Diverifikasi Oleh (User ID)">
               {data.verifiedBy ?? '—'}
             </Descriptions.Item>
+            {data.rejectedBy && (
+              <Descriptions.Item label="Ditolak Oleh (User ID)" span={2}>
+                {data.rejectedBy} — "{data.rejectReason}"
+              </Descriptions.Item>
+            )}
             <Descriptions.Item label="Jam Lembur Direncanakan">
               {data.plannedOvertimeHours} jam
             </Descriptions.Item>
@@ -132,6 +159,29 @@ export function OvertimeLetterDetailPage() {
           overtimeLetter={record}
         />
       )}
+      <Modal
+        title="Tolak surat lembur ini?"
+        open={rejectModalOpen}
+        onCancel={() => setRejectModalOpen(false)}
+        onOk={handleRejectSubmit}
+        okText="Ya, tolak"
+        okButtonProps={{ danger: true, loading: rejectMutation.isPending }}
+        cancelText="Batal"
+        destroyOnClose
+      >
+        <Form form={rejectForm} layout="vertical">
+          <Form.Item
+            name="reason"
+            label="Alasan penolakan"
+            rules={[
+              { required: true, message: 'Alasan penolakan wajib diisi' },
+              { min: 5, message: 'Alasan penolakan minimal 5 karakter' },
+            ]}
+          >
+            <Input.TextArea rows={3} placeholder="Jelaskan kenapa surat lembur ini ditolak…" />
+          </Form.Item>
+        </Form>
+      </Modal>
       <ApiErrorDisplay error={actionError} onDismiss={() => setActionError(null)} />
     </>
   );

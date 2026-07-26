@@ -1,9 +1,11 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize';
+import { randomUUID } from 'crypto';
 import { resolveEffectiveRecord } from '../../../common/effective-dating/resolve-effective';
 import { EffectiveRangePayslipChecker } from '../../../common/effective-dating/effective-range-payslip-checker';
 import { closeOverlappingPredecessor } from '../../../common/effective-dating/close-overlapping-predecessor';
+import { assertRetireReasonProvided } from '../../../common/effective-dating/retire-reason';
 import { BpjsKesehatanMaster } from './entities/bpjs-kesehatan-master.entity';
 import { CreateBpjsKesehatanMasterDto } from './dto/create-bpjs-kesehatan-master.dto';
 import { UpdateBpjsKesehatanMasterDto } from './dto/update-bpjs-kesehatan-master.dto';
@@ -53,14 +55,17 @@ export class BpjsKesehatanMasterService {
     createdBy: string,
   ): Promise<BpjsKesehatanMaster> {
     return this.sequelize.transaction(async (transaction) => {
+      const newRowId = randomUUID();
       await closeOverlappingPredecessor(
         this.bpjsKesehatanMasterModel,
         {},
         dto.effectiveStartDate,
         transaction,
+        newRowId,
+        createdBy,
       );
       return this.bpjsKesehatanMasterModel.create(
-        { ...dto, createdBy } as any,
+        { id: newRowId, ...dto, createdBy } as any,
         { transaction },
       );
     });
@@ -72,10 +77,12 @@ export class BpjsKesehatanMasterService {
   async update(
     id: string,
     dto: UpdateBpjsKesehatanMasterDto,
+    updatedBy: string,
   ): Promise<BpjsKesehatanMaster> {
     const record = await this.findByIdOrThrow(id);
     await this.assertLockedFieldsUntouched(record, dto);
-    return record.update(dto);
+    assertRetireReasonProvided(record, dto);
+    return record.update({ ...dto, updatedBy });
   }
 
   // effectiveEndDate is deliberately NOT locked (audit follow-up): closing a

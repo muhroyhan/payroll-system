@@ -1,5 +1,6 @@
 import { Col, DatePicker, Form, InputNumber, Row, Select } from 'antd';
 import { enumSelectOptions } from '../../../components/enumSelectOptions';
+import { RetireReasonFormItem } from '../../../components/RetireReasonFormItem';
 import { PTKP_STATUS_LABELS } from '../../employees/labels';
 
 // FE-T24 (09_FRONTEND_STEPS.md), §15.14 (08_FRONTEND_STRUCTURE.md). Reuses
@@ -38,6 +39,7 @@ export function PtkpMasterFormFields() {
           </Form.Item>
         </Col>
       </Row>
+      <RetireReasonFormItem />
     </>
   );
 }

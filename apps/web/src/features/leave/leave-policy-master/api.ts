@@ -16,9 +16,19 @@ export interface LeavePolicyMaster {
   effectiveStartDate: string;
   effectiveEndDate: string | null;
   createdBy: string;
+  updatedBy: string | null;
+  reason: string | null;
+  supersedesId: string | null;
 }
 
-// Mirrors CreateLeavePolicyMasterDto.
+// Mirrors CreateLeavePolicyMasterDto. `reason` is only enforced
+// server-side when this update closes off effectiveEndDate — and (audit-trail
+// follow-up §1C) leave-policy-master now has the same assertLockedFieldsUntouched
+// guard as the other 6 masters (checked against leave_balances.resolved_from_policy_id).
+// R-06b (09_FRONTEND_GENERAL.md B-06) applies here, same as the other 6 —
+// no isLocked flag on this response, so the 409 is surfaced reactively by
+// FormDrawer's built-in conflict modal rather than a proactively-disabled
+// field; upgrading to R-06a would need a backend isLocked flag, out of scope here.
 export interface LeavePolicyMasterFormValues {
   leaveTypeId: string;
   scopeType: ScopeType;
@@ -26,6 +36,7 @@ export interface LeavePolicyMasterFormValues {
   annualQuota: number;
   effectiveStartDate: string;
   effectiveEndDate?: string;
+  reason?: string;
 }
 
 export async function listLeavePolicyMasters(): Promise<LeavePolicyMaster[]> {

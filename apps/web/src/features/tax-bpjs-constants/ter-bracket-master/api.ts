@@ -17,6 +17,9 @@ export interface TerBracketMaster {
   effectiveStartDate: string;
   effectiveEndDate: string | null;
   createdBy: string;
+  updatedBy: string | null;
+  reason: string | null;
+  supersedesId: string | null;
 }
 
 export interface TerBracketMasterFormValues {
@@ -26,6 +29,7 @@ export interface TerBracketMasterFormValues {
   rate: string;
   effectiveStartDate: string;
   effectiveEndDate?: string;
+  reason?: string;
 }
 
 export async function listTerBracketMasters(): Promise<TerBracketMaster[]> {

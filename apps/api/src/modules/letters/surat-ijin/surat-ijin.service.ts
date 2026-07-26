@@ -42,10 +42,11 @@ export class SuratIjinService {
     return record;
   }
 
-  create(dto: CreateSuratIjinDto): Promise<SuratIjin> {
+  create(dto: CreateSuratIjinDto, createdBy: string): Promise<SuratIjin> {
     return this.suratIjinModel.create({
       ...dto,
       status: SuratIjinStatus.PENDING,
+      createdBy,
     } as any);
   }
 
@@ -69,9 +70,17 @@ export class SuratIjinService {
     return record;
   }
 
-  async reject(id: string): Promise<SuratIjin> {
+  async reject(
+    id: string,
+    rejectedBy: string,
+    rejectReason: string,
+  ): Promise<SuratIjin> {
     const record = await this.assertPending(id);
-    return record.update({ status: SuratIjinStatus.REJECTED });
+    return record.update({
+      status: SuratIjinStatus.REJECTED,
+      rejectedBy,
+      rejectReason,
+    });
   }
 
   private async assertPending(id: string): Promise<SuratIjin> {

@@ -13,16 +13,21 @@ export interface SalaryMaster {
   effectiveStartDate: string;
   effectiveEndDate: string | null;
   createdBy: string;
+  updatedBy: string | null;
+  reason: string | null;
+  supersedesId: string | null;
 }
 
 // Mirrors CreateSalaryMasterDto — baseSalary is an @IsNumberString, so the
-// wire format is a numeric string, not a JSON number.
+// wire format is a numeric string, not a JSON number. `reason` is only
+// enforced server-side when this update closes off effectiveEndDate.
 export interface SalaryMasterFormValues {
   scopeType: ScopeType;
   scopeValue: string;
   baseSalary: string;
   effectiveStartDate: string;
   effectiveEndDate?: string;
+  reason?: string;
 }
 
 export async function listSalaryMasters(): Promise<SalaryMaster[]> {

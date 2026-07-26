@@ -24,6 +24,12 @@ export interface Employee {
   wifeIncomeCombined: boolean;
   spouseNoIncomeCertificate: boolean;
   ptkpManuallyOverridden: boolean;
+  // Audit-trail follow-up (dispute-traceability review, §D) — who/when/why
+  // ptkpManuallyOverridden was switched on; null when it's never been
+  // activated (or was switched back off, which clears all three together).
+  ptkpOverriddenBy: string | null;
+  ptkpOverriddenAt: string | null;
+  ptkpOverriddenReason: string | null;
   employmentStatus: EmploymentStatus;
   employeeTypeId: string;
   employeeType?: OrgMasterRecord;
@@ -55,6 +61,9 @@ export interface EmployeeFormValues {
   wifeIncomeCombined?: boolean;
   spouseNoIncomeCertificate?: boolean;
   ptkpManuallyOverridden?: boolean;
+  // Required by the API (BadRequestException) whenever ptkpManuallyOverridden
+  // is being switched on false -> true; see EmployeeFormFields.
+  ptkpOverrideReason?: string;
   employmentStatus: EmploymentStatus;
   employeeTypeId: string;
   positionId: string;

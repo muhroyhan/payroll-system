@@ -22,6 +22,7 @@ import type { AuthenticatedUser } from '../../auth/types/authenticated-user';
 import { OvertimeLettersService } from './overtime-letters.service';
 import { CreateOvertimeLetterDto } from './dto/create-overtime-letter.dto';
 import { UpdateOvertimeLetterDto } from './dto/update-overtime-letter.dto';
+import { RejectOvertimeLetterDto } from './dto/reject-overtime-letter.dto';
 
 @Controller('overtime-letters')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -60,8 +61,11 @@ export class OvertimeLettersController {
   }
 
   @Post()
-  create(@Body() dto: CreateOvertimeLetterDto) {
-    return this.overtimeLettersService.create(dto);
+  create(
+    @Body() dto: CreateOvertimeLetterDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.overtimeLettersService.create(dto, user.id);
   }
 
   @Put(':id')
@@ -80,7 +84,11 @@ export class OvertimeLettersController {
   }
 
   @Put(':id/reject')
-  reject(@Param('id') id: string) {
-    return this.overtimeLettersService.reject(id);
+  reject(
+    @Param('id') id: string,
+    @Body() dto: RejectOvertimeLetterDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.overtimeLettersService.reject(id, user.id, dto.reason);
   }
 }

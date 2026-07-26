@@ -48,4 +48,13 @@ export class LeaveRequest extends Model {
 
   @Column(DataType.UUID)
   declare approvedBy: string | null;
+
+  @Column(DataType.UUID)
+  declare rejectedBy: string | null;
+
+  @Column(DataType.TEXT)
+  declare rejectReason: string | null;
+
+  @Column(DataType.UUID)
+  declare createdBy: string | null;
 }

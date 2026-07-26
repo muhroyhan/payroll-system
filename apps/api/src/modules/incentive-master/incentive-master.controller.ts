@@ -55,7 +55,11 @@ export class IncentiveMasterController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateIncentiveMasterDto) {
-    return this.incentiveMasterService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateIncentiveMasterDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.incentiveMasterService.update(id, dto, user.id);
   }
 }

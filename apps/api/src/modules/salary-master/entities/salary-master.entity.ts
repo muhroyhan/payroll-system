@@ -34,4 +34,19 @@ export class SalaryMaster extends Model {
 
   @Column(DataType.UUID)
   declare createdBy: string;
+
+  @Column(DataType.UUID)
+  declare updatedBy: string | null;
+
+  // Set when this row is retired (effectiveEndDate closed) — required on
+  // manual retire, auto-generated on automatic retire. See
+  // assertRetireReasonProvided / closeOverlappingPredecessor.
+  @Column(DataType.TEXT)
+  declare reason: string | null;
+
+  // Points at the row that superseded this one, set only by an automatic
+  // retire (closeOverlappingPredecessor) — null for manual retires and for
+  // rows that are still open.
+  @Column(DataType.UUID)
+  declare supersedesId: string | null;
 }

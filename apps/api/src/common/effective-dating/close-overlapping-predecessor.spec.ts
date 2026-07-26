@@ -10,6 +10,8 @@ describe('closeOverlappingPredecessor', () => {
   }
 
   const transaction = { id: 'txn-1' } as any;
+  const newRowId = 'new-row-1';
+  const updatedBy = 'actor-1';
 
   it('does nothing when there is no open predecessor in this category', async () => {
     const model = makeModel([]);
@@ -19,6 +21,8 @@ describe('closeOverlappingPredecessor', () => {
       { ptkpStatus: 'TK/0' },
       '2026-01-01',
       transaction,
+      newRowId,
+      updatedBy,
     );
 
     expect(model.findAll).toHaveBeenCalledWith({
@@ -27,7 +31,7 @@ describe('closeOverlappingPredecessor', () => {
     });
   });
 
-  it('closes the single open predecessor the day before the new row starts', async () => {
+  it('closes the single open predecessor the day before the new row starts, with reason/supersedesId/updatedBy set', async () => {
     const predecessor = {
       id: 'old-1',
       effectiveStartDate: '2025-01-01',
@@ -40,10 +44,17 @@ describe('closeOverlappingPredecessor', () => {
       { ptkpStatus: 'TK/0' },
       '2026-03-15',
       transaction,
+      newRowId,
+      updatedBy,
     );
 
     expect(predecessor.update).toHaveBeenCalledWith(
-      { effectiveEndDate: '2026-03-14' },
+      {
+        effectiveEndDate: '2026-03-14',
+        reason: `Digantikan baris baru: ${newRowId}`,
+        supersedesId: newRowId,
+        updatedBy,
+      },
       { transaction },
     );
   });
@@ -61,10 +72,17 @@ describe('closeOverlappingPredecessor', () => {
       {},
       '2026-01-01',
       transaction,
+      newRowId,
+      updatedBy,
     );
 
     expect(predecessor.update).toHaveBeenCalledWith(
-      { effectiveEndDate: '2025-12-31' },
+      {
+        effectiveEndDate: '2025-12-31',
+        reason: `Digantikan baris baru: ${newRowId}`,
+        supersedesId: newRowId,
+        updatedBy,
+      },
       { transaction },
     );
   });
@@ -76,7 +94,14 @@ describe('closeOverlappingPredecessor', () => {
     ]);
 
     await expect(
-      closeOverlappingPredecessor(model as any, {}, '2026-01-01', transaction),
+      closeOverlappingPredecessor(
+        model as any,
+        {},
+        '2026-01-01',
+        transaction,
+        newRowId,
+        updatedBy,
+      ),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -90,7 +115,14 @@ describe('closeOverlappingPredecessor', () => {
 
     // Same start date as the predecessor — ambiguous, not "later".
     await expect(
-      closeOverlappingPredecessor(model as any, {}, '2026-01-01', transaction),
+      closeOverlappingPredecessor(
+        model as any,
+        {},
+        '2026-01-01',
+        transaction,
+        newRowId,
+        updatedBy,
+      ),
     ).rejects.toThrow(ConflictException);
     expect(predecessor.update).not.toHaveBeenCalled();
   });
@@ -104,7 +136,14 @@ describe('closeOverlappingPredecessor', () => {
     const model = makeModel([predecessor]);
 
     await expect(
-      closeOverlappingPredecessor(model as any, {}, '2025-06-01', transaction),
+      closeOverlappingPredecessor(
+        model as any,
+        {},
+        '2025-06-01',
+        transaction,
+        newRowId,
+        updatedBy,
+      ),
     ).rejects.toThrow(ConflictException);
     expect(predecessor.update).not.toHaveBeenCalled();
   });

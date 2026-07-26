@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -53,7 +54,7 @@ export class EmployeesService {
     };
   }
 
-  async create(dto: CreateEmployeeDto): Promise<Employee> {
+  async create(dto: CreateEmployeeDto, currentUserId: string): Promise<Employee> {
     const ptkpManuallyOverridden = dto.ptkpManuallyOverridden ?? false;
     // §5.1a — DTO validation guarantees ptkpStatus is present when overridden;
     // otherwise propose it from the raw inputs instead of trusting the client.
@@ -66,11 +67,25 @@ export class EmployeesService {
           spouseNoIncomeCertificate: dto.spouseNoIncomeCertificate ?? false,
         });
 
+    // Audit-trail follow-up (§D) — a brand-new employee created with the
+    // override already on on is still "activating" it; requires a reason
+    // just like the false -> true transition in update() below.
+    if (ptkpManuallyOverridden && !dto.ptkpOverrideReason) {
+      throw new BadRequestException(
+        'Alasan wajib diisi saat mengaktifkan timpa manual status PTKP',
+      );
+    }
+
     try {
       const created = await this.employeeModel.create({
         ...dto,
         ptkpStatus,
         ptkpManuallyOverridden,
+        ptkpOverriddenBy: ptkpManuallyOverridden ? currentUserId : null,
+        ptkpOverriddenAt: ptkpManuallyOverridden ? new Date() : null,
+        ptkpOverriddenReason: ptkpManuallyOverridden
+          ? dto.ptkpOverrideReason
+          : null,
       } as any);
       return this.findByIdOrThrow(created.id);
     } catch (error) {
@@ -78,7 +93,11 @@ export class EmployeesService {
     }
   }
 
-  async update(id: string, dto: UpdateEmployeeDto): Promise<Employee> {
+  async update(
+    id: string,
+    dto: UpdateEmployeeDto,
+    currentUserId: string,
+  ): Promise<Employee> {
     const record = await this.findByIdOrThrow(id);
 
     const effectiveOverridden =
@@ -95,12 +114,33 @@ export class EmployeesService {
             dto.spouseNoIncomeCertificate ?? record.spouseNoIncomeCertificate,
         });
 
+    const patch: Record<string, unknown> = {
+      ...dto,
+      ptkpStatus,
+      ptkpManuallyOverridden: effectiveOverridden,
+    };
+
+    // Audit-trail follow-up (§D) — only touch the override-tracking fields
+    // at the actual on/off transition: leave them alone (historical) while
+    // it stays on across an unrelated field edit, and clear them together
+    // if the override is switched back off.
+    if (effectiveOverridden && !record.ptkpManuallyOverridden) {
+      if (!dto.ptkpOverrideReason) {
+        throw new BadRequestException(
+          'Alasan wajib diisi saat mengaktifkan timpa manual status PTKP',
+        );
+      }
+      patch.ptkpOverriddenBy = currentUserId;
+      patch.ptkpOverriddenAt = new Date();
+      patch.ptkpOverriddenReason = dto.ptkpOverrideReason;
+    } else if (!effectiveOverridden && record.ptkpManuallyOverridden) {
+      patch.ptkpOverriddenBy = null;
+      patch.ptkpOverriddenAt = null;
+      patch.ptkpOverriddenReason = null;
+    }
+
     try {
-      await record.update({
-        ...dto,
-        ptkpStatus,
-        ptkpManuallyOverridden: effectiveOverridden,
-      });
+      await record.update(patch);
       return this.findByIdOrThrow(id);
     } catch (error) {
       throw this.translateUniqueConstraintError(error);

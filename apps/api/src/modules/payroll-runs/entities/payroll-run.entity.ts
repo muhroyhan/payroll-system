@@ -1,13 +1,16 @@
 import {
+  BelongsTo,
   Column,
   DataType,
   Default,
+  ForeignKey,
   HasMany,
   Model,
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
 import { PayrollRunStatus } from '@payroll-system/shared-types';
+import { User } from '../../users/entities/user.entity';
 import { Payslip } from '../../payslips/entities/payslip.entity';
 import { PayrollRunExcludedEmployee } from './payroll-run-excluded-employee.entity';
 
@@ -41,6 +44,29 @@ export class PayrollRun extends Model {
   // everything under it are permanently immutable (§11).
   @Column(DataType.DATE)
   declare lockedAt: Date | null;
+
+  // Audit-trail follow-up (dispute-traceability review, §1B) — the actual
+  // money-out step previously recorded only lockedAt (a timestamp), no actor.
+  @ForeignKey(() => User)
+  @Column(DataType.UUID)
+  declare disbursedBy: string | null;
+
+  // Eager-loaded on the run detail fetch (findByIdOrThrow) so the UI can
+  // render "Dicairkan oleh: {nama}" without a second round-trip or a
+  // separate GET /users call (which HR_STAFF can't make — that endpoint is
+  // admin-only).
+  @BelongsTo(() => User, 'disbursedBy')
+  declare disbursedByUser: User | null;
+
+  // Audit-trail follow-up — calculated → draft previously recorded NO actor
+  // and NO reason at all, despite tearing down every payslip/kasbon
+  // deduction the run had produced (PayrollRunRevertService). Both are
+  // written together, never one without the other (see revertToDraft).
+  @Column(DataType.UUID)
+  declare revertedBy: string | null;
+
+  @Column(DataType.TEXT)
+  declare revertReason: string | null;
 
   // P8-T02 — how many employees the calculation job has processed / needs to
   // process this run, for the admin progress bar. Set absolutely (not

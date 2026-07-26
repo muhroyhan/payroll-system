@@ -67,10 +67,14 @@ export class LeaveRequestsService {
     return record;
   }
 
-  create(dto: CreateLeaveRequestDto): Promise<LeaveRequest> {
+  create(
+    dto: CreateLeaveRequestDto,
+    createdBy: string,
+  ): Promise<LeaveRequest> {
     return this.leaveRequestModel.create({
       ...dto,
       status: LeaveRequestStatus.PENDING,
+      createdBy,
     } as any);
   }
 
@@ -111,9 +115,17 @@ export class LeaveRequestsService {
     return record.update({ status: LeaveRequestStatus.APPROVED, approvedBy });
   }
 
-  async reject(id: string): Promise<LeaveRequest> {
+  async reject(
+    id: string,
+    rejectedBy: string,
+    rejectReason: string,
+  ): Promise<LeaveRequest> {
     const record = await this.assertPending(id);
-    return record.update({ status: LeaveRequestStatus.REJECTED });
+    return record.update({
+      status: LeaveRequestStatus.REJECTED,
+      rejectedBy,
+      rejectReason,
+    });
   }
 
   private async assertPending(id: string): Promise<LeaveRequest> {

@@ -8,6 +8,10 @@ interface EffectiveDatedRecord {
   id: string;
   effectiveStartDate: string;
   effectiveEndDate: string | null;
+  // Audit-trail follow-up (§1C) — optional so this stays a drop-in for any
+  // future effective-dated master; all 7 current ones set them.
+  updatedBy?: string | null;
+  reason?: string | null;
 }
 
 interface EffectiveDatedMasterPageProps<T extends EffectiveDatedRecord> {
@@ -81,6 +85,21 @@ export function EffectiveDatedMasterPage<T extends EffectiveDatedRecord>({
         ) : (
           <Tag color="green">Berlaku</Tag>
         ),
+    },
+    // Audit-trail follow-up (§1C) — who last touched this row, and (when
+    // retired) why. updatedBy is a user id, not resolvable to a name here
+    // (same reasoning as approvedBy elsewhere — GET /users is admin-only).
+    {
+      title: 'Diubah Oleh (User ID)',
+      dataIndex: 'updatedBy',
+      key: 'updatedBy',
+      render: (value: string | null | undefined) => value ?? '—',
+    },
+    {
+      title: 'Alasan (jika diakhiri)',
+      dataIndex: 'reason',
+      key: 'reason',
+      render: (value: string | null | undefined) => value ?? '—',
     },
   ];
 

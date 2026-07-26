@@ -31,6 +31,16 @@ export interface PayrollRun {
   lockedAt: string | null;
   processedCount: number;
   totalCount: number;
+  // Audit-trail follow-up (dispute-traceability review, §1B) — the money-out
+  // step's actor. disbursedByUser is eager-loaded by findByIdOrThrow (GET
+  // /payroll-runs/:id only, same caveat as excludedEmployees below) so the
+  // detail page can render a name without a separate admin-only GET /users call.
+  disbursedBy: string | null;
+  disbursedByUser?: { id: string; name: string } | null;
+  // Set together whenever a `calculated` run is reverted to draft — never
+  // one without the other (revertToDraft requires a non-empty reason).
+  revertedBy: string | null;
+  revertReason: string | null;
   // Eager-loaded ONLY by GET /payroll-runs/:id (payroll-runs.service.ts
   // findByIdOrThrow) — GET /payroll-runs (the list) does NOT include it, so
   // this is absent there. Empty array until the run has actually been
@@ -85,8 +95,11 @@ export async function disbursePayrollRun(id: string): Promise<PayrollRun> {
   return data;
 }
 
-export async function revertPayrollRunToDraft(id: string): Promise<PayrollRun> {
-  const { data } = await apiClient.put<PayrollRun>(`/payroll-runs/${id}/revert`);
+// Audit-trail follow-up — reason is mandatory (RevertPayrollRunDto rejects an
+// empty/missing one with a 400), matching the required field on the frontend
+// confirm modal (PayrollRunDetailPage) that this call backs.
+export async function revertPayrollRunToDraft(id: string, reason: string): Promise<PayrollRun> {
+  const { data } = await apiClient.put<PayrollRun>(`/payroll-runs/${id}/revert`, { reason });
   return data;
 }
 

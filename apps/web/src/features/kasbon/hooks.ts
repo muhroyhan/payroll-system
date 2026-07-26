@@ -63,7 +63,7 @@ export function useApproveKasbonMutation(id: string) {
 export function useRejectKasbonMutation(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => rejectKasbon(id),
+    mutationFn: (reason: string) => rejectKasbon(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kasbon'] });
       queryClient.invalidateQueries({ queryKey: ['kasbon', id] });

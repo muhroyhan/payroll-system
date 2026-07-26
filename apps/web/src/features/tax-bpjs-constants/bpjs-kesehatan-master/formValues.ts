@@ -7,6 +7,7 @@ export interface BpjsKesehatanMasterFormRuntimeValues {
   wageCap: number;
   effectiveStartDate: Dayjs;
   effectiveEndDate?: Dayjs | null;
+  reason?: string;
 }
 
 export function bpjsKesehatanMasterToRuntimeFormValues(
@@ -32,5 +33,6 @@ export function runtimeFormValuesToApi(
     effectiveEndDate: values.effectiveEndDate
       ? values.effectiveEndDate.format('YYYY-MM-DD')
       : undefined,
+    reason: values.reason || undefined,
   };
 }

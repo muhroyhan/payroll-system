@@ -22,6 +22,7 @@ import type { AuthenticatedUser } from '../../auth/types/authenticated-user';
 import { SuratIjinService } from './surat-ijin.service';
 import { CreateSuratIjinDto } from './dto/create-surat-ijin.dto';
 import { UpdateSuratIjinDto } from './dto/update-surat-ijin.dto';
+import { RejectSuratIjinDto } from './dto/reject-surat-ijin.dto';
 
 @Controller('surat-ijin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -58,8 +59,11 @@ export class SuratIjinController {
   }
 
   @Post()
-  create(@Body() dto: CreateSuratIjinDto) {
-    return this.suratIjinService.create(dto);
+  create(
+    @Body() dto: CreateSuratIjinDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.suratIjinService.create(dto, user.id);
   }
 
   @Put(':id')
@@ -78,7 +82,11 @@ export class SuratIjinController {
   }
 
   @Put(':id/reject')
-  reject(@Param('id') id: string) {
-    return this.suratIjinService.reject(id);
+  reject(
+    @Param('id') id: string,
+    @Body() dto: RejectSuratIjinDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.suratIjinService.reject(id, user.id, dto.reason);
   }
 }

@@ -14,6 +14,9 @@ export interface SuratIjin {
   timeRequested: string;
   status: SuratIjinStatus;
   approvedBy: string | null;
+  rejectedBy: string | null;
+  rejectReason: string | null;
+  createdBy: string | null;
   // Populated asynchronously once approved — null means "not generated yet",
   // not an error (§15.10). Derivable, so the download action can be
   // pre-emptively disabled instead of waiting for the PDF 404 (R-06a).
@@ -60,7 +63,7 @@ export async function approveSuratIjin(id: string): Promise<SuratIjin> {
   return data;
 }
 
-export async function rejectSuratIjin(id: string): Promise<SuratIjin> {
-  const { data } = await apiClient.put<SuratIjin>(`/surat-ijin/${id}/reject`);
+export async function rejectSuratIjin(id: string, reason: string): Promise<SuratIjin> {
+  const { data } = await apiClient.put<SuratIjin>(`/surat-ijin/${id}/reject`, { reason });
   return data;
 }

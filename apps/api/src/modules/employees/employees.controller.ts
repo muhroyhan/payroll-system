@@ -15,6 +15,8 @@ import { Role } from '@payroll-system/shared-types';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { SPREADSHEET_MULTER_OPTIONS } from '../../common/bulk-import/spreadsheet-file-validation';
 import { EmployeesService } from './employees.service';
 import { EmployeesImportService } from './employees-import.service';
@@ -41,23 +43,33 @@ export class EmployeesController {
   }
 
   @Post()
-  create(@Body() dto: CreateEmployeeDto) {
-    return this.employeesService.create(dto);
+  create(
+    @Body() dto: CreateEmployeeDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.employeesService.create(dto, user.id);
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateEmployeeDto) {
-    return this.employeesService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateEmployeeDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.employeesService.update(id, dto, user.id);
   }
 
   @Post('import')
   @UseInterceptors(FileInterceptor('file', SPREADSHEET_MULTER_OPTIONS))
-  importFile(@UploadedFile() file?: Express.Multer.File) {
+  importFile(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     if (!file) {
       throw new BadRequestException(
         'No file uploaded (expected multipart field "file")',
       );
     }
-    return this.employeesImportService.importFromBuffer(file.buffer);
+    return this.employeesImportService.importFromBuffer(file.buffer, user.id);
   }
 }

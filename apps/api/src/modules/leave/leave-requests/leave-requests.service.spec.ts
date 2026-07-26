@@ -116,4 +116,38 @@ describe('LeaveRequestsService', () => {
       NotFoundException,
     );
   });
+
+  it('create() records createdBy from the current user', async () => {
+    const { service, model } = makeService();
+
+    await service.create(
+      {
+        employeeId: 'emp-1',
+        leaveTypeId: 'lt-1',
+        startDate: '2026-08-03',
+        endDate: '2026-08-04',
+      } as any,
+      'user-1',
+    );
+
+    expect(model.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: LeaveRequestStatus.PENDING,
+        createdBy: 'user-1',
+      }),
+    );
+  });
+
+  it('reject() records rejectedBy/rejectReason from the current user', async () => {
+    const record = pendingRequest();
+    const { service } = makeService(record);
+
+    await service.reject('lr-1', 'rejecter-1', 'Overlaps another request');
+
+    expect(record.update).toHaveBeenCalledWith({
+      status: LeaveRequestStatus.REJECTED,
+      rejectedBy: 'rejecter-1',
+      rejectReason: 'Overlaps another request',
+    });
+  });
 });

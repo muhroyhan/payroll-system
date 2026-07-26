@@ -67,6 +67,16 @@ export class CreateEmployeeDto {
   @IsBoolean()
   ptkpManuallyOverridden?: boolean;
 
+  // §D audit-trail follow-up — required by EmployeesService (not enforced
+  // here at the DTO level, since it's only mandatory at the false -> true
+  // transition, which the DTO alone can't see — the service compares against
+  // the existing record). Optional here so an update that leaves an
+  // already-active override untouched doesn't need to resend it.
+  @IsOptional()
+  @IsString()
+  @MinLength(3, { message: 'Alasan timpa manual PTKP minimal 3 karakter' })
+  ptkpOverrideReason?: string;
+
   @IsEnum(EmploymentStatus)
   employmentStatus: EmploymentStatus;
 

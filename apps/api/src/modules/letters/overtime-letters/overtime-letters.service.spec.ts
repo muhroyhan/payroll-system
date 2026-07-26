@@ -44,15 +44,21 @@ describe('OvertimeLettersService', () => {
 
   it('create() always starts a new letter as pending', async () => {
     const { service, model } = makeService();
-    await service.create({
-      employeeId: 'emp-1',
-      date: '2026-07-23',
-      plannedOvertimeHours: '3.00',
-      actualOvertimeHours: '2.50',
-      reason: 'r',
-    });
+    await service.create(
+      {
+        employeeId: 'emp-1',
+        date: '2026-07-23',
+        plannedOvertimeHours: '3.00',
+        actualOvertimeHours: '2.50',
+        reason: 'r',
+      },
+      'user-1',
+    );
     expect(model.create).toHaveBeenCalledWith(
-      expect.objectContaining({ status: OvertimeLetterStatus.PENDING }),
+      expect.objectContaining({
+        status: OvertimeLetterStatus.PENDING,
+        createdBy: 'user-1',
+      }),
     );
   });
 
@@ -78,14 +84,16 @@ describe('OvertimeLettersService', () => {
     );
   });
 
-  it('reject() flips status and never enqueues a PDF job', async () => {
+  it('reject() flips status, records rejectedBy/rejectReason, and never enqueues a PDF job', async () => {
     const r = record();
     const { service, pdfGenerationQueue } = makeService(r);
 
-    await service.reject('ol-1');
+    await service.reject('ol-1', 'rejecter-1', 'Hours look inflated');
 
     expect(r.update).toHaveBeenCalledWith({
       status: OvertimeLetterStatus.REJECTED,
+      rejectedBy: 'rejecter-1',
+      rejectReason: 'Hours look inflated',
     });
     expect(pdfGenerationQueue.enqueueOvertimeLetter).not.toHaveBeenCalled();
   });
@@ -97,7 +105,9 @@ describe('OvertimeLettersService', () => {
     await expect(service.verify('ol-1', 'user-1')).rejects.toThrow(
       ConflictException,
     );
-    await expect(service.reject('ol-1')).rejects.toThrow(ConflictException);
+    await expect(
+      service.reject('ol-1', 'rejecter-1', 'too late'),
+    ).rejects.toThrow(ConflictException);
   });
 
   // Deliberate deviation from surat_ijin/leave_requests: unlike those, a

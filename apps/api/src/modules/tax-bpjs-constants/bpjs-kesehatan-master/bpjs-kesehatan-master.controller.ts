@@ -57,7 +57,11 @@ export class BpjsKesehatanMasterController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateBpjsKesehatanMasterDto) {
-    return this.bpjsKesehatanMasterService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateBpjsKesehatanMasterDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.bpjsKesehatanMasterService.update(id, dto, user.id);
   }
 }

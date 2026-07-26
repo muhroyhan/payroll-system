@@ -25,6 +25,7 @@ export function employeeToRuntimeFormValues(employee: Employee): Partial<Employe
     wifeIncomeCombined: employee.wifeIncomeCombined,
     spouseNoIncomeCertificate: employee.spouseNoIncomeCertificate,
     ptkpManuallyOverridden: employee.ptkpManuallyOverridden,
+    ptkpOverrideReason: employee.ptkpOverriddenReason ?? undefined,
     employmentStatus: employee.employmentStatus,
     employeeTypeId: employee.employeeTypeId,
     positionId: employee.positionId,

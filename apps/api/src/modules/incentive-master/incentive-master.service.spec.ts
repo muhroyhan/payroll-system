@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ScopeType } from '@payroll-system/shared-types';
 import { IncentiveMasterService } from './incentive-master.service';
 
@@ -52,15 +52,26 @@ describe('IncentiveMasterService', () => {
   it('update() allows changing incentiveAmount/scope/effective dates when unreferenced', async () => {
     const { service, payslipReferenceChecker } = makeService(record(), false);
 
-    const updated = await service.update('im-1', {
-      incentiveAmount: '750000.00',
-    });
+    const updated = await service.update(
+      'im-1',
+      { incentiveAmount: '750000.00' },
+      'user-1',
+    );
 
     expect(payslipReferenceChecker.isReferencedByPayslip).toHaveBeenCalledWith(
       'incentive_master',
       'im-1',
     );
     expect(updated.incentiveAmount).toBe('750000.00');
+    expect(updated.updatedBy).toBe('user-1');
+  });
+
+  it('update() rejects a manual retire (effectiveEndDate null -> set) with no reason', async () => {
+    const { service } = makeService(record(), false);
+
+    await expect(
+      service.update('im-1', { effectiveEndDate: '2026-12-31' }, 'user-1'),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it.each([
@@ -75,7 +86,7 @@ describe('IncentiveMasterService', () => {
     async (_fieldName, patch) => {
       const { service } = makeService(record(), true);
 
-      await expect(service.update('im-1', patch)).rejects.toThrow(
+      await expect(service.update('im-1', patch, 'user-1')).rejects.toThrow(
         ConflictException,
       );
     },
@@ -84,7 +95,7 @@ describe('IncentiveMasterService', () => {
   it('update() does not query the reference checker when no locked field is touched', async () => {
     const { service, payslipReferenceChecker } = makeService(record(), true);
 
-    await service.update('im-1', {});
+    await service.update('im-1', {}, 'user-1');
 
     expect(payslipReferenceChecker.isReferencedByPayslip).not.toHaveBeenCalled();
   });

@@ -1,5 +1,6 @@
 import { Col, DatePicker, Form, InputNumber, Row, Switch, type FormInstance } from 'antd';
 import { ScopeSelector } from '../scope-resolver/ScopeSelector';
+import { RetireReasonFormItem } from '../../components/RetireReasonFormItem';
 import type { IncentiveMasterFormRuntimeValues } from './formValues';
 
 interface IncentiveMasterFormFieldsProps {
@@ -49,6 +50,7 @@ export function IncentiveMasterFormFields({ form }: IncentiveMasterFormFieldsPro
           </Form.Item>
         </Col>
       </Row>
+      <RetireReasonFormItem />
     </>
   );
 }

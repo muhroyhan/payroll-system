@@ -53,7 +53,11 @@ export class PtkpMasterController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdatePtkpMasterDto) {
-    return this.ptkpMasterService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdatePtkpMasterDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.ptkpMasterService.update(id, dto, user.id);
   }
 }

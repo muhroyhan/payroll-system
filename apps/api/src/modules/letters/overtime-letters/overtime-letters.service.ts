@@ -40,10 +40,14 @@ export class OvertimeLettersService {
     return record;
   }
 
-  create(dto: CreateOvertimeLetterDto): Promise<OvertimeLetter> {
+  create(
+    dto: CreateOvertimeLetterDto,
+    createdBy: string,
+  ): Promise<OvertimeLetter> {
     return this.overtimeLetterModel.create({
       ...dto,
       status: OvertimeLetterStatus.PENDING,
+      createdBy,
     } as any);
   }
 
@@ -77,9 +81,17 @@ export class OvertimeLettersService {
     return record;
   }
 
-  async reject(id: string): Promise<OvertimeLetter> {
+  async reject(
+    id: string,
+    rejectedBy: string,
+    rejectReason: string,
+  ): Promise<OvertimeLetter> {
     const record = await this.assertPending(id);
-    return record.update({ status: OvertimeLetterStatus.REJECTED });
+    return record.update({
+      status: OvertimeLetterStatus.REJECTED,
+      rejectedBy,
+      rejectReason,
+    });
   }
 
   private async assertPending(id: string): Promise<OvertimeLetter> {

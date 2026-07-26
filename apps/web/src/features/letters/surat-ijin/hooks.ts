@@ -66,7 +66,7 @@ export function useApproveSuratIjinMutation(id: string) {
 export function useRejectSuratIjinMutation(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => rejectSuratIjin(id),
+    mutationFn: (reason: string) => rejectSuratIjin(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['surat-ijin'] });
       queryClient.invalidateQueries({ queryKey: ['surat-ijin', id] });

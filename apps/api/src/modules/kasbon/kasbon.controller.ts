@@ -18,6 +18,7 @@ import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { KasbonService } from './kasbon.service';
 import { CreateKasbonDto } from './dto/create-kasbon.dto';
 import { UpdateKasbonDto } from './dto/update-kasbon.dto';
+import { RejectKasbonDto } from './dto/reject-kasbon.dto';
 
 @Controller('kasbon')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -36,8 +37,11 @@ export class KasbonController {
   }
 
   @Post()
-  create(@Body() dto: CreateKasbonDto) {
-    return this.kasbonService.create(dto);
+  create(
+    @Body() dto: CreateKasbonDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.kasbonService.create(dto, user.id);
   }
 
   @Put(':id')
@@ -56,7 +60,11 @@ export class KasbonController {
   }
 
   @Put(':id/reject')
-  reject(@Param('id') id: string) {
-    return this.kasbonService.reject(id);
+  reject(
+    @Param('id') id: string,
+    @Body() dto: RejectKasbonDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.kasbonService.reject(id, user.id, dto.reason);
   }
 }

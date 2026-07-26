@@ -48,6 +48,15 @@ export class SuratIjin extends Model {
   @Column(DataType.UUID)
   declare approvedBy: string | null;
 
+  @Column(DataType.UUID)
+  declare rejectedBy: string | null;
+
+  @Column(DataType.TEXT)
+  declare rejectReason: string | null;
+
+  @Column(DataType.UUID)
+  declare createdBy: string | null;
+
   // Populated asynchronously by the PDF generation job once approved —
   // never generated synchronously in the request handler (§3, no exceptions).
   @Column(DataType.STRING)

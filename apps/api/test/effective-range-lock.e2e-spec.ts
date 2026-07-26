@@ -22,18 +22,23 @@ import { BpjsKesehatanMasterModule } from '../src/modules/tax-bpjs-constants/bpj
 import { BpjsKetenagakerjaanMasterModule } from '../src/modules/tax-bpjs-constants/bpjs-ketenagakerjaan-master/bpjs-ketenagakerjaan-master.module';
 import { SalaryMasterModule } from '../src/modules/salary-master/salary-master.module';
 import { IncentiveMasterModule } from '../src/modules/incentive-master/incentive-master.module';
+import { LeaveModule } from '../src/modules/leave/leave.module';
 import { PtkpMasterService } from '../src/modules/tax-bpjs-constants/ptkp-master/ptkp-master.service';
 import { TerBracketMasterService } from '../src/modules/tax-bpjs-constants/ter-bracket-master/ter-bracket-master.service';
 import { BpjsKesehatanMasterService } from '../src/modules/tax-bpjs-constants/bpjs-kesehatan-master/bpjs-kesehatan-master.service';
 import { BpjsKetenagakerjaanMasterService } from '../src/modules/tax-bpjs-constants/bpjs-ketenagakerjaan-master/bpjs-ketenagakerjaan-master.service';
 import { SalaryMasterService } from '../src/modules/salary-master/salary-master.service';
 import { IncentiveMasterService } from '../src/modules/incentive-master/incentive-master.service';
+import { LeavePolicyMasterService } from '../src/modules/leave/leave-policy-master/leave-policy-master.service';
 import { PtkpMaster } from '../src/modules/tax-bpjs-constants/ptkp-master/entities/ptkp-master.entity';
 import { TerBracketMaster } from '../src/modules/tax-bpjs-constants/ter-bracket-master/entities/ter-bracket-master.entity';
 import { BpjsKesehatanMaster } from '../src/modules/tax-bpjs-constants/bpjs-kesehatan-master/entities/bpjs-kesehatan-master.entity';
 import { BpjsKetenagakerjaanMaster } from '../src/modules/tax-bpjs-constants/bpjs-ketenagakerjaan-master/entities/bpjs-ketenagakerjaan-master.entity';
 import { SalaryMaster } from '../src/modules/salary-master/entities/salary-master.entity';
 import { IncentiveMaster } from '../src/modules/incentive-master/entities/incentive-master.entity';
+import { LeavePolicyMaster } from '../src/modules/leave/leave-policy-master/entities/leave-policy-master.entity';
+import { LeaveBalance } from '../src/modules/leave/leave-balances/entities/leave-balance.entity';
+import { LeaveType } from '../src/modules/leave/leave-types/entities/leave-type.entity';
 import { Employee } from '../src/modules/employees/entities/employee.entity';
 import { EmployeeType } from '../src/modules/organization/employee-types/entities/employee-type.entity';
 import { Position } from '../src/modules/organization/positions/entities/position.entity';
@@ -44,6 +49,7 @@ import { PayrollRunExcludedEmployee } from '../src/modules/payroll-runs/entities
 import { Payslip } from '../src/modules/payslips/entities/payslip.entity';
 import { PayslipLineItem } from '../src/modules/payslips/entities/payslip-line-item.entity';
 import { PayslipComponent } from '../src/modules/payslip-components/entities/payslip-component.entity';
+import { User } from '../src/modules/users/entities/user.entity';
 
 // Deliberately NOT AppModule: AppModule transitively imports pdf-generation
 // -> puppeteer, which is ESM-only and breaks ts-jest ("Unexpected token
@@ -81,14 +87,18 @@ import { PayslipComponent } from '../src/modules/payslip-components/entities/pay
     // @HasMany(() => PayrollRunExcludedEmployee) (added for Task B) needs it
     // registered here too, or Sequelize.addModels throws "...has not been
     // defined" for every module that imports PayrollRun — exactly this
-    // class of bug, just one hop further out.
-    SequelizeModule.forFeature([PayslipComponent, PayrollRunExcludedEmployee]),
+    // class of bug, just one hop further out. User is the same story, one
+    // hop further still: PayrollRun's own @BelongsTo(() => User,
+    // 'disbursedBy') surfaced once LeaveModule's extra import graph shifted
+    // model-registration order enough for this one to actually get hit.
+    SequelizeModule.forFeature([PayslipComponent, PayrollRunExcludedEmployee, User]),
     PtkpMasterModule,
     TerBracketMasterModule,
     BpjsKesehatanMasterModule,
     BpjsKetenagakerjaanMasterModule,
     SalaryMasterModule,
     IncentiveMasterModule,
+    LeaveModule,
   ],
 })
 class LockTestModule {}
@@ -116,6 +126,9 @@ describe('Effective-dated master locks (integration, real DB)', () => {
     terBracketMasters: [] as string[],
     bpjsKesehatanMasters: [] as string[],
     bpjsKetenagakerjaanMasters: [] as string[],
+    leavePolicyMasters: [] as string[],
+    leaveBalances: [] as string[],
+    leaveTypes: [] as string[],
     employees: [] as string[],
     employeeTypeId: '',
     positionId: '',
@@ -130,6 +143,7 @@ describe('Effective-dated master locks (integration, real DB)', () => {
   let bpjsKetenagakerjaanMasterService: BpjsKetenagakerjaanMasterService;
   let salaryMasterService: SalaryMasterService;
   let incentiveMasterService: IncentiveMasterService;
+  let leavePolicyMasterService: LeavePolicyMasterService;
 
   let ptkpMasterModel: typeof PtkpMaster;
   let terBracketMasterModel: typeof TerBracketMaster;
@@ -137,6 +151,9 @@ describe('Effective-dated master locks (integration, real DB)', () => {
   let bpjsKetenagakerjaanMasterModel: typeof BpjsKetenagakerjaanMaster;
   let salaryMasterModel: typeof SalaryMaster;
   let incentiveMasterModel: typeof IncentiveMaster;
+  let leavePolicyMasterModel: typeof LeavePolicyMaster;
+  let leaveBalanceModel: typeof LeaveBalance;
+  let leaveTypeModel: typeof LeaveType;
   let employeeModel: typeof Employee;
   let employeeTypeModel: typeof EmployeeType;
   let positionModel: typeof Position;
@@ -165,6 +182,7 @@ describe('Effective-dated master locks (integration, real DB)', () => {
     );
     salaryMasterService = moduleRef.get(SalaryMasterService);
     incentiveMasterService = moduleRef.get(IncentiveMasterService);
+    leavePolicyMasterService = moduleRef.get(LeavePolicyMasterService);
 
     ptkpMasterModel = moduleRef.get(getModelToken(PtkpMaster));
     terBracketMasterModel = moduleRef.get(getModelToken(TerBracketMaster));
@@ -176,6 +194,9 @@ describe('Effective-dated master locks (integration, real DB)', () => {
     );
     salaryMasterModel = moduleRef.get(getModelToken(SalaryMaster));
     incentiveMasterModel = moduleRef.get(getModelToken(IncentiveMaster));
+    leavePolicyMasterModel = moduleRef.get(getModelToken(LeavePolicyMaster));
+    leaveBalanceModel = moduleRef.get(getModelToken(LeaveBalance));
+    leaveTypeModel = moduleRef.get(getModelToken(LeaveType));
     employeeModel = moduleRef.get(getModelToken(Employee));
     employeeTypeModel = moduleRef.get(getModelToken(EmployeeType));
     positionModel = moduleRef.get(getModelToken(Position));
@@ -289,6 +310,20 @@ describe('Effective-dated master locks (integration, real DB)', () => {
       where: { id: createdIds.bpjsKetenagakerjaanMasters },
       force: true,
     });
+    // leave_balances references both leave_policy_masters and leave_types —
+    // destroy it first, then the policy rows, then the types.
+    await leaveBalanceModel.destroy({
+      where: { id: createdIds.leaveBalances },
+      force: true,
+    });
+    await leavePolicyMasterModel.destroy({
+      where: { id: createdIds.leavePolicyMasters },
+      force: true,
+    });
+    await leaveTypeModel.destroy({
+      where: { id: createdIds.leaveTypes },
+      force: true,
+    });
     await employeeModel.destroy({
       where: { id: createdIds.employees },
       force: true,
@@ -324,7 +359,11 @@ describe('Effective-dated master locks (integration, real DB)', () => {
     createdIds.ptkpMasters.push(row.id);
 
     await expect(
-      ptkpMasterService.update(row.id, { amount: '99999999.00' } as any),
+      ptkpMasterService.update(
+        row.id,
+        { amount: '99999999.00' } as any,
+        'user-1',
+      ),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -341,7 +380,11 @@ describe('Effective-dated master locks (integration, real DB)', () => {
     createdIds.terBracketMasters.push(row.id);
 
     await expect(
-      terBracketMasterService.update(row.id, { rate: '0.99999' } as any),
+      terBracketMasterService.update(
+        row.id,
+        { rate: '0.99999' } as any,
+        'user-1',
+      ),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -357,9 +400,11 @@ describe('Effective-dated master locks (integration, real DB)', () => {
     createdIds.bpjsKesehatanMasters.push(row.id);
 
     await expect(
-      bpjsKesehatanMasterService.update(row.id, {
-        employeeRate: '0.99000',
-      } as any),
+      bpjsKesehatanMasterService.update(
+        row.id,
+        { employeeRate: '0.99000' } as any,
+        'user-1',
+      ),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -379,9 +424,11 @@ describe('Effective-dated master locks (integration, real DB)', () => {
     createdIds.bpjsKetenagakerjaanMasters.push(row.id);
 
     await expect(
-      bpjsKetenagakerjaanMasterService.update(row.id, {
-        jkkCompanyRate: '0.99000',
-      } as any),
+      bpjsKetenagakerjaanMasterService.update(
+        row.id,
+        { jkkCompanyRate: '0.99000' } as any,
+        'user-1',
+      ),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -406,9 +453,11 @@ describe('Effective-dated master locks (integration, real DB)', () => {
     createdIds.payslipLineItems.push(lineItem.id);
 
     await expect(
-      salaryMasterService.update(row.id, {
-        baseSalary: '9999999.00',
-      } as any),
+      salaryMasterService.update(
+        row.id,
+        { baseSalary: '9999999.00' } as any,
+        'user-1',
+      ),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -434,9 +483,53 @@ describe('Effective-dated master locks (integration, real DB)', () => {
     createdIds.payslipLineItems.push(lineItem.id);
 
     await expect(
-      incentiveMasterService.update(row.id, {
-        incentiveAmount: '9999999.00',
-      } as any),
+      incentiveMasterService.update(
+        row.id,
+        { incentiveAmount: '9999999.00' } as any,
+        'user-1',
+      ),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  // Completes the ke-7 master coverage (audit-trail follow-up, §1C) — the one
+  // gap this suite previously had. Unlike the other 6 (checked against
+  // payslip_line_items/payroll_runs), leave_policy_master's reference check is
+  // against leave_balances.resolved_from_policy_id — a real per-row FK set by
+  // LeaveBalancesService.resolveOne(), not a period+category heuristic.
+  it('leave-policy-master: rejects editing annualQuota once resolved into a leave_balances row', async () => {
+    const leaveType = await leaveTypeModel.create({
+      name: `LockTest LeaveType ${randomUUID()}`,
+    } as any);
+    createdIds.leaveTypes.push(leaveType.id);
+
+    const row = await leavePolicyMasterModel.create({
+      leaveTypeId: leaveType.id,
+      scopeType: ScopeType.EMPLOYEE,
+      scopeValue: employeeId,
+      annualQuota: 12,
+      effectiveStartDate: TEST_PERIOD_DATE,
+      effectiveEndDate: null,
+      createdBy: randomUUID(),
+    } as any);
+    createdIds.leavePolicyMasters.push(row.id);
+
+    const leaveBalance = await leaveBalanceModel.create({
+      employeeId,
+      leaveTypeId: leaveType.id,
+      year: 2029,
+      quota: 12,
+      used: 0,
+      manuallyAdjusted: false,
+      resolvedFromPolicyId: row.id,
+    } as any);
+    createdIds.leaveBalances.push(leaveBalance.id);
+
+    await expect(
+      leavePolicyMasterService.update(
+        row.id,
+        { annualQuota: 24 } as any,
+        'user-1',
+      ),
     ).rejects.toThrow(ConflictException);
   });
 });

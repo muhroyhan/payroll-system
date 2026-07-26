@@ -9,6 +9,7 @@ export interface IncentiveMasterFormRuntimeValues {
   isBpjsEligible: boolean;
   effectiveStartDate: Dayjs;
   effectiveEndDate?: Dayjs | null;
+  reason?: string;
 }
 
 export function incentiveMasterToRuntimeFormValues(
@@ -36,5 +37,6 @@ export function runtimeFormValuesToApi(
     effectiveEndDate: values.effectiveEndDate
       ? values.effectiveEndDate.format('YYYY-MM-DD')
       : undefined,
+    reason: values.reason || undefined,
   };
 }

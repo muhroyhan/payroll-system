@@ -1,4 +1,5 @@
 import { Col, DatePicker, Form, InputNumber, Row } from 'antd';
+import { RetireReasonFormItem } from '../../../components/RetireReasonFormItem';
 
 // FE-T24 (09_FRONTEND_STEPS.md), §15.14 (08_FRONTEND_STRUCTURE.md).
 export function BpjsKesehatanMasterFormFields() {
@@ -41,6 +42,7 @@ export function BpjsKesehatanMasterFormFields() {
           </Form.Item>
         </Col>
       </Row>
+      <RetireReasonFormItem />
     </>
   );
 }

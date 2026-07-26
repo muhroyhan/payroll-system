@@ -32,4 +32,13 @@ export class PtkpMaster extends Model {
 
   @Column(DataType.UUID)
   declare createdBy: string;
+
+  @Column(DataType.UUID)
+  declare updatedBy: string | null;
+
+  @Column(DataType.TEXT)
+  declare reason: string | null;
+
+  @Column(DataType.UUID)
+  declare supersedesId: string | null;
 }

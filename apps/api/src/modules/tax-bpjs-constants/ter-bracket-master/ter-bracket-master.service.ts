@@ -1,10 +1,12 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize';
+import { randomUUID } from 'crypto';
 import { TerCategory } from '@payroll-system/shared-types';
 import { resolveEffectiveRecords } from '../../../common/effective-dating/resolve-effective';
 import { EffectiveRangePayslipChecker } from '../../../common/effective-dating/effective-range-payslip-checker';
 import { closeOverlappingPredecessor } from '../../../common/effective-dating/close-overlapping-predecessor';
+import { assertRetireReasonProvided } from '../../../common/effective-dating/retire-reason';
 import { TerBracketMaster } from './entities/ter-bracket-master.entity';
 import { CreateTerBracketMasterDto } from './dto/create-ter-bracket-master.dto';
 import { UpdateTerBracketMasterDto } from './dto/update-ter-bracket-master.dto';
@@ -60,6 +62,7 @@ export class TerBracketMasterService {
     createdBy: string,
   ): Promise<TerBracketMaster> {
     return this.sequelize.transaction(async (transaction) => {
+      const newRowId = randomUUID();
       await closeOverlappingPredecessor(
         this.terBracketMasterModel,
         {
@@ -69,9 +72,11 @@ export class TerBracketMasterService {
         },
         dto.effectiveStartDate,
         transaction,
+        newRowId,
+        createdBy,
       );
       return this.terBracketMasterModel.create(
-        { ...dto, createdBy } as any,
+        { id: newRowId, ...dto, createdBy } as any,
         { transaction },
       );
     });
@@ -85,10 +90,12 @@ export class TerBracketMasterService {
   async update(
     id: string,
     dto: UpdateTerBracketMasterDto,
+    updatedBy: string,
   ): Promise<TerBracketMaster> {
     const record = await this.findByIdOrThrow(id);
     await this.assertLockedFieldsUntouched(record, dto);
-    return record.update(dto);
+    assertRetireReasonProvided(record, dto);
+    return record.update({ ...dto, updatedBy });
   }
 
   // effectiveEndDate is deliberately NOT locked (audit follow-up): closing a

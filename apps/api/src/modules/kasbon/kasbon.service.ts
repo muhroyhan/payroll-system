@@ -39,11 +39,12 @@ export class KasbonService {
 
   // remaining_balance stays null here — amount/installment_count aren't
   // fixed until approve() locks them in.
-  create(dto: CreateKasbonDto): Promise<Kasbon> {
+  create(dto: CreateKasbonDto, createdBy: string): Promise<Kasbon> {
     return this.kasbonModel.create({
       ...dto,
       status: KasbonStatus.PENDING,
       remainingBalance: null,
+      createdBy,
     } as any);
   }
 
@@ -87,9 +88,17 @@ export class KasbonService {
     });
   }
 
-  async reject(id: string): Promise<Kasbon> {
+  async reject(
+    id: string,
+    rejectedBy: string,
+    rejectReason: string,
+  ): Promise<Kasbon> {
     const record = await this.assertPending(id);
-    return record.update({ status: KasbonStatus.REJECTED });
+    return record.update({
+      status: KasbonStatus.REJECTED,
+      rejectedBy,
+      rejectReason,
+    });
   }
 
   // P5-T02 — standalone method; Phase 8's payroll engine calls this once per

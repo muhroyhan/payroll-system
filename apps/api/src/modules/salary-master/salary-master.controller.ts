@@ -54,7 +54,11 @@ export class SalaryMasterController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateSalaryMasterDto) {
-    return this.salaryMasterService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateSalaryMasterDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.salaryMasterService.update(id, dto, user.id);
   }
 }

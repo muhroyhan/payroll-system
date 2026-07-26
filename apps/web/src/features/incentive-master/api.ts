@@ -14,9 +14,14 @@ export interface IncentiveMaster {
   effectiveStartDate: string;
   effectiveEndDate: string | null;
   createdBy: string;
+  updatedBy: string | null;
+  reason: string | null;
+  supersedesId: string | null;
 }
 
 // Mirrors CreateIncentiveMasterDto — incentiveAmount is @IsNumberString.
+// `reason` is only enforced server-side when this update closes off
+// effectiveEndDate.
 export interface IncentiveMasterFormValues {
   scopeType: ScopeType;
   scopeValue: string;
@@ -24,6 +29,7 @@ export interface IncentiveMasterFormValues {
   isBpjsEligible: boolean;
   effectiveStartDate: string;
   effectiveEndDate?: string;
+  reason?: string;
 }
 
 export async function listIncentiveMasters(): Promise<IncentiveMaster[]> {

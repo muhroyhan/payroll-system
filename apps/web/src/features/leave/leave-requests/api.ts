@@ -22,6 +22,9 @@ export interface LeaveRequest {
   endDate: string;
   status: LeaveRequestStatus;
   approvedBy: string | null;
+  rejectedBy: string | null;
+  rejectReason: string | null;
+  createdBy: string | null;
 }
 
 export interface LeaveRequestFormValues {
@@ -67,7 +70,9 @@ export async function approveLeaveRequest(id: string): Promise<LeaveRequest> {
   return data;
 }
 
-export async function rejectLeaveRequest(id: string): Promise<LeaveRequest> {
-  const { data } = await apiClient.put<LeaveRequest>(`/leave-requests/${id}/reject`);
+export async function rejectLeaveRequest(id: string, reason: string): Promise<LeaveRequest> {
+  const { data } = await apiClient.put<LeaveRequest>(`/leave-requests/${id}/reject`, {
+    reason,
+  });
   return data;
 }

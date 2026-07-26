@@ -12,6 +12,7 @@ export interface SalaryMasterFormRuntimeValues {
   baseSalary: number;
   effectiveStartDate: Dayjs;
   effectiveEndDate?: Dayjs | null;
+  reason?: string;
 }
 
 export function salaryMasterToRuntimeFormValues(
@@ -37,5 +38,6 @@ export function runtimeFormValuesToApi(
     effectiveEndDate: values.effectiveEndDate
       ? values.effectiveEndDate.format('YYYY-MM-DD')
       : undefined,
+    reason: values.reason || undefined,
   };
 }

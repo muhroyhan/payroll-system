@@ -1,5 +1,6 @@
 import { Col, DatePicker, Form, InputNumber, Row, Select } from 'antd';
 import { enumSelectOptions } from '../../../components/enumSelectOptions';
+import { RetireReasonFormItem } from '../../../components/RetireReasonFormItem';
 import { TER_CATEGORY_LABELS } from './labels';
 
 // FE-T24 (09_FRONTEND_STEPS.md), §15.14 (08_FRONTEND_STRUCTURE.md).
@@ -50,6 +51,7 @@ export function TerBracketMasterFormFields() {
           </Form.Item>
         </Col>
       </Row>
+      <RetireReasonFormItem />
     </>
   );
 }

@@ -17,6 +17,9 @@ export interface BpjsKetenagakerjaanMaster {
   effectiveStartDate: string;
   effectiveEndDate: string | null;
   createdBy: string;
+  updatedBy: string | null;
+  reason: string | null;
+  supersedesId: string | null;
 }
 
 export interface BpjsKetenagakerjaanMasterFormValues {
@@ -29,6 +32,7 @@ export interface BpjsKetenagakerjaanMasterFormValues {
   jkmCompanyRate: string;
   effectiveStartDate: string;
   effectiveEndDate?: string;
+  reason?: string;
 }
 
 export async function listBpjsKetenagakerjaanMasters(): Promise<BpjsKetenagakerjaanMaster[]> {

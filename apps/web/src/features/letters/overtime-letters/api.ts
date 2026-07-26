@@ -22,6 +22,9 @@ export interface OvertimeLetter {
   reason: string;
   status: OvertimeLetterStatus;
   verifiedBy: string | null;
+  rejectedBy: string | null;
+  rejectReason: string | null;
+  createdBy: string | null;
   pdfPath: string | null;
 }
 
@@ -69,7 +72,9 @@ export async function verifyOvertimeLetter(id: string): Promise<OvertimeLetter> 
   return data;
 }
 
-export async function rejectOvertimeLetter(id: string): Promise<OvertimeLetter> {
-  const { data } = await apiClient.put<OvertimeLetter>(`/overtime-letters/${id}/reject`);
+export async function rejectOvertimeLetter(id: string, reason: string): Promise<OvertimeLetter> {
+  const { data } = await apiClient.put<OvertimeLetter>(`/overtime-letters/${id}/reject`, {
+    reason,
+  });
   return data;
 }

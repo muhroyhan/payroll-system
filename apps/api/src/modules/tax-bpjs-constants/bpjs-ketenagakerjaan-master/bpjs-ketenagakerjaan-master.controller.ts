@@ -60,7 +60,8 @@ export class BpjsKetenagakerjaanMasterController {
   update(
     @Param('id') id: string,
     @Body() dto: UpdateBpjsKetenagakerjaanMasterDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.bpjsKetenagakerjaanMasterService.update(id, dto);
+    return this.bpjsKetenagakerjaanMasterService.update(id, dto, user.id);
   }
 }

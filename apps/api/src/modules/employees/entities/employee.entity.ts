@@ -71,6 +71,20 @@ export class Employee extends Model {
   @Column(DataType.BOOLEAN)
   declare ptkpManuallyOverridden: boolean;
 
+  // Audit-trail follow-up (dispute-traceability review, §D) — who/when/why
+  // ptkpManuallyOverridden was switched on. Set together, only at the
+  // false -> true transition (see EmployeesService); cleared together if the
+  // override is later switched back off. This field feeds PPh21 withholding
+  // directly, so an untraceable flip here is a direct dispute risk.
+  @Column(DataType.UUID)
+  declare ptkpOverriddenBy: string | null;
+
+  @Column(DataType.DATE)
+  declare ptkpOverriddenAt: Date | null;
+
+  @Column(DataType.TEXT)
+  declare ptkpOverriddenReason: string | null;
+
   @Column(DataType.ENUM(...Object.values(EmploymentStatus)))
   declare employmentStatus: EmploymentStatus;
 

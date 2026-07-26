@@ -56,7 +56,11 @@ export class TerBracketMasterController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateTerBracketMasterDto) {
-    return this.terBracketMasterService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTerBracketMasterDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.terBracketMasterService.update(id, dto, user.id);
   }
 }
