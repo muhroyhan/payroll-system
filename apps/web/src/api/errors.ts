@@ -33,16 +33,18 @@ export interface ApiErrorPresentation {
 
 // Strips the developer-facing spec references the backend's ConflictException
 // messages carry (they're written for whoever reads the code, not for HR
-// staff) — see 07_FRONTEND_RULES.md R-04. Order matters: parenthesized forms
-// first, so a lone trailing "()" isn't left behind by the standalone pass.
+// staff) — see 07_FRONTEND_RULES.md R-04. Tokens are stripped everywhere
+// first (not just inside their own dedicated parens), because the backend
+// also cites combined refs in one parenthetical, e.g. "(§11/P8-T07)" —
+// stripping only "(§11)" as a whole unit would leave "(/P8-T07)" behind, and
+// per-token-then-clean-empty-parens is what FE-T33's audit caught this bug
+// with (payslip-components.service.ts's 409 rendered a literal "(/)").
 function stripSpecReferences(message: string): string {
   return message
-    .replace(/\(§[\d.]+\)/g, '')
     .replace(/§[\d.]+/g, '')
-    .replace(/\(TC-[A-Z0-9-]+\)/g, '')
     .replace(/TC-[A-Z0-9-]+/g, '')
-    .replace(/\(P\d+-T\d+[a-z]?\)/g, '')
     .replace(/P\d+-T\d+[a-z]?/gi, '')
+    .replace(/\(\s*[/,]*\s*\)/g, '')
     .replace(/\s+([;,.])/g, '$1')
     .replace(/\s{2,}/g, ' ')
     .trim();

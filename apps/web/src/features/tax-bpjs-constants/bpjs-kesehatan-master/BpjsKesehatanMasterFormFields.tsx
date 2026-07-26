@@ -6,14 +6,14 @@ export function BpjsKesehatanMasterFormFields() {
     <>
       <Form.Item
         name="employeeRate"
-        label="Tarif Karyawan (fraksi, mis. 0.01 = 1%)"
+        label="Tarif Karyawan (fraksi, mis. 0.0123 = 1,23%)"
         rules={[{ required: true, message: 'Tarif karyawan wajib diisi' }]}
       >
         <InputNumber style={{ width: '100%' }} min={0} max={1} step={0.0001} />
       </Form.Item>
       <Form.Item
         name="companyRate"
-        label="Tarif Perusahaan (fraksi, mis. 0.04 = 4%)"
+        label="Tarif Perusahaan (fraksi, mis. 0.0456 = 4,56%)"
         rules={[{ required: true, message: 'Tarif perusahaan wajib diisi' }]}
       >
         <InputNumber style={{ width: '100%' }} min={0} max={1} step={0.0001} />

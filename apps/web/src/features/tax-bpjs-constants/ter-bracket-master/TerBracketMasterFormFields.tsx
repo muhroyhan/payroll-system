@@ -29,7 +29,7 @@ export function TerBracketMasterFormFields() {
       </Form.Item>
       <Form.Item
         name="rate"
-        label="Tarif (fraksi, mis. 0.05 = 5%)"
+        label="Tarif (fraksi, mis. 0.0678 = 6,78%)"
         rules={[{ required: true, message: 'Tarif wajib diisi' }]}
       >
         <InputNumber style={{ width: '100%' }} min={0} max={1} step={0.0001} />

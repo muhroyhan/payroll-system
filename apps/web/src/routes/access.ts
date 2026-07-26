@@ -21,6 +21,13 @@ export interface AccessEntry {
    *  NOT modeled here — those stay in-screen against useAuth().isAdmin,
    *  because the route itself is legitimately open to both roles. */
   roles: readonly Role[];
+  /** Route exists and is role-gated via requiredRolesFor(), but isn't a
+   *  standalone Sider item — e.g. a detail-only route reached exclusively
+   *  through a link on another screen (payslips: only reachable via a
+   *  payroll run, FE-T30). Keeps the guard and the nav on the same entry
+   *  (R-11) instead of leaving requiredRolesFor() with a silent gap for a
+   *  route that's real but not top-level-navigable. */
+  hideFromNav?: boolean;
 }
 
 export const NAV_GROUP_ORDER: readonly NavGroupKey[] = [
@@ -87,7 +94,12 @@ export const ACCESS_ENTRIES: readonly AccessEntry[] = [
   // Both roles see the list/detail/summary; the four lifecycle actions
   // (calculate/approve/disburse/revert) are admin-only IN-SCREEN (§15.12).
   { path: '/payroll-runs', label: 'Payroll Run', group: 'payroll', roles: BOTH },
-  { path: '/payslips', label: 'Slip Gaji', group: 'payroll', roles: BOTH },
+  // Not a Sider item (FE-T33 audit: this used to be one, but no standalone
+  // payslip list was ever built — payslips are always reached via a
+  // payroll run's "Payslip" link, FE-T30). Kept here so /payslips/:id still
+  // has an explicit role entry instead of falling through requiredRolesFor's
+  // undefined-means-any-authenticated-user default.
+  { path: '/payslips', label: 'Slip Gaji', group: 'payroll', roles: BOTH, hideFromNav: true },
   // Admin-only routes, §15.14 — hidden from HR in the Sider (§15.15).
   { path: '/settings/tax-constants', label: 'Konstanta Pajak & BPJS', group: 'settings', roles: ADMIN_ONLY },
   // GET has no @Roles at all (any authenticated user); PUT is admin-only.
@@ -124,5 +136,5 @@ export function requiredRolesFor(pathname: string): readonly Role[] | undefined 
 }
 
 export function navEntriesForRole(role: Role): readonly AccessEntry[] {
-  return ACCESS_ENTRIES.filter((entry) => entry.roles.includes(role));
+  return ACCESS_ENTRIES.filter((entry) => entry.roles.includes(role) && !entry.hideFromNav);
 }

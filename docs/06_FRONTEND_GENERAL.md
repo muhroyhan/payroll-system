@@ -220,13 +220,13 @@ degrades a specific frontend behaviour. They are repeated as tasks FE-T00a…FE-
       boot reads both keys back directly; there is nothing to re-validate against (B-03), so
       a stale-but-unexpired token is trusted until the API itself returns 401.
 
-- [ ] **B-05 — No payslip PDF download endpoint.** P8-T05 generates payslip PDFs and stores
-      `payslips.pdf_path`, and all three letters expose `GET /:id/pdf` returning a
-      `StreamableFile` — but `payslips.controller.ts` has **only** `GET /payslips` and
-      `GET /payslips/:id`. There is no way for the browser to fetch a payslip PDF.
-      `pdf_path` is a **server filesystem path**, not a URL, so the frontend cannot link to
-      it. The payslip screen (§15.10) cannot ship its download action until
-      `GET /payslips/:id/pdf` exists, mirroring the letters. *Blocks FE-T18 only, not FE-T01.*
+- [x] **B-05 — RESOLVED (FE-T31).** `payslips.controller.ts` had only `GET /payslips` and
+      `GET /payslips/:id`; there was no way for the browser to fetch a payslip PDF, and
+      `pdf_path` is a server filesystem path, not a URL. **Added `GET /payslips/:id/pdf`**,
+      mirroring the letters' `StreamableFile` pattern exactly (`application/pdf`,
+      `Content-Disposition: attachment`, 404 when `pdfPath` is null). Verified live: downloaded
+      the file through the authenticated endpoint and opened it — a correctly rendered payslip
+      matching the on-screen figures. The frontend's `useDownloadPdf()` hook needed no changes.
 
 - [ ] **B-06 — Two lock states are not observable by the client.** §11 requires the UI to
       disable edit/delete *before* the user clicks (§14 R-06), which means the client must
