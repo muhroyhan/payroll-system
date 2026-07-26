@@ -12,5 +12,10 @@
     "build": "pnpm --filter @payroll-system/shared-types build && pnpm -r --filter=!@payroll-system/shared-types build",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test"
+  },
+  "pnpm": {
+    "overrides": {
+      "follow-redirects": "1.16.0"
+    }
   }
 }
