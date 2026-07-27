@@ -1,3 +1,4 @@
+import type { Model } from 'sequelize';
 import {
   PtkpStatus,
   ScopeType,
@@ -63,9 +64,9 @@ describe('PerRunScopeCache (P8-T03)', () => {
     const model = fakeModel([row(ScopeType.DIVISION, 'div-1', 8_000_000)]);
     const cache = new PerRunScopeCache(PERIOD);
 
-    await cache.resolve<SalaryRow>(model as never, ctx('emp-A'));
-    await cache.resolve<SalaryRow>(model as never, ctx('emp-B'));
-    await cache.resolve<SalaryRow>(model as never, ctx('emp-C'));
+    await cache.resolve<SalaryRow & Model>(model as never, ctx('emp-A'));
+    await cache.resolve<SalaryRow & Model>(model as never, ctx('emp-B'));
+    await cache.resolve<SalaryRow & Model>(model as never, ctx('emp-C'));
 
     expect(model.findAll).toHaveBeenCalledTimes(1);
   });
@@ -79,7 +80,7 @@ describe('PerRunScopeCache (P8-T03)', () => {
     const cache = new PerRunScopeCache(PERIOD);
 
     for (const id of ['emp-A', 'emp-B', 'emp-C']) {
-      const cached = await cache.resolve<SalaryRow>(model as never, ctx(id));
+      const cached = await cache.resolve<SalaryRow & Model>(model as never, ctx(id));
       const direct = resolveScopeFromRows(rows, ctx(id), PERIOD);
       expect(cached).toEqual(direct);
     }
@@ -95,9 +96,9 @@ describe('PerRunScopeCache (P8-T03)', () => {
     const model = fakeModel(rows);
     const cache = new PerRunScopeCache(PERIOD);
 
-    const a = await cache.resolve<SalaryRow>(model as never, ctx('emp-A'));
-    const b = await cache.resolve<SalaryRow>(model as never, ctx('emp-B'));
-    const c = await cache.resolve<SalaryRow>(model as never, ctx('emp-C'));
+    const a = await cache.resolve<SalaryRow & Model>(model as never, ctx('emp-A'));
+    const b = await cache.resolve<SalaryRow & Model>(model as never, ctx('emp-B'));
+    const c = await cache.resolve<SalaryRow & Model>(model as never, ctx('emp-C'));
 
     expect(a).toMatchObject({
       resolved: true,
@@ -119,7 +120,7 @@ describe('PerRunScopeCache (P8-T03)', () => {
     const model = fakeModel(rows);
     const cache = new PerRunScopeCache(PERIOD);
 
-    const cached = await cache.resolve<SalaryRow>(model as never, ctx('emp-A'));
+    const cached = await cache.resolve<SalaryRow & Model>(model as never, ctx('emp-A'));
     expect(cached).toEqual({ resolved: false });
     expect(cached).toEqual(resolveScopeFromRows(rows, ctx('emp-A'), PERIOD));
   });
@@ -130,8 +131,8 @@ describe('PerRunScopeCache (P8-T03)', () => {
     const julyCache = new PerRunScopeCache('2026-07-15');
     const augustCache = new PerRunScopeCache('2026-08-15');
 
-    const j = await julyCache.resolve<SalaryRow>(july as never, ctx('emp-A'));
-    const a = await augustCache.resolve<SalaryRow>(
+    const j = await julyCache.resolve<SalaryRow & Model>(july as never, ctx('emp-A'));
+    const a = await augustCache.resolve<SalaryRow & Model>(
       august as never,
       ctx('emp-A'),
     );
@@ -180,7 +181,7 @@ describe('PerRunScopeCache (P8-T03)', () => {
         const model = fakeModel(rows);
         const cache = new PerRunScopeCache(PERIOD);
 
-        const cached = await cache.resolve<SalaryRow>(
+        const cached = await cache.resolve<SalaryRow & Model>(
           model as never,
           ctx('emp-A'),
         );

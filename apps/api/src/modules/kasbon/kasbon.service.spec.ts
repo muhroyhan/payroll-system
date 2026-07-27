@@ -20,6 +20,7 @@ describe('KasbonService', () => {
     const deductionModel = {
       findOne: jest.fn().mockResolvedValue(existingDeduction),
       create: jest.fn().mockResolvedValue({ id: 'ded-1' }),
+      findAll: jest.fn(),
     };
     const service = new KasbonService(model as any, deductionModel as any);
     return { service, model, deductionModel };

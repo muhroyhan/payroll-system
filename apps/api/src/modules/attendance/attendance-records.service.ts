@@ -6,6 +6,7 @@ import {
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { AttendanceSource } from '@payroll-system/shared-types';
+import { auditOptions, type AuditActor } from '../../common/audit/audit-actor';
 import { AttendanceRecord } from './entities/attendance-record.entity';
 import { ReconciledDay } from './reconciliation-core';
 import { CreateAttendanceRecordDto } from './dto/create-attendance-record.dto';
@@ -66,6 +67,8 @@ export class AttendanceRecordsService {
   async upsert(
     input: UpsertAttendanceRecordInput,
     overwrite = false,
+    actor: AuditActor | null = null,
+    reason?: string | null,
   ): Promise<AttendanceRecord> {
     // §11 / TC-PAYROLL-04 — a period whose payroll run is past `draft` is
     // locked: no create/update/reconcile of its attendance until the run is
@@ -78,26 +81,53 @@ export class AttendanceRecordsService {
       input.date,
     );
 
+    // Audit-trail follow-up (§D) — enteredBy reflects who authored the data
+    // CURRENTLY on the row: set only when this write's own source is manual,
+    // null otherwise (a csv_import/fingerprint write is never "manually
+    // entered", even if it replaces a row that once was).
+    const enteredBy =
+      input.source === AttendanceSource.MANUAL ? actor?.id ?? null : null;
+
     if (!existing) {
-      return this.attendanceRecordModel.create({ ...input } as any);
+      return this.attendanceRecordModel.create(
+        { ...input, enteredBy, overwrittenBy: null } as any,
+        auditOptions(actor, reason),
+      );
     }
 
-    if (existing.source !== input.source && !overwrite) {
+    const isCrossSourceOverwrite = existing.source !== input.source;
+    if (isCrossSourceOverwrite && !overwrite) {
       throw new ConflictException(
         `Attendance record for ${input.employeeId} on ${input.date} already exists from source ` +
           `"${existing.source}" — pass overwrite=true to replace it with "${input.source}"`,
       );
     }
 
-    return existing.update({ ...input });
+    return existing.update(
+      {
+        ...input,
+        enteredBy,
+        // Only this exact write actually performed a cross-source overwrite —
+        // a same-source in-place update (e.g. re-reconciling) is not one, so
+        // it clears any earlier overwrite marker rather than leaving it stale.
+        overwrittenBy: isCrossSourceOverwrite ? actor?.id ?? null : null,
+      },
+      auditOptions(actor, reason),
+    );
   }
 
   // Manual HR entry / correction (source = manual).
   createManual(
     dto: CreateAttendanceRecordDto,
     overwrite = false,
+    actor: AuditActor | null = null,
   ): Promise<AttendanceRecord> {
-    return this.upsert(this.fromDto(dto, AttendanceSource.MANUAL), overwrite);
+    return this.upsert(
+      this.fromDto(dto, AttendanceSource.MANUAL),
+      overwrite,
+      actor,
+      dto.reason,
+    );
   }
 
   // Bulk direct import of already-reconciled rows from an external system
@@ -105,6 +135,8 @@ export class AttendanceRecordsService {
   async bulkImportCsv(
     dtos: CreateAttendanceRecordDto[],
     overwrite = false,
+    actor: AuditActor | null = null,
+    reason?: string | null,
   ): Promise<{ createdOrUpdated: number; conflicts: string[] }> {
     let createdOrUpdated = 0;
     const conflicts: string[] = [];
@@ -113,6 +145,8 @@ export class AttendanceRecordsService {
         await this.upsert(
           this.fromDto(dto, AttendanceSource.CSV_IMPORT),
           overwrite,
+          actor,
+          reason,
         );
         createdOrUpdated += 1;
       } catch (error) {

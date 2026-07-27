@@ -22,4 +22,5 @@ export enum AuditEntityType {
   BPJS_KETENAGAKERJAAN_MASTER = "BpjsKetenagakerjaanMaster",
   LEAVE_POLICY_MASTER = "LeavePolicyMaster",
   EMPLOYEE = "Employee",
+  ATTENDANCE_RECORD = "AttendanceRecord",
 }

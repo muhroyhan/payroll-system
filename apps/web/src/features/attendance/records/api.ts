@@ -16,6 +16,12 @@ export interface AttendanceRecord {
   hasPermission: boolean;
   hasMissedClockOut: boolean;
   source: AttendanceSource;
+  // Audit-trail follow-up (§D) — who authored the CURRENT data (enteredBy,
+  // only when source is 'manual') and who performed the most recent
+  // cross-source overwrite (overwrittenBy), if any. Full history is in
+  // audit_events (AuditHistoryPanel), not just these latest-state fields.
+  enteredBy: string | null;
+  overwrittenBy: string | null;
 }
 
 // Mirrors CreateAttendanceRecordDto — `source` is never client-supplied, the

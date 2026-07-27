@@ -3,6 +3,7 @@ import {
   IsDateString,
   IsNumber,
   IsOptional,
+  IsString,
   IsUUID,
   Min,
 } from 'class-validator';
@@ -41,4 +42,11 @@ export class CreateAttendanceRecordDto {
   @IsOptional()
   @IsBoolean()
   hasPermission?: boolean;
+
+  // Audit-trail follow-up (§D) — optional context for why this entry was
+  // made, most useful on a manual correction or a cross-source overwrite;
+  // stored on the audit_events row, not on attendance_records itself.
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }

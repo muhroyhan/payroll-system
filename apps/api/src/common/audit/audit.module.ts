@@ -11,6 +11,7 @@ import { TerBracketMaster } from '../../modules/tax-bpjs-constants/ter-bracket-m
 import { BpjsKesehatanMaster } from '../../modules/tax-bpjs-constants/bpjs-kesehatan-master/entities/bpjs-kesehatan-master.entity';
 import { BpjsKetenagakerjaanMaster } from '../../modules/tax-bpjs-constants/bpjs-ketenagakerjaan-master/entities/bpjs-ketenagakerjaan-master.entity';
 import { LeavePolicyMaster } from '../../modules/leave/leave-policy-master/entities/leave-policy-master.entity';
+import { AttendanceRecord } from '../../modules/attendance/entities/attendance-record.entity';
 import { AuditEvent } from './entities/audit-event.entity';
 import { registerAuditLog } from './audit-log.util';
 import { AuditEventsService } from './audit-events.service';
@@ -39,6 +40,7 @@ import { AuditEventsController } from './audit-events.controller';
       BpjsKesehatanMaster,
       BpjsKetenagakerjaanMaster,
       LeavePolicyMaster,
+      AttendanceRecord,
     ]),
   ],
   controllers: [AuditEventsController],
@@ -58,6 +60,8 @@ export class AuditModule implements OnModuleInit {
     private readonly bpjsKetenagakerjaanMasterModel: typeof BpjsKetenagakerjaanMaster,
     @InjectModel(LeavePolicyMaster)
     private readonly leavePolicyMasterModel: typeof LeavePolicyMaster,
+    @InjectModel(AttendanceRecord)
+    private readonly attendanceRecordModel: typeof AttendanceRecord,
   ) {}
 
   onModuleInit(): void {
@@ -96,5 +100,10 @@ export class AuditModule implements OnModuleInit {
       AuditEntityType.BPJS_KETENAGAKERJAAN_MASTER,
     );
     registerAuditLog(this.leavePolicyMasterModel, AuditEntityType.LEAVE_POLICY_MASTER);
+
+    // Whole-row tracking (source, enteredBy, overwrittenBy, clock times, and
+    // the isHoliday/isOnLeave/hasPermission/hasMissedClockOut flags) — every
+    // field here is domain-relevant, unlike PayrollRun's processedCount tick.
+    registerAuditLog(this.attendanceRecordModel, AuditEntityType.ATTENDANCE_RECORD);
   }
 }

@@ -36,7 +36,10 @@ export const PAYSLIP_REFERENCE_CHECKER = Symbol('PAYSLIP_REFERENCE_CHECKER');
 
 @Injectable()
 export class NoPayslipReferenceChecker implements PayslipReferenceChecker {
-  isReferencedByPayslip(): Promise<boolean> {
+  isReferencedByPayslip(
+    _source?: PayslipReferenceSource,
+    _sourceId?: string,
+  ): Promise<boolean> {
     return Promise.resolve(false);
   }
 }

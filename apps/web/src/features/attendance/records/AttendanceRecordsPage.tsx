@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Alert, DatePicker, Select, Space, Tag, Typography } from 'antd';
+import { Alert, DatePicker, Drawer, Select, Space, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Link } from 'react-router-dom';
 import dayjs, { type Dayjs } from 'dayjs';
+import { AuditEntityType } from '@payroll-system/shared-types';
 import { ListPage } from '../../../components/ListPage';
 import { LockedAction } from '../../../components/LockedAction';
 import { StatusTag } from '../../../components/StatusTag';
@@ -11,6 +12,7 @@ import { useEmployeesQuery } from '../../employees/hooks';
 import { usePayrollRunsQuery } from '../../payroll-runs/hooks';
 import { findLockingRun } from '../../payroll-runs/periodLock';
 import { PAYROLL_RUN_STATUS_LABELS } from '../../payroll-runs/labels';
+import { AuditHistoryPanel } from '../../audit-events/AuditHistoryPanel';
 import { useAttendanceRecordsQuery } from './hooks';
 import { AttendanceManualEntryDrawer } from './AttendanceManualEntryDrawer';
 import { ReconcileDrawer } from './ReconcileDrawer';
@@ -46,6 +48,7 @@ export function AttendanceRecordsPage() {
 
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
   const [reconcileOpen, setReconcileOpen] = useState(false);
+  const [historyRecord, setHistoryRecord] = useState<AttendanceRecord | null>(null);
 
   const employeeName = (id: string) =>
     employeesQuery.data?.find((employee) => employee.id === id)?.name ?? id;
@@ -78,6 +81,27 @@ export function AttendanceRecordsPage() {
       title: 'Sumber',
       key: 'source',
       render: (_, record) => <StatusTag value={record.source} labels={ATTENDANCE_SOURCE_LABELS} />,
+    },
+    // Audit-trail follow-up (§D) — raw user ids, not resolved to a name here
+    // (same reasoning as updatedBy elsewhere — GET /users is admin-only).
+    {
+      title: 'Dientri Oleh (Manual)',
+      dataIndex: 'enteredBy',
+      key: 'enteredBy',
+      render: (value: string | null) => value ?? '—',
+    },
+    {
+      title: 'Ditimpa Oleh',
+      dataIndex: 'overwrittenBy',
+      key: 'overwrittenBy',
+      render: (value: string | null) => value ?? '—',
+    },
+    {
+      title: 'Aksi',
+      key: 'history',
+      render: (_, record) => (
+        <Typography.Link onClick={() => setHistoryRecord(record)}>Riwayat</Typography.Link>
+      ),
     },
   ];
 
@@ -153,6 +177,19 @@ export function AttendanceRecordsPage() {
 
       <AttendanceManualEntryDrawer open={manualEntryOpen} onClose={() => setManualEntryOpen(false)} />
       <ReconcileDrawer open={reconcileOpen} onClose={() => setReconcileOpen(false)} />
+      <Drawer
+        title="Histori Perubahan"
+        open={!!historyRecord}
+        onClose={() => setHistoryRecord(null)}
+        width={640}
+      >
+        {historyRecord && (
+          <AuditHistoryPanel
+            entityType={AuditEntityType.ATTENDANCE_RECORD}
+            entityId={historyRecord.id}
+          />
+        )}
+      </Drawer>
     </div>
   );
 }

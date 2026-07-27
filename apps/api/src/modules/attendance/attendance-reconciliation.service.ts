@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { AttendanceSource } from '@payroll-system/shared-types';
+import type { AuditActor } from '../../common/audit/audit-actor';
 import { Fingerprint } from '../fingerprints/entities/fingerprint.entity';
 import { HolidaysService } from '../holidays/holidays.service';
 import { LeaveRequestsService } from '../leave/leave-requests/leave-requests.service';
@@ -50,6 +51,8 @@ export class AttendanceReconciliationService {
     employeeId: string,
     date: string,
     overwrite = false,
+    actor: AuditActor | null = null,
+    reason?: string | null,
   ): Promise<AttendanceRecord> {
     const scans = await this.collectScans(employeeId, date);
 
@@ -78,6 +81,8 @@ export class AttendanceReconciliationService {
         ...reconciled,
       },
       overwrite,
+      actor,
+      reason,
     );
   }
 
@@ -86,10 +91,14 @@ export class AttendanceReconciliationService {
     from: string,
     to: string,
     overwrite = false,
+    actor: AuditActor | null = null,
+    reason?: string | null,
   ): Promise<AttendanceRecord[]> {
     const results: AttendanceRecord[] = [];
     for (const date of eachDate(from, to)) {
-      results.push(await this.reconcileOne(employeeId, date, overwrite));
+      results.push(
+        await this.reconcileOne(employeeId, date, overwrite, actor, reason),
+      );
     }
     return results;
   }

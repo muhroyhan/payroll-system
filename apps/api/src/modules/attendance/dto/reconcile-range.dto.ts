@@ -1,4 +1,10 @@
-import { IsBoolean, IsDateString, IsOptional, IsUUID } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class ReconcileRangeDto {
   @IsUUID()
@@ -14,4 +20,10 @@ export class ReconcileRangeDto {
   @IsOptional()
   @IsBoolean()
   overwrite?: boolean;
+
+  // Audit-trail follow-up (§D) — one reason for the whole range, attached to
+  // every audit_events row this reconciliation writes.
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }
