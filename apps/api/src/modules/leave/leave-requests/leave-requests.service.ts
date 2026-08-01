@@ -71,6 +71,7 @@ export class LeaveRequestsService {
     dto: CreateLeaveRequestDto,
     createdBy: string,
   ): Promise<LeaveRequest> {
+    this.assertDateRangeValid(dto.startDate, dto.endDate);
     return this.leaveRequestModel.create({
       ...dto,
       status: LeaveRequestStatus.PENDING,
@@ -80,7 +81,22 @@ export class LeaveRequestsService {
 
   async update(id: string, dto: UpdateLeaveRequestDto): Promise<LeaveRequest> {
     const record = await this.assertPending(id);
+    this.assertDateRangeValid(
+      dto.startDate ?? record.startDate,
+      dto.endDate ?? record.endDate,
+    );
     return record.update(dto);
+  }
+
+  // LEAVEREQ-008 — startDate > endDate was accepted outright (no cross-field
+  // check anywhere between the DTO and countWeekdaysInclusive, which just
+  // loops zero times for an inverted range and silently produces 0 days).
+  private assertDateRangeValid(startDate: string, endDate: string): void {
+    if (startDate > endDate) {
+      throw new ConflictException(
+        'Tanggal awal cuti tidak boleh melampaui tanggal akhir cuti',
+      );
+    }
   }
 
   async remove(id: string): Promise<void> {

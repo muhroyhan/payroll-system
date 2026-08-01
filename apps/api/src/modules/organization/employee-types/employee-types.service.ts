@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { ForeignKeyConstraintError } from 'sequelize';
+import { ForeignKeyConstraintError, UniqueConstraintError } from 'sequelize';
 import { EmployeeType } from './entities/employee-type.entity';
 import { CreateEmployeeTypeDto } from './dto/create-employee-type.dto';
 
@@ -27,13 +27,31 @@ export class EmployeeTypesService {
     return record;
   }
 
-  create(dto: CreateEmployeeTypeDto): Promise<EmployeeType> {
-    return this.employeeTypeModel.create(dto as any);
+  async create(dto: CreateEmployeeTypeDto): Promise<EmployeeType> {
+    try {
+      return await this.employeeTypeModel.create(dto as any);
+    } catch (error) {
+      if (error instanceof UniqueConstraintError) {
+        throw new ConflictException(
+          'An employee type with this name already exists',
+        );
+      }
+      throw error;
+    }
   }
 
   async update(id: string, dto: CreateEmployeeTypeDto): Promise<EmployeeType> {
     const record = await this.findByIdOrThrow(id);
-    return record.update(dto);
+    try {
+      return await record.update(dto);
+    } catch (error) {
+      if (error instanceof UniqueConstraintError) {
+        throw new ConflictException(
+          'An employee type with this name already exists',
+        );
+      }
+      throw error;
+    }
   }
 
   async remove(id: string): Promise<void> {

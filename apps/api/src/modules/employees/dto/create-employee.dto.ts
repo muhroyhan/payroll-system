@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
@@ -30,10 +31,16 @@ export class CreateEmployeeDto {
   @Length(16, 16, { message: 'nik must be exactly 16 digits' })
   nik: string;
 
+  // EMP-012 — NPWP is genuinely optional; a cleared field arrives as `''`,
+  // not `undefined`, and @IsOptional() only skips validation for
+  // null/undefined, so without this it still ran @Length(15, 16) against an
+  // empty string and rejected clearing the field. Normalize '' to null
+  // (npwp is nullable, not just optional) before validation runs.
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? null : value))
   @IsString()
   @Length(15, 16, { message: 'npwp must be 15 or 16 digits' })
-  npwp?: string;
+  npwp?: string | null;
 
   // §5.1a — only meaningful (and required) when ptkpManuallyOverridden is true;
   // otherwise the PtkpDerivationService proposes it from maritalStatus/dependentCount.

@@ -65,20 +65,20 @@ export async function closeOverlappingPredecessor<
   }
   if (openPredecessors.length > 1) {
     throw new ConflictException(
-      `${openPredecessors.length} existing rows in this category are already ` +
-        `open-ended (effectiveEndDate is null) — this is pre-existing ` +
-        `overlapping data that predates this guard; close all but one ` +
-        `manually before adding a new row`,
+      `Ditemukan ${openPredecessors.length} baris data lama untuk kategori ini yang ` +
+        `masih berstatus berlaku (tanggal akhir kosong) — ini data lama yang ` +
+        `tumpang tindih. Tutup (isi tanggal akhir masa berlaku) semua baris ` +
+        `tersebut kecuali satu sebelum menambah baris baru.`,
     );
   }
 
   const [predecessor] = openPredecessors;
   if (newEffectiveStartDate <= predecessor.effectiveStartDate) {
     throw new ConflictException(
-      `Cannot add a row effective from ${newEffectiveStartDate} — an existing ` +
-        `row in this category (id=${predecessor.id}) is already open-ended, ` +
-        `starting ${predecessor.effectiveStartDate}; the new row's ` +
-        `effectiveStartDate must be strictly after that`,
+      `Tidak bisa menambah baris yang berlaku mulai ${newEffectiveStartDate} — ` +
+        `baris yang masih berlaku di kategori ini sudah dimulai sejak ` +
+        `${predecessor.effectiveStartDate}. Tanggal mulai baris baru harus ` +
+        `setelah tanggal tersebut.`,
     );
   }
 

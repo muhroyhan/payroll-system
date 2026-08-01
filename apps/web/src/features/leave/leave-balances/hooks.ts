@@ -32,8 +32,8 @@ export function useResolveLeaveBalancesForLeaveTypeMutation() {
 export function useUpdateLeaveBalanceQuotaMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, quota }: { id: string; quota: number }) =>
-      updateLeaveBalanceQuota(id, quota),
+    mutationFn: ({ id, quota, reason }: { id: string; quota: number; reason: string }) =>
+      updateLeaveBalanceQuota(id, quota, reason),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leave-balances'] }),
   });
 }

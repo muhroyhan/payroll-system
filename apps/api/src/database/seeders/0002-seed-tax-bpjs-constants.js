@@ -258,85 +258,111 @@ const PASAL17_BRACKETS = [
   [5000000001, null, '0.35000'],
 ];
 
+// Guards each table's insert so re-running this seeder (e.g. `pnpm db:seed`
+// invoked more than once against the same database — sequelize-cli's default
+// json seed-storage tracks completion in a local file, not the database, so
+// nothing stops a second run) can't create duplicate effective-dated rows.
+// A duplicate open-ended (effectiveEndDate=null) row per category is exactly
+// the pre-existing-overlap state closeOverlappingPredecessor refuses to
+// auto-resolve (TAX-001).
+async function tableIsEmpty(queryInterface, tableName) {
+  const [rows] = await queryInterface.sequelize.query(
+    `SELECT 1 FROM ${tableName} LIMIT 1`,
+  );
+  return rows.length === 0;
+}
+
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface) {
     const createdBy = await getSeedCreatedBy(queryInterface);
     const now = new Date();
 
-    await queryInterface.bulkInsert(
-      'ptkp_masters',
-      PTKP_AMOUNTS.map((row) => ({
-        id: randomUUID(),
-        ptkp_status: row.ptkp_status,
-        amount: row.amount,
-        effective_start_date: PTKP_EFFECTIVE_START_DATE,
-        effective_end_date: null,
-        created_by: createdBy,
-        created_at: now,
-        updated_at: now,
-      })),
-    );
+    if (await tableIsEmpty(queryInterface, 'ptkp_masters')) {
+      await queryInterface.bulkInsert(
+        'ptkp_masters',
+        PTKP_AMOUNTS.map((row) => ({
+          id: randomUUID(),
+          ptkp_status: row.ptkp_status,
+          amount: row.amount,
+          effective_start_date: PTKP_EFFECTIVE_START_DATE,
+          effective_end_date: null,
+          created_by: createdBy,
+          created_at: now,
+          updated_at: now,
+        })),
+      );
+    }
 
-    await queryInterface.bulkInsert('ter_bracket_masters', [
-      ...terRows('A', TER_A, createdBy, now),
-      ...terRows('B', TER_B, createdBy, now),
-      ...terRows('C', TER_C, createdBy, now),
-    ]);
+    if (await tableIsEmpty(queryInterface, 'ter_bracket_masters')) {
+      await queryInterface.bulkInsert('ter_bracket_masters', [
+        ...terRows('A', TER_A, createdBy, now),
+        ...terRows('B', TER_B, createdBy, now),
+        ...terRows('C', TER_C, createdBy, now),
+      ]);
+    }
 
-    await queryInterface.bulkInsert('bpjs_kesehatan_masters', [
-      {
-        id: randomUUID(),
-        employee_rate: '0.01000',
-        company_rate: '0.04000',
-        wage_cap: '12000000.00',
-        effective_start_date: BPJS_KESEHATAN_EFFECTIVE_START_DATE,
-        effective_end_date: null,
-        created_by: createdBy,
-        created_at: now,
-        updated_at: now,
-      },
-    ]);
+    if (await tableIsEmpty(queryInterface, 'bpjs_kesehatan_masters')) {
+      await queryInterface.bulkInsert('bpjs_kesehatan_masters', [
+        {
+          id: randomUUID(),
+          employee_rate: '0.01000',
+          company_rate: '0.04000',
+          wage_cap: '12000000.00',
+          effective_start_date: BPJS_KESEHATAN_EFFECTIVE_START_DATE,
+          effective_end_date: null,
+          created_by: createdBy,
+          created_at: now,
+          updated_at: now,
+        },
+      ]);
+    }
 
-    await queryInterface.bulkInsert(
-      'bpjs_ketenagakerjaan_masters',
-      BPJS_KETENAGAKERJAAN_ROWS.map((row) => ({
-        id: randomUUID(),
-        ...row,
-        created_by: createdBy,
-        created_at: now,
-        updated_at: now,
-      })),
-    );
+    if (await tableIsEmpty(queryInterface, 'bpjs_ketenagakerjaan_masters')) {
+      await queryInterface.bulkInsert(
+        'bpjs_ketenagakerjaan_masters',
+        BPJS_KETENAGAKERJAAN_ROWS.map((row) => ({
+          id: randomUUID(),
+          ...row,
+          created_by: createdBy,
+          created_at: now,
+          updated_at: now,
+        })),
+      );
+    }
 
-    await queryInterface.bulkInsert('biaya_jabatan_masters', [
-      {
-        id: randomUUID(),
-        rate: '0.05000',
-        monthly_cap: '500000.00',
-        annual_cap: '6000000.00',
-        effective_start_date: BIAYA_JABATAN_EFFECTIVE_START_DATE,
-        effective_end_date: null,
-        created_by: createdBy,
-        created_at: now,
-        updated_at: now,
-      },
-    ]);
+    if (await tableIsEmpty(queryInterface, 'biaya_jabatan_masters')) {
+      await queryInterface.bulkInsert('biaya_jabatan_masters', [
+        {
+          id: randomUUID(),
+          rate: '0.05000',
+          monthly_cap: '500000.00',
+          annual_cap: '6000000.00',
+          effective_start_date: BIAYA_JABATAN_EFFECTIVE_START_DATE,
+          effective_end_date: null,
+          created_by: createdBy,
+          created_at: now,
+          updated_at: now,
+        },
+      ]);
+    }
 
-    await queryInterface.bulkInsert(
-      'pasal17_bracket_masters',
-      PASAL17_BRACKETS.map(([lower, upper, rate]) => ({
-        id: randomUUID(),
-        income_lower_bound: String(lower),
-        income_upper_bound: upper === null ? null : String(upper),
-        rate,
-        effective_start_date: PASAL17_EFFECTIVE_START_DATE,
-        effective_end_date: null,
-        created_by: createdBy,
-        created_at: now,
-        updated_at: now,
-      })),
-    );
+    if (await tableIsEmpty(queryInterface, 'pasal17_bracket_masters')) {
+      await queryInterface.bulkInsert(
+        'pasal17_bracket_masters',
+        PASAL17_BRACKETS.map(([lower, upper, rate]) => ({
+          id: randomUUID(),
+          income_lower_bound: String(lower),
+          income_upper_bound: upper === null ? null : String(upper),
+          rate,
+          effective_start_date: PASAL17_EFFECTIVE_START_DATE,
+          effective_end_date: null,
+          created_by: createdBy,
+          created_at: now,
+          updated_at: now,
+        })),
+      );
+    }
   },
 
   async down(queryInterface) {

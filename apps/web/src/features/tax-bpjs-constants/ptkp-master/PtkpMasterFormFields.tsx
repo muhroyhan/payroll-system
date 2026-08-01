@@ -6,7 +6,14 @@ import { PTKP_STATUS_LABELS } from '../../employees/labels';
 // FE-T24 (09_FRONTEND_STEPS.md), §15.14 (08_FRONTEND_STRUCTURE.md). Reuses
 // PTKP_STATUS_LABELS from features/employees/labels.ts (R-05 — one label
 // map per enum) rather than duplicating it.
-export function PtkpMasterFormFields() {
+//
+// isEdit gates the Alasan field (TAX-001): CreatePtkpMasterDto doesn't
+// accept `reason` at all — showing the field on the create form invites
+// filling it in, which the ValidationPipe's forbidNonWhitelisted then
+// rejects with an opaque 400. Alasan is only ever meaningful when editing
+// (it's required server-side specifically when the edit closes off
+// effectiveEndDate).
+export function PtkpMasterFormFields({ isEdit }: { isEdit: boolean }) {
   return (
     <>
       <Form.Item
@@ -39,7 +46,7 @@ export function PtkpMasterFormFields() {
           </Form.Item>
         </Col>
       </Row>
-      <RetireReasonFormItem />
+      {isEdit && <RetireReasonFormItem />}
     </>
   );
 }

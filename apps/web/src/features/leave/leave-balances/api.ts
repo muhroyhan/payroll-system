@@ -55,11 +55,16 @@ export async function resolveLeaveBalancesForLeaveType(input: {
 }
 
 // Only `quota` is editable through this route (§11) — `used` only ever moves
-// via the leave_requests approval workflow, never a direct edit.
+// via the leave_requests approval workflow, never a direct edit. `reason` is
+// mandatory server-side (UpdateLeaveBalanceQuotaDto, min 5 chars) — LEAVEBAL-004/006.
 export async function updateLeaveBalanceQuota(
   id: string,
   quota: number,
+  reason: string,
 ): Promise<LeaveBalance> {
-  const { data } = await apiClient.put<LeaveBalance>(`/leave-balances/${id}/quota`, { quota });
+  const { data } = await apiClient.put<LeaveBalance>(`/leave-balances/${id}/quota`, {
+    quota,
+    reason,
+  });
   return data;
 }

@@ -24,6 +24,11 @@ export function salaryMasterToRuntimeFormValues(
     baseSalary: Number(record.baseSalary),
     effectiveStartDate: dayjs(record.effectiveStartDate),
     effectiveEndDate: record.effectiveEndDate ? dayjs(record.effectiveEndDate) : null,
+    // SALARY-008 — without this, re-opening an already-retired row for edit
+    // showed an empty Alasan field even though the retire reason was saved
+    // correctly (the backend round-trips it fine); this was the missing
+    // read-side mapping.
+    reason: record.reason ?? undefined,
   };
 }
 

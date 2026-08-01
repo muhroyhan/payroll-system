@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { ForeignKeyConstraintError } from 'sequelize';
+import { ForeignKeyConstraintError, UniqueConstraintError } from 'sequelize';
 import { Division } from './entities/division.entity';
 import { CreateDivisionDto } from './dto/create-division.dto';
 
@@ -27,13 +27,27 @@ export class DivisionsService {
     return record;
   }
 
-  create(dto: CreateDivisionDto): Promise<Division> {
-    return this.divisionModel.create(dto as any);
+  async create(dto: CreateDivisionDto): Promise<Division> {
+    try {
+      return await this.divisionModel.create(dto as any);
+    } catch (error) {
+      if (error instanceof UniqueConstraintError) {
+        throw new ConflictException('A division with this name already exists');
+      }
+      throw error;
+    }
   }
 
   async update(id: string, dto: CreateDivisionDto): Promise<Division> {
     const record = await this.findByIdOrThrow(id);
-    return record.update(dto);
+    try {
+      return await record.update(dto);
+    } catch (error) {
+      if (error instanceof UniqueConstraintError) {
+        throw new ConflictException('A division with this name already exists');
+      }
+      throw error;
+    }
   }
 
   async remove(id: string): Promise<void> {

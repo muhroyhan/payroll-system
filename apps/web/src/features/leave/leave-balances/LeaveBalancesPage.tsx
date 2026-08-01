@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Form, InputNumber, Progress, Select, Space, Tag, Typography } from 'antd';
+import { Button, Form, Input, InputNumber, Progress, Select, Space, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ListPage } from '../../../components/ListPage';
 import { FormDrawer } from '../../../components/FormDrawer';
@@ -11,6 +11,7 @@ import type { LeaveBalance } from './api';
 
 interface QuotaFormValues {
   quota: number;
+  reason: string;
 }
 
 // FE-T13 (09_FRONTEND_STEPS.md), §15.9 (08_FRONTEND_STRUCTURE.md). `used`
@@ -35,12 +36,17 @@ export function LeaveBalancesPage() {
 
   const openQuotaEdit = (record: LeaveBalance) => {
     setEditing(record);
+    quotaForm.resetFields();
     quotaForm.setFieldsValue({ quota: record.quota });
   };
 
   const handleQuotaFinish = async (values: QuotaFormValues) => {
     if (!editing) return;
-    await updateQuotaMutation.mutateAsync({ id: editing.id, quota: values.quota });
+    await updateQuotaMutation.mutateAsync({
+      id: editing.id,
+      quota: values.quota,
+      reason: values.reason,
+    });
   };
 
   const columns: ColumnsType<LeaveBalance> = [
@@ -128,6 +134,20 @@ export function LeaveBalancesPage() {
           rules={[{ required: true, message: 'Kuota wajib diisi' }]}
         >
           <InputNumber style={{ width: '100%' }} min={0} />
+        </Form.Item>
+        {/* LEAVEBAL-004/006 — required server-side (UpdateLeaveBalanceQuotaDto,
+            min 5 chars); this screen had no field for it at all, so every
+            submit 400'd. No `used` field here either — the API doesn't
+            accept one (§11), it only ever moves via request approval. */}
+        <Form.Item
+          name="reason"
+          label="Alasan Penyesuaian"
+          rules={[
+            { required: true, message: 'Alasan penyesuaian kuota wajib diisi' },
+            { min: 5, message: 'Alasan penyesuaian kuota minimal 5 karakter' },
+          ]}
+        >
+          <Input.TextArea rows={2} placeholder="Jelaskan alasan perubahan kuota ini…" />
         </Form.Item>
       </FormDrawer>
 

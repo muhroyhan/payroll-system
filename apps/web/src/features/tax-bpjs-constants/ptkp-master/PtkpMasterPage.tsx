@@ -90,7 +90,7 @@ export function PtkpMasterPage() {
         form={form}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
       >
-        <PtkpMasterFormFields />
+        <PtkpMasterFormFields isEdit={!!editing} />
       </FormDrawer>
       <Drawer
         title="Histori Perubahan"

@@ -6,11 +6,11 @@ import { apiClient } from '../../api/client';
 // (@Roles(Role.ADMIN) at the class level — verified against
 // users.controller.ts).
 //
-// ⚠️ There is NO PUT/PATCH/DELETE on /users at all — only GET (list) and
-// POST (create). No edit, no deactivate, no password reset via the API,
-// even though `isActive` exists on the entity and gates login
-// (AuthService.validateUser). Build no UI for lifecycle actions that don't
-// exist; this screen is list + create only.
+// There is still no generic PUT/PATCH/DELETE on /users — no edit, no
+// password reset via the API — but PATCH :id/deactivate and :id/reactivate
+// (USER-005) are dedicated lifecycle routes, same convention as this
+// codebase's other state-transition endpoints (payroll-runs' approve/
+// disburse/revert, kasbon's approve/reject).
 export interface AppUser {
   id: string;
   name: string;
@@ -33,5 +33,15 @@ export async function listUsers(): Promise<AppUser[]> {
 
 export async function createUser(input: CreateUserFormValues): Promise<AppUser> {
   const { data } = await apiClient.post<AppUser>('/users', input);
+  return data;
+}
+
+export async function deactivateUser(id: string): Promise<AppUser> {
+  const { data } = await apiClient.patch<AppUser>(`/users/${id}/deactivate`);
+  return data;
+}
+
+export async function reactivateUser(id: string): Promise<AppUser> {
+  const { data } = await apiClient.patch<AppUser>(`/users/${id}/reactivate`);
   return data;
 }

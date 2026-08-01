@@ -1,20 +1,27 @@
 import { useEffect, useState } from 'react';
-import { Button, Form, Input, Select, Tag } from 'antd';
+import { Button, Form, Input, Popconfirm, Select, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ListPage } from '../../components/ListPage';
 import { FormDrawer } from '../../components/FormDrawer';
 import { StatusTag } from '../../components/StatusTag';
 import { enumSelectOptions } from '../../components/enumSelectOptions';
-import { useCreateUserMutation, useUsersQuery } from './hooks';
+import {
+  useCreateUserMutation,
+  useDeactivateUserMutation,
+  useReactivateUserMutation,
+  useUsersQuery,
+} from './hooks';
 import { ROLE_LABELS } from './labels';
 import type { AppUser, CreateUserFormValues } from './api';
 
 // FE-T25 (09_FRONTEND_STEPS.md), §15.14 (08_FRONTEND_STRUCTURE.md).
-// Admin-only. List + create ONLY — there is no PUT/PATCH/DELETE on /users
-// at all (see api.ts's note), so no edit/deactivate action is rendered.
+// Admin-only. List + create + deactivate/reactivate (USER-005) — there is
+// still no generic edit on /users (see api.ts's note).
 export function UsersPage() {
   const query = useUsersQuery();
   const createMutation = useCreateUserMutation();
+  const deactivateMutation = useDeactivateUserMutation();
+  const reactivateMutation = useReactivateUserMutation();
   const [form] = Form.useForm<CreateUserFormValues>();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -39,6 +46,27 @@ export function UsersPage() {
       key: 'isActive',
       render: (_, record) =>
         record.isActive ? <Tag color="green">Aktif</Tag> : <Tag>Nonaktif</Tag>,
+    },
+    {
+      title: 'Aksi',
+      key: 'actions',
+      render: (_, record) =>
+        record.isActive ? (
+          <Popconfirm
+            title={`Nonaktifkan ${record.name}?`}
+            description="Pengguna ini tidak akan bisa login setelah dinonaktifkan."
+            onConfirm={() => deactivateMutation.mutate(record.id)}
+          >
+            <Typography.Link>Nonaktifkan</Typography.Link>
+          </Popconfirm>
+        ) : (
+          <Popconfirm
+            title={`Aktifkan kembali ${record.name}?`}
+            onConfirm={() => reactivateMutation.mutate(record.id)}
+          >
+            <Typography.Link>Aktifkan Kembali</Typography.Link>
+          </Popconfirm>
+        ),
     },
   ];
 

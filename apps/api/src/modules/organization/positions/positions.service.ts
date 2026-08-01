@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { ForeignKeyConstraintError } from 'sequelize';
+import { ForeignKeyConstraintError, UniqueConstraintError } from 'sequelize';
 import { Position } from './entities/position.entity';
 import { CreatePositionDto } from './dto/create-position.dto';
 
@@ -27,13 +27,27 @@ export class PositionsService {
     return record;
   }
 
-  create(dto: CreatePositionDto): Promise<Position> {
-    return this.positionModel.create(dto as any);
+  async create(dto: CreatePositionDto): Promise<Position> {
+    try {
+      return await this.positionModel.create(dto as any);
+    } catch (error) {
+      if (error instanceof UniqueConstraintError) {
+        throw new ConflictException('A position with this name already exists');
+      }
+      throw error;
+    }
   }
 
   async update(id: string, dto: CreatePositionDto): Promise<Position> {
     const record = await this.findByIdOrThrow(id);
-    return record.update(dto);
+    try {
+      return await record.update(dto);
+    } catch (error) {
+      if (error instanceof UniqueConstraintError) {
+        throw new ConflictException('A position with this name already exists');
+      }
+      throw error;
+    }
   }
 
   async remove(id: string): Promise<void> {

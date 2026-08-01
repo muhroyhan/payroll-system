@@ -55,7 +55,17 @@ export class KasbonService {
     const record = await this.findByIdOrThrow(id);
     this.assertNotDeadEnd(record);
     this.assertLockedFieldsUntouched(record, dto);
-    return record.update(dto);
+    const patch: Record<string, unknown> = { ...dto };
+    // KASBON-005 — approved-but-no-deduction-yet is still fully editable
+    // (assertLockedFieldsUntouched above is a no-op in that case), so a new
+    // amount must carry remainingBalance along with it; otherwise the old
+    // amount's remainingBalance (set once, at approve()) is left behind,
+    // making the kasbon look partially paid off and wrongly locking it on
+    // the very next edit.
+    if (dto.amount !== undefined && record.remainingBalance !== null) {
+      patch.remainingBalance = dto.amount;
+    }
+    return record.update(patch);
   }
 
   // remove() has no per-field granularity — deleting the row necessarily
