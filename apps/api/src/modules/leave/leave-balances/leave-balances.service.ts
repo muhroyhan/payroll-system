@@ -38,6 +38,22 @@ export class LeaveBalancesService {
     return record;
   }
 
+  // LEAVEREQ-009 — plain existence check, deliberately NOT resolveOne():
+  // resolveOne() auto-creates a balance from whatever leave_policy_master
+  // resolves for that year, which is the wrong thing to trigger as a side
+  // effect of validating a leave REQUEST at create time (before it's even
+  // approved) — this only answers "does a row already exist", nothing more.
+  async existsForYear(
+    employeeId: string,
+    leaveTypeId: string,
+    year: number,
+  ): Promise<boolean> {
+    const existing = await this.leaveBalanceModel.findOne({
+      where: { employeeId, leaveTypeId, year },
+    });
+    return !!existing;
+  }
+
   // §5.4 — idempotent: if a balance row already exists for this
   // employee+leaveType+year, it's returned unchanged (never clobbers a
   // manually-adjusted quota by re-resolving).

@@ -53,6 +53,7 @@ export function EmployeeFormFields({
   const gender = Form.useWatch('gender', form);
   const maritalStatus = Form.useWatch('maritalStatus', form);
   const ptkpManuallyOverridden = Form.useWatch('ptkpManuallyOverridden', form);
+  const employeeName = Form.useWatch('name', form);
 
   // §5.1a: "only meaningful when gender = female and married" — this
   // condition is copied verbatim from that spec, not an invented UX rule.
@@ -267,7 +268,40 @@ export function EmployeeFormFields({
           </Form.Item>
         </Col>
         <Col span={8}>
-          <Form.Item name="bankAccountHolderName" label="Nama Pemilik Rekening">
+          <Form.Item
+            name="bankAccountHolderName"
+            label="Nama Pemilik Rekening"
+            dependencies={['name']}
+            extra={
+              employeeName && (
+                <Typography.Link
+                  onClick={() =>
+                    form.setFieldValue('bankAccountHolderName', employeeName)
+                  }
+                >
+                  Samakan dengan Nama Karyawan
+                </Typography.Link>
+              )
+            }
+            // EMP-013 — mirrors the server's rule (employees.service.ts's
+            // assertBankAccountHolderNameMatches) so the mismatch surfaces
+            // before submit, not just after a round trip; case-insensitive/
+            // trimmed for the same reason the server is (bank statements
+            // routinely come back in ALL CAPS).
+            rules={[
+              {
+                validator: (_rule, value?: string) => {
+                  if (!value) return Promise.resolve();
+                  const currentName = (form.getFieldValue('name') as string) ?? '';
+                  return currentName.trim().toLowerCase() === value.trim().toLowerCase()
+                    ? Promise.resolve()
+                    : Promise.reject(
+                        new Error('Nama Pemilik Rekening Bank berbeda dengan Nama Karyawan'),
+                      );
+                },
+              },
+            ]}
+          >
             <Input />
           </Form.Item>
         </Col>

@@ -60,6 +60,8 @@ export class EmployeesService {
     currentUserId: string,
     actorRole: Role,
   ): Promise<Employee> {
+    this.assertBankAccountHolderNameMatches(dto.name, dto.bankAccountHolderName);
+
     const ptkpManuallyOverridden = dto.ptkpManuallyOverridden ?? false;
     // §5.1a — DTO validation guarantees ptkpStatus is present when overridden;
     // otherwise propose it from the raw inputs instead of trusting the client.
@@ -112,6 +114,13 @@ export class EmployeesService {
   ): Promise<Employee> {
     const record = await this.findByIdOrThrow(id);
 
+    this.assertBankAccountHolderNameMatches(
+      dto.name ?? record.name,
+      dto.bankAccountHolderName !== undefined
+        ? dto.bankAccountHolderName
+        : record.bankAccountHolderName,
+    );
+
     const effectiveOverridden =
       dto.ptkpManuallyOverridden ?? record.ptkpManuallyOverridden;
     // Once overridden, raw-input edits (marital status, dependent count) must
@@ -162,6 +171,35 @@ export class EmployeesService {
       return this.findByIdOrThrow(id);
     } catch (error) {
       throw this.translateUniqueConstraintError(error);
+    }
+  }
+
+  // EMP-013 — a bank account under a different holder's name can't actually
+  // be paid into for this employee, so it's rejected outright rather than
+  // silently accepted. Case-insensitive/trimmed on purpose: bank statements
+  // routinely come back in ALL CAPS, and that's still the same person, not a
+  // data error worth blocking on — an exact byte match would reject valid
+  // matches far more often than it'd catch real mistakes. Only enforced when
+  // a holder name is actually given (the field itself stays optional).
+  private assertBankAccountHolderNameMatches(
+    employeeName: string,
+    bankAccountHolderName: string | null | undefined,
+  ): void {
+    if (!bankAccountHolderName) {
+      return;
+    }
+    const matches =
+      employeeName.trim().toLowerCase() ===
+      bankAccountHolderName.trim().toLowerCase();
+    if (!matches) {
+      // Field-name-prefixed so the frontend's shared 400 parser
+      // (api/errors.ts's parseValidationMessages, R-04) routes this onto the
+      // bankAccountHolderName Form.Item instead of a general toast — same
+      // convention as the DTO's own "nik must be exactly 16 digits"/"npwp
+      // must be 15 or 16 digits" messages.
+      throw new BadRequestException(
+        'bankAccountHolderName Nama Pemilik Rekening Bank berbeda dengan Nama Karyawan',
+      );
     }
   }
 

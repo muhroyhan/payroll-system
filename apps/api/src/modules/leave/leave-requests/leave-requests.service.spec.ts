@@ -15,6 +15,10 @@ describe('LeaveRequestsService', () => {
     const leaveBalancesService = {
       resolveOne: jest.fn().mockResolvedValue(balance),
       incrementUsed: jest.fn().mockResolvedValue(undefined),
+      // LEAVEREQ-009 — defaults to "a balance exists" so the pre-existing
+      // approve()-focused tests below (which aren't exercising this check)
+      // aren't affected by it.
+      existsForYear: jest.fn().mockResolvedValue(true),
     };
     const service = new LeaveRequestsService(
       model as any,
@@ -136,6 +140,93 @@ describe('LeaveRequestsService', () => {
         createdBy: 'user-1',
       }),
     );
+  });
+
+  // LEAVEREQ-008 — startDate > endDate was previously accepted outright.
+  it('LEAVEREQ-008: create() rejects an inverted date range', async () => {
+    const { service, model } = makeService();
+
+    await expect(
+      service.create(
+        {
+          employeeId: 'emp-1',
+          leaveTypeId: 'lt-1',
+          startDate: '2026-08-10',
+          endDate: '2026-08-05',
+        } as any,
+        'user-1',
+      ),
+    ).rejects.toThrow(ConflictException);
+    expect(model.create).not.toHaveBeenCalled();
+  });
+
+  // LEAVEREQ-009 — previously only discovered at approve() time; now
+  // rejected outright at create().
+  it('LEAVEREQ-009: create() rejects when no leave_balance exists for the request year', async () => {
+    const { service, model, leaveBalancesService } = makeService();
+    leaveBalancesService.existsForYear.mockResolvedValue(false);
+
+    await expect(
+      service.create(
+        {
+          employeeId: 'emp-1',
+          leaveTypeId: 'lt-1',
+          startDate: '2026-08-03',
+          endDate: '2026-08-04',
+        } as any,
+        'user-1',
+      ),
+    ).rejects.toThrow(ConflictException);
+    expect(model.create).not.toHaveBeenCalled();
+  });
+
+  it('LEAVEREQ-009: create() checks every calendar year a cross-year-boundary request touches', async () => {
+    const { service, model, leaveBalancesService } = makeService();
+    // 2026 has a balance, 2027 doesn't.
+    leaveBalancesService.existsForYear.mockImplementation(
+      (_employeeId: string, _leaveTypeId: string, year: number) =>
+        Promise.resolve(year === 2026),
+    );
+
+    await expect(
+      service.create(
+        {
+          employeeId: 'emp-1',
+          leaveTypeId: 'lt-1',
+          startDate: '2026-12-30',
+          endDate: '2027-01-03',
+        } as any,
+        'user-1',
+      ),
+    ).rejects.toThrow(ConflictException);
+    expect(model.create).not.toHaveBeenCalled();
+    expect(leaveBalancesService.existsForYear).toHaveBeenCalledWith(
+      'emp-1',
+      'lt-1',
+      2026,
+    );
+    expect(leaveBalancesService.existsForYear).toHaveBeenCalledWith(
+      'emp-1',
+      'lt-1',
+      2027,
+    );
+  });
+
+  it('create() succeeds when a balance exists for every year the request touches', async () => {
+    const { service, model, leaveBalancesService } = makeService();
+
+    await service.create(
+      {
+        employeeId: 'emp-1',
+        leaveTypeId: 'lt-1',
+        startDate: '2026-12-30',
+        endDate: '2027-01-03',
+      } as any,
+      'user-1',
+    );
+
+    expect(leaveBalancesService.existsForYear).toHaveBeenCalledTimes(2);
+    expect(model.create).toHaveBeenCalled();
   });
 
   it('reject() records rejectedBy/rejectReason from the current user', async () => {

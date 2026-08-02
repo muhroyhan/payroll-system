@@ -218,3 +218,129 @@ describe('EmployeesService — ptkp override audit trail', () => {
     });
   });
 });
+
+// EMP-013 — a bank account under someone else's name can't actually be paid
+// into for this employee; reject it outright rather than accepting it
+// silently.
+describe('EmployeesService — bank account holder name must match', () => {
+  const baseDto = {
+    name: 'Rina Apriana',
+    nik: '1234567890123456',
+    maritalStatus: MaritalStatus.SINGLE,
+    gender: Gender.FEMALE,
+    dependentCount: 0,
+    employmentStatus: EmploymentStatus.TETAP,
+    employeeTypeId: 'et-1',
+    positionId: 'pos-1',
+    departmentId: 'dept-1',
+    divisionId: 'div-1',
+    startDate: '2026-01-01',
+  };
+
+  function makeService(existing: any = null) {
+    const created = { id: 'emp-1' };
+    const model = {
+      create: jest.fn().mockResolvedValue(created),
+      findByPk: jest.fn().mockResolvedValue(existing ?? created),
+    };
+    const ptkpDerivationService = {
+      derive: jest.fn().mockReturnValue(PtkpStatus.TK_0),
+    };
+    const service = new EmployeesService(
+      model as any,
+      ptkpDerivationService as any,
+    );
+    return { service, model };
+  }
+
+  describe('create()', () => {
+    it('rejects when bankAccountHolderName differs from the employee name', async () => {
+      const { service, model } = makeService();
+      await expect(
+        service.create(
+          { ...baseDto, bankAccountHolderName: 'Someone Else' } as any,
+          'user-1',
+          Role.HR_STAFF,
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(model.create).not.toHaveBeenCalled();
+    });
+
+    it('accepts a case-insensitive/whitespace-trimmed match', async () => {
+      const { service, model } = makeService();
+      await service.create(
+        { ...baseDto, bankAccountHolderName: '  RINA APRIANA  ' } as any,
+        'user-1',
+        Role.HR_STAFF,
+      );
+      expect(model.create).toHaveBeenCalled();
+    });
+
+    it('does not validate when bankAccountHolderName is left blank', async () => {
+      const { service, model } = makeService();
+      await service.create({ ...baseDto } as any, 'user-1', Role.HR_STAFF);
+      expect(model.create).toHaveBeenCalled();
+    });
+  });
+
+  describe('update()', () => {
+    function record(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'emp-1',
+        name: 'Rina Apriana',
+        bankAccountHolderName: null,
+        ptkpManuallyOverridden: false,
+        ptkpStatus: PtkpStatus.TK_0,
+        maritalStatus: MaritalStatus.SINGLE,
+        dependentCount: 0,
+        gender: Gender.FEMALE,
+        spouseNoIncomeCertificate: false,
+        update: jest.fn().mockImplementation(function (this: any, patch: any) {
+          Object.assign(this, patch);
+          return Promise.resolve(this);
+        }),
+        ...overrides,
+      };
+    }
+
+    it('rejects setting a bankAccountHolderName that differs from the current record name', async () => {
+      const r = record();
+      const { service } = makeService(r);
+      await expect(
+        service.update(
+          'emp-1',
+          { bankAccountHolderName: 'Someone Else' } as any,
+          'user-1',
+          Role.ADMIN,
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(r.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects when the name is being changed away from an already-set bankAccountHolderName', async () => {
+      const r = record({ bankAccountHolderName: 'Rina Apriana' });
+      const { service } = makeService(r);
+      await expect(
+        service.update(
+          'emp-1',
+          { name: 'Rina Apriana Wijaya' } as any,
+          'user-1',
+          Role.ADMIN,
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(r.update).not.toHaveBeenCalled();
+    });
+
+    it('accepts an unrelated field edit when the existing bankAccountHolderName still matches the name', async () => {
+      const r = record({ bankAccountHolderName: 'Rina Apriana' });
+      const { service } = makeService(r);
+      await service.update(
+        'emp-1',
+        { location: 'Jakarta' } as any,
+        'user-1',
+        Role.ADMIN,
+      );
+      expect(r.update).toHaveBeenCalled();
+    });
+  });
+});
