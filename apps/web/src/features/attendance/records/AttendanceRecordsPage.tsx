@@ -16,6 +16,7 @@ import { PAYROLL_RUN_STATUS_LABELS } from '../../payroll-runs/labels';
 import { AuditHistoryPanel } from '../../audit-events/AuditHistoryPanel';
 import { useAttendanceRecordsQuery } from './hooks';
 import { AttendanceManualEntryDrawer } from './AttendanceManualEntryDrawer';
+import { AttendanceCsvImportDrawer } from './AttendanceCsvImportDrawer';
 import { ReconcileDrawer } from './ReconcileDrawer';
 import { ATTENDANCE_SOURCE_LABELS } from './labels';
 import type { AttendanceRecord } from './api';
@@ -44,6 +45,7 @@ export function AttendanceRecordsPage() {
 
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
   const [reconcileOpen, setReconcileOpen] = useState(false);
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
   const [historyRecord, setHistoryRecord] = useState<AttendanceRecord | null>(null);
 
   const employeeName = (id: string) =>
@@ -124,11 +126,16 @@ export function AttendanceRecordsPage() {
           <Space>
             {/* R-06a — every write control is disabled with the same
                 reason while the period is locked; all three (reconcile,
-                manual entry, CSV import) share this rule. There is no CSV
-                import screen for attendance-records in this task — see
-                09_FRONTEND_STEPS.md FE-T17. */}
+                manual entry, CSV import) share this rule. */}
             <LockedAction locked={!!lockingRun} reason={lockReason} onClick={() => setReconcileOpen(true)}>
               Rekonsiliasi
+            </LockedAction>
+            {/* ATT-006 — gated on the currently filtered month like the two
+                actions above; the backend still enforces the real per-row
+                §11 lock (upsert) regardless of which dates end up in a
+                pasted batch, this is just the same up-front UX signal. */}
+            <LockedAction locked={!!lockingRun} reason={lockReason} onClick={() => setCsvImportOpen(true)}>
+              Impor CSV
             </LockedAction>
             <LockedAction
               locked={!!lockingRun}
@@ -164,6 +171,7 @@ export function AttendanceRecordsPage() {
       />
 
       <AttendanceManualEntryDrawer open={manualEntryOpen} onClose={() => setManualEntryOpen(false)} />
+      <AttendanceCsvImportDrawer open={csvImportOpen} onClose={() => setCsvImportOpen(false)} />
       <ReconcileDrawer open={reconcileOpen} onClose={() => setReconcileOpen(false)} />
       <Drawer
         title="Histori Perubahan"

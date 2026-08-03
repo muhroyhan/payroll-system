@@ -89,3 +89,27 @@ export async function reconcileAttendance(
   );
   return data;
 }
+
+// ATT-006 — direct bulk import of already-reconciled rows (source =
+// csv_import), e.g. from an external attendance system's export. Despite the
+// endpoint's name, the body is a JSON array of records, not a file — there is
+// no spreadsheet to parse (unlike raw-logs' file import, RAWLOG-001). Mirrors
+// AttendanceRecordsService.bulkImportCsv's return shape exactly: partial
+// success is the normal outcome (some rows import, some conflict), never an
+// all-or-nothing 400/409 for the whole batch.
+export interface BulkImportAttendanceResult {
+  createdOrUpdated: number;
+  conflicts: string[];
+}
+
+export async function bulkImportAttendanceRecords(
+  records: AttendanceRecordFormValues[],
+  overwrite: boolean,
+  reason?: string,
+): Promise<BulkImportAttendanceResult> {
+  const { data } = await apiClient.post<BulkImportAttendanceResult>(
+    '/attendance-records/csv-import',
+    { records, overwrite, reason },
+  );
+  return data;
+}

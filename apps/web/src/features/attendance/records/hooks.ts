@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  bulkImportAttendanceRecords,
   createAttendanceRecord,
   listAttendanceRecords,
   reconcileAttendance,
@@ -38,6 +39,24 @@ export function useReconcileAttendanceMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: ReconcileRangeInput) => reconcileAttendance(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['attendance-records'] }),
+  });
+}
+
+// ATT-006 — always invalidates on success even though some rows may have
+// conflicted: whatever DID import/update is real and should show up.
+export function useBulkImportAttendanceRecordsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      records,
+      overwrite,
+      reason,
+    }: {
+      records: AttendanceRecordFormValues[];
+      overwrite: boolean;
+      reason?: string;
+    }) => bulkImportAttendanceRecords(records, overwrite, reason),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['attendance-records'] }),
   });
 }
