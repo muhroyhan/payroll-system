@@ -23,6 +23,7 @@ export interface SuratPeringatan {
   sanctionComponent?: PayslipComponent | null;
   sanctionAmount: string | null;
   issuedBy: string;
+  issuedByUser?: { id: string; name: string } | null;
   pdfPath: string | null;
 }
 

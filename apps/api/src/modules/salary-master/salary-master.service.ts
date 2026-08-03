@@ -31,7 +31,12 @@ export class SalaryMasterService {
   ) {}
 
   list(): Promise<SalaryMaster[]> {
-    return this.salaryMasterModel.findAll();
+    // BUGS#19 — id/name only (never the full User row) so the list can show
+    // "Diubah Oleh" by name.
+    return this.salaryMasterModel.findAll({
+      include: [{ association: 'updatedByUser', attributes: ['id', 'name'] }],
+      order: [['updatedAt', 'DESC']],
+    });
   }
 
   async findByIdOrThrow(id: string): Promise<SalaryMaster> {

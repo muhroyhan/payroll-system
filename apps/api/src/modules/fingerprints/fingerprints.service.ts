@@ -17,7 +17,11 @@ export class FingerprintsService {
   ) {}
 
   list(): Promise<Fingerprint[]> {
-    return this.fingerprintModel.findAll({ include: ['employee'] });
+    // BUGS#3 — newest-updated first, the default for every listing.
+    return this.fingerprintModel.findAll({
+      include: ['employee'],
+      order: [['updatedAt', 'DESC']],
+    });
   }
 
   async findByIdOrThrow(id: string): Promise<Fingerprint> {

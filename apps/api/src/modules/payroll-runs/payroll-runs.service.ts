@@ -27,7 +27,8 @@ export class PayrollRunsService {
   ) {}
 
   list(): Promise<PayrollRun[]> {
-    return this.payrollRunModel.findAll();
+    // BUGS#3 — newest-updated first, the default for every listing.
+    return this.payrollRunModel.findAll({ order: [['updatedAt', 'DESC']] });
   }
 
   // Task B — eager-loads excludedEmployees (+ each one's employee name) so
@@ -45,6 +46,11 @@ export class PayrollRunsService {
         // over the API. Only id/name are ever needed for the "Dicairkan
         // oleh: {nama}" display (PayrollRunDetailPage).
         { association: 'disbursedByUser', attributes: ['id', 'name'] },
+        // BUGS#19 — same treatment for the other three actor columns this
+        // entity has, previously still shown as raw ids.
+        { association: 'createdByUser', attributes: ['id', 'name'] },
+        { association: 'approvedByUser', attributes: ['id', 'name'] },
+        { association: 'revertedByUser', attributes: ['id', 'name'] },
       ],
     });
     if (!record) {

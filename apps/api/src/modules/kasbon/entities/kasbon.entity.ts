@@ -10,6 +10,7 @@ import {
 } from 'sequelize-typescript';
 import { KasbonStatus } from '@payroll-system/shared-types';
 import { Employee } from '../../employees/entities/employee.entity';
+import { User } from '../../users/entities/user.entity';
 
 // §5.6 — cash advance. `amount`/`installment_count`/`installment_amount`
 // aren't fixed until approval (a pending request can still be edited or
@@ -53,15 +54,28 @@ export class Kasbon extends Model {
   @Column(DataType.ENUM(...Object.values(KasbonStatus)))
   declare status: KasbonStatus;
 
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare approvedBy: string | null;
 
+  // BUGS#19 — id/name only, see payroll_runs' disbursedByUser.
+  @BelongsTo(() => User, 'approvedBy')
+  declare approvedByUser: User | null;
+
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare rejectedBy: string | null;
+
+  @BelongsTo(() => User, 'rejectedBy')
+  declare rejectedByUser: User | null;
 
   @Column(DataType.TEXT)
   declare rejectReason: string | null;
 
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare createdBy: string | null;
+
+  @BelongsTo(() => User, 'createdBy')
+  declare createdByUser: User | null;
 }

@@ -22,9 +22,12 @@ export interface OvertimeLetter {
   reason: string;
   status: OvertimeLetterStatus;
   verifiedBy: string | null;
+  verifiedByUser?: { id: string; name: string } | null;
   rejectedBy: string | null;
+  rejectedByUser?: { id: string; name: string } | null;
   rejectReason: string | null;
   createdBy: string | null;
+  createdByUser?: { id: string; name: string } | null;
   pdfPath: string | null;
 }
 

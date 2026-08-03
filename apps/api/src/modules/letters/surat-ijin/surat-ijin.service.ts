@@ -7,6 +7,14 @@ import { SuratIjin } from './entities/surat-ijin.entity';
 import { CreateSuratIjinDto } from './dto/create-surat-ijin.dto';
 import { UpdateSuratIjinDto } from './dto/update-surat-ijin.dto';
 
+// BUGS#19 — id/name only (never the full User row), see payroll_runs'
+// disbursedByUser.
+const SURAT_IJIN_USER_INCLUDES = [
+  { association: 'approvedByUser', attributes: ['id', 'name'] },
+  { association: 'rejectedByUser', attributes: ['id', 'name'] },
+  { association: 'createdByUser', attributes: ['id', 'name'] },
+];
+
 @Injectable()
 export class SuratIjinService {
   constructor(
@@ -18,7 +26,11 @@ export class SuratIjinService {
   list(employeeId?: string): Promise<SuratIjin[]> {
     const where: Record<string, unknown> = {};
     if (employeeId) where.employeeId = employeeId;
-    return this.suratIjinModel.findAll({ where, include: ['employee'] });
+    return this.suratIjinModel.findAll({
+      where,
+      include: ['employee', ...SURAT_IJIN_USER_INCLUDES],
+      order: [['updatedAt', 'DESC']],
+    });
   }
 
   // Used by SuratIjinPermissionResolver (P4-T04) to resolve has_permission
@@ -34,7 +46,7 @@ export class SuratIjinService {
 
   async findByIdOrThrow(id: string): Promise<SuratIjin> {
     const record = await this.suratIjinModel.findByPk(id, {
-      include: ['employee'],
+      include: ['employee', ...SURAT_IJIN_USER_INCLUDES],
     });
     if (!record) {
       throw new NotFoundException(`Surat ijin ${id} not found`);

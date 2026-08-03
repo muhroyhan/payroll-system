@@ -31,7 +31,11 @@ export class IncentiveMasterService {
   ) {}
 
   list(): Promise<IncentiveMaster[]> {
-    return this.incentiveMasterModel.findAll();
+    // BUGS#19 — id/name only, see salary_master.service.ts's list().
+    return this.incentiveMasterModel.findAll({
+      include: [{ association: 'updatedByUser', attributes: ['id', 'name'] }],
+      order: [['updatedAt', 'DESC']],
+    });
   }
 
   async findByIdOrThrow(id: string): Promise<IncentiveMaster> {

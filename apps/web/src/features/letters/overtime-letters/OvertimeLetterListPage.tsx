@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Button, Select, Space } from 'antd';
+import { Button, Space } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Link } from 'react-router-dom';
 import { ListPage } from '../../../components/ListPage';
 import { StatusTag } from '../../../components/StatusTag';
 import { formatDate } from '../../../components/format';
-import { useEmployeesQuery } from '../../employees/hooks';
+import { EmployeeSelect } from '../../employees/EmployeeSelect';
 import { useOvertimeLettersQuery } from './hooks';
 import { OvertimeLetterFormDrawer } from './OvertimeLetterFormDrawer';
 import { OVERTIME_LETTER_STATUS_LABELS } from './labels';
@@ -13,7 +13,6 @@ import type { OvertimeLetter } from './api';
 
 // FE-T20 (09_FRONTEND_STEPS.md), §15.10 C.
 export function OvertimeLetterListPage() {
-  const employeesQuery = useEmployeesQuery();
   const [employeeId, setEmployeeId] = useState<string>();
   const query = useOvertimeLettersQuery(employeeId);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -54,16 +53,10 @@ export function OvertimeLetterListPage() {
         }
         filters={
           <Space>
-            <Select
+            <EmployeeSelect
               allowClear
               placeholder="Karyawan"
               style={{ width: 220 }}
-              showSearch
-              optionFilterProp="label"
-              options={(employeesQuery.data ?? []).map((employee) => ({
-                value: employee.id,
-                label: employee.name,
-              }))}
               value={employeeId}
               onChange={setEmployeeId}
             />

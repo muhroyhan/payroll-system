@@ -1,54 +1,43 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Button, Select, Space } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Link } from 'react-router-dom';
-import type { EmployeeActiveStatus } from '@payroll-system/shared-types';
 import { ListPage } from '../../components/ListPage';
 import { StatusTag } from '../../components/StatusTag';
 import { enumSelectOptions } from '../../components/enumSelectOptions';
+import { useServerPagination } from '../../components/useServerPagination';
 import { useOrgMasterListQuery } from '../organization/hooks';
-import { useEmployeesQuery } from './hooks';
+import { useEmployeesListQuery } from './hooks';
 import { EmployeeFormDrawer } from './EmployeeFormDrawer';
 import { EMPLOYEE_ACTIVE_STATUS_LABELS } from './labels';
-import type { Employee } from './api';
-
-interface EmployeeFilters {
-  status?: EmployeeActiveStatus;
-  departmentId?: string;
-  divisionId?: string;
-  positionId?: string;
-  employeeTypeId?: string;
-}
+import type { Employee, EmployeeListFilters } from './api';
 
 function toFilterOptions(records: { id: string; name: string }[] | undefined) {
   return (records ?? []).map((record) => ({ value: record.id, label: record.name }));
 }
 
-// FE-T06 (09_FRONTEND_STEPS.md), §15.4 (08_FRONTEND_STRUCTURE.md). GET
-// /employees has no server-side filter params (verified against
-// employees.controller.ts) — filtering here is a client-side view over the
-// already-cached list, not a re-fetch per filter change.
+// FE-T06 (09_FRONTEND_STEPS.md), §15.4 (08_FRONTEND_STRUCTURE.md). BUGS#2 —
+// server-side filter + pagination (EmployeesController's GET /employees);
+// a filter change resets to page 1 (a stale page 3 could be past the end of
+// the new, narrower result set).
 export function EmployeeListPage() {
-  const employeesQuery = useEmployeesQuery();
   const departmentsQuery = useOrgMasterListQuery('departments');
   const divisionsQuery = useOrgMasterListQuery('divisions');
   const positionsQuery = useOrgMasterListQuery('positions');
   const employeeTypesQuery = useOrgMasterListQuery('employeeTypes');
 
-  const [filters, setFilters] = useState<EmployeeFilters>({});
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [filters, setFilters] = useState<EmployeeListFilters>({});
+  const { params, onChange, resetToFirstPage } = useServerPagination();
+  const employeesQuery = useEmployeesListQuery({ ...params, ...filters });
+  const setFilter = <K extends keyof EmployeeListFilters>(
+    key: K,
+    value: EmployeeListFilters[K],
+  ) => {
+    setFilters((current) => ({ ...current, [key]: value }));
+    resetToFirstPage();
+  };
 
-  const filteredData = useMemo(() => {
-    if (!employeesQuery.data) return undefined;
-    return employeesQuery.data.filter(
-      (employee) =>
-        (!filters.status || employee.status === filters.status) &&
-        (!filters.departmentId || employee.departmentId === filters.departmentId) &&
-        (!filters.divisionId || employee.divisionId === filters.divisionId) &&
-        (!filters.positionId || employee.positionId === filters.positionId) &&
-        (!filters.employeeTypeId || employee.employeeTypeId === filters.employeeTypeId),
-    );
-  }, [employeesQuery.data, filters]);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const columns: ColumnsType<Employee> = [
     {
@@ -101,7 +90,7 @@ export function EmployeeListPage() {
               style={{ width: 160 }}
               options={enumSelectOptions(EMPLOYEE_ACTIVE_STATUS_LABELS)}
               value={filters.status}
-              onChange={(value) => setFilters((current) => ({ ...current, status: value }))}
+              onChange={(value) => setFilter('status', value)}
             />
             <Select
               allowClear
@@ -109,9 +98,7 @@ export function EmployeeListPage() {
               style={{ width: 180 }}
               options={toFilterOptions(employeeTypesQuery.data)}
               value={filters.employeeTypeId}
-              onChange={(value) =>
-                setFilters((current) => ({ ...current, employeeTypeId: value }))
-              }
+              onChange={(value) => setFilter('employeeTypeId', value)}
             />
             <Select
               allowClear
@@ -119,7 +106,7 @@ export function EmployeeListPage() {
               style={{ width: 180 }}
               options={toFilterOptions(positionsQuery.data)}
               value={filters.positionId}
-              onChange={(value) => setFilters((current) => ({ ...current, positionId: value }))}
+              onChange={(value) => setFilter('positionId', value)}
             />
             <Select
               allowClear
@@ -127,9 +114,7 @@ export function EmployeeListPage() {
               style={{ width: 180 }}
               options={toFilterOptions(departmentsQuery.data)}
               value={filters.departmentId}
-              onChange={(value) =>
-                setFilters((current) => ({ ...current, departmentId: value }))
-              }
+              onChange={(value) => setFilter('departmentId', value)}
             />
             <Select
               allowClear
@@ -137,11 +122,20 @@ export function EmployeeListPage() {
               style={{ width: 180 }}
               options={toFilterOptions(divisionsQuery.data)}
               value={filters.divisionId}
-              onChange={(value) => setFilters((current) => ({ ...current, divisionId: value }))}
+              onChange={(value) => setFilter('divisionId', value)}
             />
           </Space>
         }
-        query={{ ...employeesQuery, data: filteredData }}
+        query={{
+          ...employeesQuery,
+          data: employeesQuery.data?.items,
+        }}
+        pagination={{
+          current: params.page,
+          pageSize: params.limit,
+          total: employeesQuery.data?.total ?? 0,
+          onChange,
+        }}
         columns={columns}
         rowKey="id"
         emptyDescription="Belum ada data karyawan."

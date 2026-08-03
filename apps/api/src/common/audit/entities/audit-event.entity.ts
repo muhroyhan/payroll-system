@@ -1,5 +1,15 @@
-import { Column, DataType, Default, Model, PrimaryKey, Table } from 'sequelize-typescript';
+import {
+  BelongsTo,
+  Column,
+  DataType,
+  Default,
+  ForeignKey,
+  Model,
+  PrimaryKey,
+  Table,
+} from 'sequelize-typescript';
 import { AuditAction } from '@payroll-system/shared-types';
+import { User } from '../../../modules/users/entities/user.entity';
 
 // Generic append-only audit trail — before/after value history layered on top
 // of (not replacing) the existing per-table actor columns (created_by/
@@ -26,8 +36,16 @@ export class AuditEvent extends Model {
 
   // Nullable — a system-triggered transition (e.g. the background
   // calculation job's draft -> calculated flip) has no human actor.
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare actorId: string | null;
+
+  // BUGS#19 — id/name only, see payroll_runs' disbursedByUser. Every audit
+  // row's actorId is a real users.id when non-null (system events use null +
+  // actorRole='system' instead), so this is safe to eager-load generically
+  // regardless of which of the 9 entity types the row belongs to.
+  @BelongsTo(() => User, 'actorId')
+  declare actor: User | null;
 
   // Plain string, not FK'd to the Role enum — a system-triggered event writes
   // 'system' here, which isn't a real Role.

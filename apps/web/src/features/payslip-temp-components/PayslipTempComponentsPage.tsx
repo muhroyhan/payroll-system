@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Button, DatePicker, Popconfirm, Space, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs, { type Dayjs } from 'dayjs';
+import { MONTH_LABELS } from '@payroll-system/shared-types';
 import { ListPage } from '../../components/ListPage';
 import { formatIDR } from '../../components/format';
 import { describeApiError } from '../../api/errors';
@@ -67,7 +68,7 @@ export function PayslipTempComponentsPage() {
     {
       title: 'Periode',
       key: 'period',
-      render: (_, record) => `${record.periodMonth}/${record.periodYear}`,
+      render: (_, record) => `${MONTH_LABELS[record.periodMonth]} ${record.periodYear}`,
     },
     {
       title: 'Aksi',

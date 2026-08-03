@@ -23,7 +23,11 @@ export class BpjsKesehatanMasterService {
 
   // Admin view: every row, active or not.
   list(): Promise<BpjsKesehatanMaster[]> {
-    return this.bpjsKesehatanMasterModel.findAll();
+    // BUGS#19 — id/name only, see salary_master.service.ts's list().
+    return this.bpjsKesehatanMasterModel.findAll({
+      include: [{ association: 'updatedByUser', attributes: ['id', 'name'] }],
+      order: [['updatedAt', 'DESC']],
+    });
   }
 
   // Payroll-facing: the single rate/cap row active for `periodDate`.

@@ -6,13 +6,12 @@ import {
   Drawer,
   Form,
   InputNumber,
-  Select,
   Space,
   Switch,
   TimePicker,
 } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { useEmployeesQuery } from '../../employees/hooks';
+import { EmployeeSelect } from '../../employees/EmployeeSelect';
 import { useCreateAttendanceRecordMutation } from './hooks';
 import { confirmOverwrite } from './confirmOverwrite';
 import {
@@ -51,7 +50,6 @@ function combineDateAndTime(date: Dayjs, time: Dayjs | undefined): string | unde
 // own submit flow built directly on Drawer + Form.
 export function AttendanceManualEntryDrawer({ open, onClose }: AttendanceManualEntryDrawerProps) {
   const [form] = Form.useForm<AttendanceManualEntryFormValues>();
-  const employeesQuery = useEmployeesQuery();
   const createMutation = useCreateAttendanceRecordMutation();
   const [error, setError] = useState<ApiErrorPresentation | null>(null);
 
@@ -128,14 +126,7 @@ export function AttendanceManualEntryDrawer({ open, onClose }: AttendanceManualE
           label="Karyawan"
           rules={[{ required: true, message: 'Karyawan wajib dipilih' }]}
         >
-          <Select
-            showSearch
-            optionFilterProp="label"
-            options={(employeesQuery.data ?? []).map((employee) => ({
-              value: employee.id,
-              label: employee.name,
-            }))}
-          />
+          <EmployeeSelect />
         </Form.Item>
         <Form.Item
           name="date"

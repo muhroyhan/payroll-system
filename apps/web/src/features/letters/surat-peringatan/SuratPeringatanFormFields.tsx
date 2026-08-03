@@ -1,12 +1,11 @@
 import { DatePicker, Form, Input, InputNumber, Select, Typography } from 'antd';
-import { useEmployeesQuery } from '../../employees/hooks';
+import { EmployeeSelect } from '../../employees/EmployeeSelect';
 import { usePayslipComponentsQuery } from '../../payslip-components/hooks';
 import { enumSelectOptions } from '../../../components/enumSelectOptions';
 import { SP_LEVEL_LABELS } from './labels';
 
 // FE-T19 (09_FRONTEND_STEPS.md), §15.10 B (08_FRONTEND_STRUCTURE.md).
 export function SuratPeringatanFormFields() {
-  const employeesQuery = useEmployeesQuery();
   // GET /payslip-components is admin-only (§15.6) — 403s for HR staff. The
   // sanction section degrades gracefully instead of showing a broken Select
   // (this is the role gap flagged in 06_FRONTEND_GENERAL.md §13.5, not
@@ -21,14 +20,7 @@ export function SuratPeringatanFormFields() {
         label="Karyawan"
         rules={[{ required: true, message: 'Karyawan wajib dipilih' }]}
       >
-        <Select
-          showSearch
-          optionFilterProp="label"
-          options={(employeesQuery.data ?? []).map((employee) => ({
-            value: employee.id,
-            label: employee.name,
-          }))}
-        />
+        <EmployeeSelect />
       </Form.Item>
       <Form.Item
         name="level"

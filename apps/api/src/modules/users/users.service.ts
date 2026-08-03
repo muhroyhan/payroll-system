@@ -28,8 +28,10 @@ export class UsersService {
   }
 
   async list(): Promise<User[]> {
+    // BUGS#3 — newest-updated first, the default for every listing.
     return this.userModel.findAll({
       attributes: { exclude: ['passwordHash'] },
+      order: [['updatedAt', 'DESC']],
     });
   }
 

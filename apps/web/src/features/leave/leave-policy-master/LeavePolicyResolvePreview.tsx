@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, DatePicker, Select, Space, Typography } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useEmployeesQuery } from '../../employees/hooks';
+import { EmployeeSelect } from '../../employees/EmployeeSelect';
 import { useLeaveTypesQuery } from '../leave-types/hooks';
 import { useResolveLeavePolicyQuery } from './hooks';
 
@@ -9,7 +9,6 @@ import { useResolveLeavePolicyQuery } from './hooks';
 // resolve previews: shows whatever GET …/resolve returns for the chosen
 // employee + leave type + date, never picks a winner itself.
 export function LeavePolicyResolvePreview() {
-  const employeesQuery = useEmployeesQuery();
   const leaveTypesQuery = useLeaveTypesQuery();
   const [employeeId, setEmployeeId] = useState<string>();
   const [leaveTypeId, setLeaveTypeId] = useState<string>();
@@ -24,15 +23,9 @@ export function LeavePolicyResolvePreview() {
   return (
     <Card size="small" title="Pratinjau Resolusi Kebijakan Cuti" style={{ marginBottom: 16 }}>
       <Space wrap>
-        <Select
+        <EmployeeSelect
           placeholder="Pilih karyawan"
           style={{ width: 220 }}
-          showSearch
-          optionFilterProp="label"
-          options={(employeesQuery.data ?? []).map((employee) => ({
-            value: employee.id,
-            label: employee.name,
-          }))}
           value={employeeId}
           onChange={setEmployeeId}
         />

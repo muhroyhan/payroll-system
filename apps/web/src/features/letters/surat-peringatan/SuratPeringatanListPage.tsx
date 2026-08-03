@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Button, Select, Space } from 'antd';
+import { Button, Space } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Link } from 'react-router-dom';
 import { ListPage } from '../../../components/ListPage';
 import { StatusTag } from '../../../components/StatusTag';
 import { formatDate, formatIDR } from '../../../components/format';
-import { useEmployeesQuery } from '../../employees/hooks';
+import { EmployeeSelect } from '../../employees/EmployeeSelect';
 import { useSuratPeringatanListQuery } from './hooks';
 import { SuratPeringatanFormDrawer } from './SuratPeringatanFormDrawer';
 import { SP_LEVEL_LABELS } from './labels';
@@ -14,7 +14,6 @@ import type { SuratPeringatan } from './api';
 // FE-T19 (09_FRONTEND_STEPS.md), §15.10 B. No status column — this entity
 // has no pending/approved workflow at all (see api.ts's note).
 export function SuratPeringatanListPage() {
-  const employeesQuery = useEmployeesQuery();
   const [employeeId, setEmployeeId] = useState<string>();
   const query = useSuratPeringatanListQuery(employeeId);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -55,16 +54,10 @@ export function SuratPeringatanListPage() {
         }
         filters={
           <Space>
-            <Select
+            <EmployeeSelect
               allowClear
               placeholder="Karyawan"
               style={{ width: 220 }}
-              showSearch
-              optionFilterProp="label"
-              options={(employeesQuery.data ?? []).map((employee) => ({
-                value: employee.id,
-                label: employee.name,
-              }))}
               value={employeeId}
               onChange={setEmployeeId}
             />

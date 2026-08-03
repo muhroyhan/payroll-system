@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Card, DatePicker, List, Select, Space, Typography } from 'antd';
+import { Card, DatePicker, List, Space, Typography } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useEmployeesQuery } from '../employees/hooks';
+import { EmployeeSelect } from '../employees/EmployeeSelect';
 import { formatIDR } from '../../components/format';
 import { useActivePayslipTempComponentsQuery } from './hooks';
 
@@ -11,7 +11,6 @@ import { useActivePayslipTempComponentsQuery } from './hooks';
 // (payroll sums them, per api.ts's note) — this renders the list the
 // backend returns as-is, it never picks or reduces to a single value.
 export function ActiveTempComponentsPreview() {
-  const employeesQuery = useEmployeesQuery();
   const [employeeId, setEmployeeId] = useState<string>();
   const [asOf, setAsOf] = useState<Dayjs>(() => dayjs());
 
@@ -20,15 +19,9 @@ export function ActiveTempComponentsPreview() {
   return (
     <Card size="small" title="Komponen Sementara Aktif" style={{ marginBottom: 16 }}>
       <Space wrap>
-        <Select
+        <EmployeeSelect
           placeholder="Pilih karyawan"
           style={{ width: 240 }}
-          showSearch
-          optionFilterProp="label"
-          options={(employeesQuery.data ?? []).map((employee) => ({
-            value: employee.id,
-            label: employee.name,
-          }))}
           value={employeeId}
           onChange={setEmployeeId}
         />

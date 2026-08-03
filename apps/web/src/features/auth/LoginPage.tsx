@@ -4,6 +4,7 @@ import { useLocation, useNavigate, type Location } from 'react-router-dom';
 import { useAuth } from './useAuth';
 import { describeApiError, type ApiErrorPresentation } from '../../api/errors';
 import { consumeSessionExpiredFlag } from '../../api/session';
+import { usePageTitle } from '../../hooks/usePageTitle';
 import styles from './LoginPage.module.css';
 
 interface LoginFormValues {
@@ -19,6 +20,7 @@ interface LoginLocationState {
 // role check. Uses api/errors.ts (describeApiError) per R-04 — no raw
 // error string ever reaches the Alert below.
 export function LoginPage() {
+  usePageTitle('Masuk');
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();

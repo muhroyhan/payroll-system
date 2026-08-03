@@ -1,21 +1,23 @@
 import { useState } from 'react';
-import { Button, Progress, Select, Space } from 'antd';
+import { Button, Progress, Space } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Link } from 'react-router-dom';
 import { ListPage } from '../../components/ListPage';
 import { StatusTag } from '../../components/StatusTag';
 import { formatIDR } from '../../components/format';
-import { useEmployeesQuery } from '../employees/hooks';
-import { useKasbonListQuery } from './hooks';
+import { useServerPagination } from '../../components/useServerPagination';
+import { EmployeeSelect } from '../employees/EmployeeSelect';
+import { useKasbonListPaginatedQuery } from './hooks';
 import { KasbonFormDrawer } from './KasbonFormDrawer';
 import { KASBON_STATUS_LABELS } from './labels';
 import type { Kasbon } from './api';
 
-// FE-T21 (09_FRONTEND_STEPS.md), §15.11 (08_FRONTEND_STRUCTURE.md).
+// FE-T21 (09_FRONTEND_STEPS.md), §15.11 (08_FRONTEND_STRUCTURE.md). BUGS#2 —
+// server-side filter + pagination.
 export function KasbonListPage() {
-  const employeesQuery = useEmployeesQuery();
   const [employeeId, setEmployeeId] = useState<string>();
-  const query = useKasbonListQuery(employeeId);
+  const { params, onChange, resetToFirstPage } = useServerPagination();
+  const query = useKasbonListPaginatedQuery({ ...params, employeeId });
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const columns: ColumnsType<Kasbon> = [
@@ -64,22 +66,25 @@ export function KasbonListPage() {
         }
         filters={
           <Space>
-            <Select
+            <EmployeeSelect
               allowClear
               placeholder="Karyawan"
               style={{ width: 220 }}
-              showSearch
-              optionFilterProp="label"
-              options={(employeesQuery.data ?? []).map((employee) => ({
-                value: employee.id,
-                label: employee.name,
-              }))}
               value={employeeId}
-              onChange={setEmployeeId}
+              onChange={(value) => {
+                setEmployeeId(value);
+                resetToFirstPage();
+              }}
             />
           </Space>
         }
-        query={query}
+        query={{ ...query, data: query.data?.items }}
+        pagination={{
+          current: params.page,
+          pageSize: params.limit,
+          total: query.data?.total ?? 0,
+          onChange,
+        }}
         columns={columns}
         rowKey="id"
         emptyDescription="Belum ada kasbon."

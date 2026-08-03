@@ -16,7 +16,8 @@ export class EmployeeTypesService {
   ) {}
 
   list(): Promise<EmployeeType[]> {
-    return this.employeeTypeModel.findAll();
+    // BUGS#3 — newest-updated first, the default for every listing.
+    return this.employeeTypeModel.findAll({ order: [['updatedAt', 'DESC']] });
   }
 
   async findByIdOrThrow(id: string): Promise<EmployeeType> {

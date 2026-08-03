@@ -14,6 +14,8 @@ export interface SalaryMaster {
   effectiveEndDate: string | null;
   createdBy: string;
   updatedBy: string | null;
+  // BUGS#19 -- eager-loaded (id/name only) by the backend list().
+  updatedByUser?: { id: string; name: string } | null;
   reason: string | null;
   supersedesId: string | null;
 }

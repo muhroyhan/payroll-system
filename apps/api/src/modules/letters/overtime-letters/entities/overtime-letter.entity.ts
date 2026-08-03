@@ -10,6 +10,7 @@ import {
 } from 'sequelize-typescript';
 import { OvertimeLetterStatus } from '@payroll-system/shared-types';
 import { Employee } from '../../../employees/entities/employee.entity';
+import { User } from '../../../users/entities/user.entity';
 
 // §5.5 — Surat Lembur, verifies overtime actually happened. Unlike
 // surat_ijin/leave_requests (permanently locked the moment they leave
@@ -48,17 +49,30 @@ export class OvertimeLetter extends Model {
   @Column(DataType.ENUM(...Object.values(OvertimeLetterStatus)))
   declare status: OvertimeLetterStatus;
 
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare verifiedBy: string | null;
 
+  // BUGS#19 — id/name only, see payroll_runs' disbursedByUser.
+  @BelongsTo(() => User, 'verifiedBy')
+  declare verifiedByUser: User | null;
+
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare rejectedBy: string | null;
+
+  @BelongsTo(() => User, 'rejectedBy')
+  declare rejectedByUser: User | null;
 
   @Column(DataType.TEXT)
   declare rejectReason: string | null;
 
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare createdBy: string | null;
+
+  @BelongsTo(() => User, 'createdBy')
+  declare createdByUser: User | null;
 
   // Populated asynchronously by the PDF generation job once verified — never
   // generated synchronously in the request handler (§3, no exceptions).

@@ -7,6 +7,7 @@ import type {
 } from '@payroll-system/shared-types';
 import { apiClient } from '../../api/client';
 import type { BulkImportResult } from '../../api/bulkImport';
+import type { PaginatedResult, PaginationParams } from '../../api/pagination';
 import type { OrgMasterRecord } from '../organization/api';
 
 // Mirrors apps/api/src/modules/employees/entities/employee.entity.ts —
@@ -80,6 +81,27 @@ export interface EmployeeFormValues {
 
 export async function listEmployees(): Promise<Employee[]> {
   const { data } = await apiClient.get<Employee[]>('/employees');
+  return data;
+}
+
+export interface EmployeeListFilters {
+  status?: EmployeeActiveStatus;
+  departmentId?: string;
+  divisionId?: string;
+  positionId?: string;
+  employeeTypeId?: string;
+  // BUGS#9/#10 — server-side name/NIK search for EmployeeSelect.
+  search?: string;
+}
+
+// BUGS#2 — GET /employees WITH page/limit gets the paginated
+// {items,total,...} shape back (EmployeesService.list()'s doc comment);
+// listEmployees() above (no params) is untouched for every dropdown/Select
+// still calling it via useEmployeesQuery().
+export async function listEmployeesPaginated(
+  params: PaginationParams & EmployeeListFilters,
+): Promise<PaginatedResult<Employee>> {
+  const { data } = await apiClient.get<PaginatedResult<Employee>>('/employees', { params });
   return data;
 }
 

@@ -10,6 +10,8 @@ export interface AuditEvent {
   entityId: string;
   action: AuditAction;
   actorId: string | null;
+  // BUGS#19 -- eager-loaded (id/name only) by the backend.
+  actor?: { id: string; name: string } | null;
   actorRole: string | null;
   changedFields: Record<string, { before: unknown; after: unknown }>;
   reason: string | null;

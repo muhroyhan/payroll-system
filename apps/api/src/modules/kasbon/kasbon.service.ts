@@ -7,10 +7,33 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction, UniqueConstraintError } from 'sequelize';
 import { KasbonStatus } from '@payroll-system/shared-types';
 import { assertPendingStatus } from '../../common/approval-workflow/assert-pending';
+import type { PaginatedResult } from '../../common/pagination/pagination-query.dto';
+import { resolvePaginationAndSort } from '../../common/pagination/resolve-pagination';
 import { Kasbon } from './entities/kasbon.entity';
 import { KasbonDeduction } from './entities/kasbon-deduction.entity';
 import { CreateKasbonDto } from './dto/create-kasbon.dto';
 import { UpdateKasbonDto } from './dto/update-kasbon.dto';
+import { KasbonListQueryDto } from './dto/kasbon-list-query.dto';
+
+// BUGS#19 — id/name only (never the full User row, same as payroll_runs'
+// disbursedByUser) so the UI can render "Disetujui Oleh"/"Ditolak Oleh"/
+// "Dibuat Oleh" by name instead of a raw user id.
+const KASBON_USER_INCLUDES = [
+  { association: 'approvedByUser', attributes: ['id', 'name'] },
+  { association: 'rejectedByUser', attributes: ['id', 'name'] },
+  { association: 'createdByUser', attributes: ['id', 'name'] },
+];
+
+// BUGS#20 — floor, not round: the LAST installment (deductInstallment,
+// below) always closes out whatever remains, so it's the one that absorbs
+// the rounding remainder — a regular installment must never round UP past
+// its even share.
+function computeInstallmentAmount(
+  amount: string,
+  installmentCount: number,
+): string {
+  return Math.floor(Number(amount) / installmentCount).toFixed(2);
+}
 
 @Injectable()
 export class KasbonService {
@@ -21,15 +44,39 @@ export class KasbonService {
     private readonly kasbonDeductionModel: typeof KasbonDeduction,
   ) {}
 
-  list(employeeId?: string): Promise<Kasbon[]> {
+  // BUGS#2/#3 — see EmployeesService.list()'s doc comment: no page/limit ->
+  // plain array (dropdown/Select callers unaffected), page/limit given ->
+  // {items,total,...}.
+  async list(
+    query: KasbonListQueryDto = {},
+  ): Promise<Kasbon[] | PaginatedResult<Kasbon>> {
     const where: Record<string, unknown> = {};
-    if (employeeId) where.employeeId = employeeId;
-    return this.kasbonModel.findAll({ where, include: ['employee'] });
+    if (query.employeeId) where.employeeId = query.employeeId;
+
+    const { limit, offset, order } = resolvePaginationAndSort(query);
+
+    if (limit === undefined) {
+      return this.kasbonModel.findAll({
+        where,
+        include: ['employee', ...KASBON_USER_INCLUDES],
+        order,
+      });
+    }
+
+    const { rows, count } = await this.kasbonModel.findAndCountAll({
+      where,
+      include: ['employee', ...KASBON_USER_INCLUDES],
+      order,
+      limit,
+      offset,
+      distinct: true,
+    });
+    return { items: rows, total: count, page: query.page ?? 1, limit };
   }
 
   async findByIdOrThrow(id: string): Promise<Kasbon> {
     const record = await this.kasbonModel.findByPk(id, {
-      include: ['employee'],
+      include: ['employee', ...KASBON_USER_INCLUDES],
     });
     if (!record) {
       throw new NotFoundException(`Kasbon ${id} not found`);
@@ -38,10 +85,15 @@ export class KasbonService {
   }
 
   // remaining_balance stays null here — amount/installment_count aren't
-  // fixed until approve() locks them in.
+  // fixed until approve() locks them in. installmentAmount (BUGS#20) is
+  // always derived, never client-supplied.
   create(dto: CreateKasbonDto, createdBy: string): Promise<Kasbon> {
     return this.kasbonModel.create({
       ...dto,
+      installmentAmount: computeInstallmentAmount(
+        dto.amount,
+        dto.installmentCount,
+      ),
       status: KasbonStatus.PENDING,
       remainingBalance: null,
       createdBy,
@@ -64,6 +116,14 @@ export class KasbonService {
     // the very next edit.
     if (dto.amount !== undefined && record.remainingBalance !== null) {
       patch.remainingBalance = dto.amount;
+    }
+    // BUGS#20 — amount and/or installmentCount changing means the derived
+    // per-installment share is stale; recompute it the same way create() does.
+    if (dto.amount !== undefined || dto.installmentCount !== undefined) {
+      patch.installmentAmount = computeInstallmentAmount(
+        dto.amount ?? record.amount,
+        dto.installmentCount ?? record.installmentCount,
+      );
     }
     return record.update(patch);
   }
@@ -146,8 +206,21 @@ export class KasbonService {
       return record;
     }
 
+    // BUGS#20 — installmentAmount is floor(amount/installmentCount), so
+    // installmentCount regular deductions alone would leave the floor-
+    // rounding remainder permanently outstanding. The Nth (final scheduled)
+    // deduction instead always closes out whatever actually remains —
+    // that's precisely the regular share plus the rounding remainder,
+    // without needing to store a separate "last installment amount".
+    const deductionsSoFar = await this.kasbonDeductionModel.count({
+      where: { kasbonId },
+    });
+    const isFinalInstallment = deductionsSoFar + 1 >= record.installmentCount;
+
     const remaining = Number(record.remainingBalance);
-    const installment = Math.min(Number(record.installmentAmount), remaining);
+    const installment = isFinalInstallment
+      ? remaining
+      : Math.min(Number(record.installmentAmount), remaining);
 
     try {
       await this.kasbonDeductionModel.create({
@@ -282,11 +355,12 @@ export class KasbonService {
     );
   }
 
-  // §11/TC-KASBON-04 — locks ONLY amount/installment_count/
-  // installment_amount once at least one installment has been deducted.
-  // A kasbon that's been approved but hasn't had any deduction yet is still
-  // fully editable (its amount isn't "real" until payroll starts drawing
-  // against it) — checked via hasDeductionStarted, not via status alone.
+  // §11/TC-KASBON-04 — locks amount/installmentCount once at least one
+  // installment has been deducted (installmentAmount, BUGS#20, is purely
+  // derived from those two now — nothing separate to lock). A kasbon that's
+  // been approved but hasn't had any deduction yet is still fully editable
+  // (its amount isn't "real" until payroll starts drawing against it) —
+  // checked via hasDeductionStarted, not via status alone.
   private assertLockedFieldsUntouched(
     record: Kasbon,
     dto: UpdateKasbonDto,
@@ -297,7 +371,6 @@ export class KasbonService {
     const lockedFields: Array<keyof UpdateKasbonDto> = [
       'amount',
       'installmentCount',
-      'installmentAmount',
     ];
     const touched = lockedFields.find((field) => dto[field] !== undefined);
     if (touched) {

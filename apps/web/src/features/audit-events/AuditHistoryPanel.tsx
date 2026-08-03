@@ -35,10 +35,10 @@ const columns: ColumnsType<AuditEvent> = [
     render: (_, record) => {
       if (record.actorRole === 'system') return 'Sistem';
       if (!record.actorId) return '—';
-      // actorId is a user id, not resolvable to a name here — same
-      // reasoning as approvedBy/updatedBy elsewhere (GET /users is
-      // admin-only, and this panel is generic across 9 entity types).
-      return record.actorRole ? `${record.actorId} (${record.actorRole})` : record.actorId;
+      // BUGS#19 — rendered by name (actor is eager-loaded, id/name only,
+      // same as approvedByUser/updatedByUser elsewhere), not the raw id.
+      const name = record.actor?.name ?? '—';
+      return record.actorRole ? `${name} (${record.actorRole})` : name;
     },
   },
   {

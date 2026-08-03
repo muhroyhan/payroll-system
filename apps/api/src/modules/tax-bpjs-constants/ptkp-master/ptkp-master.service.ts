@@ -27,7 +27,11 @@ export class PtkpMasterService {
   // Admin view: every row, active or not — HR needs to see expired/future rows
   // to manage effective-dating. Do NOT date-filter this one.
   list(): Promise<PtkpMaster[]> {
-    return this.ptkpMasterModel.findAll();
+    // BUGS#19 — id/name only, see salary_master.service.ts's list().
+    return this.ptkpMasterModel.findAll({
+      include: [{ association: 'updatedByUser', attributes: ['id', 'name'] }],
+      order: [['updatedAt', 'DESC']],
+    });
   }
 
   // Payroll-facing: only the rows active for `periodDate` (all 8 statuses).

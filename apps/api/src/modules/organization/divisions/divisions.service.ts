@@ -16,7 +16,8 @@ export class DivisionsService {
   ) {}
 
   list(): Promise<Division[]> {
-    return this.divisionModel.findAll();
+    // BUGS#3 — newest-updated first, the default for every listing.
+    return this.divisionModel.findAll({ order: [['updatedAt', 'DESC']] });
   }
 
   async findByIdOrThrow(id: string): Promise<Division> {

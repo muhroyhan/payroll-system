@@ -25,17 +25,24 @@ export function formatDate(value: string | Date): string {
   return dateFormatter.format(date);
 }
 
-const dateTimeFormatter = new Intl.DateTimeFormat('id-ID', {
-  day: '2-digit',
-  month: 'short',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-});
+// BUGS#18 — Intl.DateTimeFormat('id-ID', ...) renders time with a "."
+// separator (its actual locale convention, e.g. "19.00"), not the "19:00"
+// every screen here is supposed to show. Built manually instead of coaxing
+// Intl into it, so the separator can never regress back to a locale default
+// no matter which options get added later. The one time-of-day formatter —
+// every screen composes this (or formatDateTime below) instead of a local
+// toLocaleTimeString call.
+export function formatTime(value: string | Date | null | undefined): string {
+  if (!value) return '—';
+  const date = typeof value === 'string' ? new Date(value) : value;
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
 
 // Audit history (features/audit-events) — the only current consumer that
 // needs time-of-day, not just the date.
 export function formatDateTime(value: string | Date): string {
   const date = typeof value === 'string' ? new Date(value) : value;
-  return dateTimeFormatter.format(date);
+  return `${formatDate(date)} ${formatTime(date)}`;
 }

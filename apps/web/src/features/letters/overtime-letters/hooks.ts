@@ -44,11 +44,15 @@ export function useUpdateOvertimeLetterMutation(id: string) {
   });
 }
 
+// BUGS#16 — refetchType: 'none', see kasbon/hooks.ts's useRemoveKasbonMutation
+// for why: avoids an eager (and needless, 404-bound) refetch of the detail
+// query this mutation is always called from, right before it navigates away.
 export function useRemoveOvertimeLetterMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => removeOvertimeLetter(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['overtime-letters'] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['overtime-letters'], refetchType: 'none' }),
   });
 }
 

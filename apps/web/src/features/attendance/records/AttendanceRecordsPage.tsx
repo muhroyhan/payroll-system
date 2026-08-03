@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, DatePicker, Drawer, Select, Space, Tag, Typography } from 'antd';
+import { Alert, DatePicker, Drawer, Space, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Link } from 'react-router-dom';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -7,8 +7,9 @@ import { AuditEntityType } from '@payroll-system/shared-types';
 import { ListPage } from '../../../components/ListPage';
 import { LockedAction } from '../../../components/LockedAction';
 import { StatusTag } from '../../../components/StatusTag';
-import { formatDate } from '../../../components/format';
+import { formatDate, formatTime } from '../../../components/format';
 import { useEmployeesQuery } from '../../employees/hooks';
+import { EmployeeSelect } from '../../employees/EmployeeSelect';
 import { usePayrollRunsQuery } from '../../payroll-runs/hooks';
 import { findLockingRun } from '../../payroll-runs/periodLock';
 import { PAYROLL_RUN_STATUS_LABELS } from '../../payroll-runs/labels';
@@ -18,11 +19,6 @@ import { AttendanceManualEntryDrawer } from './AttendanceManualEntryDrawer';
 import { ReconcileDrawer } from './ReconcileDrawer';
 import { ATTENDANCE_SOURCE_LABELS } from './labels';
 import type { AttendanceRecord } from './api';
-
-function formatTime(value: string | null): string {
-  if (!value) return '—';
-  return new Date(value).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-}
 
 // FE-T17 (09_FRONTEND_STEPS.md), §15.8 C (08_FRONTEND_STRUCTURE.md) — the
 // headline deliverable of this task is the period-lock banner below, not
@@ -82,19 +78,17 @@ export function AttendanceRecordsPage() {
       key: 'source',
       render: (_, record) => <StatusTag value={record.source} labels={ATTENDANCE_SOURCE_LABELS} />,
     },
-    // Audit-trail follow-up (§D) — raw user ids, not resolved to a name here
-    // (same reasoning as updatedBy elsewhere — GET /users is admin-only).
+    // BUGS#19 — rendered by name (enteredByUser/overwrittenByUser are
+    // eager-loaded, id/name only, never a separate admin-only GET /users call).
     {
       title: 'Dientri Oleh (Manual)',
-      dataIndex: 'enteredBy',
       key: 'enteredBy',
-      render: (value: string | null) => value ?? '—',
+      render: (_, record) => record.enteredByUser?.name ?? '—',
     },
     {
       title: 'Ditimpa Oleh',
-      dataIndex: 'overwrittenBy',
       key: 'overwrittenBy',
-      render: (value: string | null) => value ?? '—',
+      render: (_, record) => record.overwrittenByUser?.name ?? '—',
     },
     {
       title: 'Aksi',
@@ -154,16 +148,10 @@ export function AttendanceRecordsPage() {
               onChange={(value) => value && setMonth(value)}
               allowClear={false}
             />
-            <Select
+            <EmployeeSelect
               allowClear
               placeholder="Karyawan"
               style={{ width: 220 }}
-              showSearch
-              optionFilterProp="label"
-              options={(employeesQuery.data ?? []).map((employee) => ({
-                value: employee.id,
-                label: employee.name,
-              }))}
               value={employeeId}
               onChange={setEmployeeId}
             />

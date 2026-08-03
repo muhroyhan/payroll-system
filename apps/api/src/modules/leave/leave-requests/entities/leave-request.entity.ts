@@ -11,6 +11,7 @@ import {
 import { LeaveRequestStatus } from '@payroll-system/shared-types';
 import { Employee } from '../../../employees/entities/employee.entity';
 import { LeaveType } from '../../leave-types/entities/leave-type.entity';
+import { User } from '../../../users/entities/user.entity';
 
 // §5.4 — once approved or rejected, a request is permanently locked (§11):
 // no edit, no delete, no un-approve. A correction is a new, separate request
@@ -46,15 +47,28 @@ export class LeaveRequest extends Model {
   @Column(DataType.ENUM(...Object.values(LeaveRequestStatus)))
   declare status: LeaveRequestStatus;
 
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare approvedBy: string | null;
 
+  // BUGS#19 — id/name only, see payroll_runs' disbursedByUser.
+  @BelongsTo(() => User, 'approvedBy')
+  declare approvedByUser: User | null;
+
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare rejectedBy: string | null;
+
+  @BelongsTo(() => User, 'rejectedBy')
+  declare rejectedByUser: User | null;
 
   @Column(DataType.TEXT)
   declare rejectReason: string | null;
 
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare createdBy: string | null;
+
+  @BelongsTo(() => User, 'createdBy')
+  declare createdByUser: User | null;
 }

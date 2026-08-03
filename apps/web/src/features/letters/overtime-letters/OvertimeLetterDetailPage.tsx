@@ -121,15 +121,15 @@ export function OvertimeLetterDetailPage() {
               <StatusTag value={data.status} labels={OVERTIME_LETTER_STATUS_LABELS} />
             </Descriptions.Item>
             <Descriptions.Item label="Tanggal">{formatDate(data.date)}</Descriptions.Item>
-            <Descriptions.Item label="Dibuat Oleh (User ID)">
-              {data.createdBy ?? '—'}
+            <Descriptions.Item label="Dibuat Oleh">
+              {data.createdByUser?.name ?? '—'}
             </Descriptions.Item>
-            <Descriptions.Item label="Diverifikasi Oleh (User ID)">
-              {data.verifiedBy ?? '—'}
+            <Descriptions.Item label="Diverifikasi Oleh">
+              {data.verifiedByUser?.name ?? '—'}
             </Descriptions.Item>
             {data.rejectedBy && (
-              <Descriptions.Item label="Ditolak Oleh (User ID)" span={2}>
-                {data.rejectedBy} — "{data.rejectReason}"
+              <Descriptions.Item label="Ditolak Oleh" span={2}>
+                {data.rejectedByUser?.name ?? '—'} — "{data.rejectReason}"
               </Descriptions.Item>
             )}
             <Descriptions.Item label="Jam Lembur Direncanakan">

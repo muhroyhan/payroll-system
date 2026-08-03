@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Button, Select, Space } from 'antd';
+import { Button, Space } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Link } from 'react-router-dom';
 import { ListPage } from '../../../components/ListPage';
 import { StatusTag } from '../../../components/StatusTag';
 import { formatDate } from '../../../components/format';
-import { useEmployeesQuery } from '../../employees/hooks';
+import { EmployeeSelect } from '../../employees/EmployeeSelect';
 import { useSuratIjinListQuery } from './hooks';
 import { SuratIjinFormDrawer } from './SuratIjinFormDrawer';
 import { SURAT_IJIN_STATUS_LABELS, SURAT_IJIN_TYPE_LABELS } from './labels';
@@ -13,7 +13,6 @@ import type { SuratIjin } from './api';
 
 // FE-T18 (09_FRONTEND_STEPS.md), §15.10 A.
 export function SuratIjinListPage() {
-  const employeesQuery = useEmployeesQuery();
   const [employeeId, setEmployeeId] = useState<string>();
   const query = useSuratIjinListQuery(employeeId);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -52,16 +51,10 @@ export function SuratIjinListPage() {
         }
         filters={
           <Space>
-            <Select
+            <EmployeeSelect
               allowClear
               placeholder="Karyawan"
               style={{ width: 220 }}
-              showSearch
-              optionFilterProp="label"
-              options={(employeesQuery.data ?? []).map((employee) => ({
-                value: employee.id,
-                label: employee.name,
-              }))}
               value={employeeId}
               onChange={setEmployeeId}
             />

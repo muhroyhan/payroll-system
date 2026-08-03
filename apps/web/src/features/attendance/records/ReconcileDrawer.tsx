@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, DatePicker, Drawer, Form, Select, Space } from 'antd';
+import { Alert, Button, DatePicker, Drawer, Form, Space } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { useEmployeesQuery } from '../../employees/hooks';
+import { EmployeeSelect } from '../../employees/EmployeeSelect';
 import { useReconcileAttendanceMutation } from './hooks';
 import { confirmOverwrite } from './confirmOverwrite';
 import { describeApiError, type ApiErrorPresentation } from '../../../api/errors';
@@ -26,7 +26,6 @@ interface ReconcileDrawerProps {
 // confirm applies to the whole range in one dialog, not per day.
 export function ReconcileDrawer({ open, onClose }: ReconcileDrawerProps) {
   const [form] = Form.useForm<ReconcileFormValues>();
-  const employeesQuery = useEmployeesQuery();
   const reconcileMutation = useReconcileAttendanceMutation();
   const [error, setError] = useState<ApiErrorPresentation | null>(null);
 
@@ -94,14 +93,7 @@ export function ReconcileDrawer({ open, onClose }: ReconcileDrawerProps) {
           label="Karyawan"
           rules={[{ required: true, message: 'Karyawan wajib dipilih' }]}
         >
-          <Select
-            showSearch
-            optionFilterProp="label"
-            options={(employeesQuery.data ?? []).map((employee) => ({
-              value: employee.id,
-              label: employee.name,
-            }))}
-          />
+          <EmployeeSelect />
         </Form.Item>
         <Form.Item
           name="range"

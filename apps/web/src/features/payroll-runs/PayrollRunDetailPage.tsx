@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Alert, Descriptions, Form, Input, Modal, Progress, Space, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { AuditEntityType, PayrollRunStatus } from '@payroll-system/shared-types';
-import { formatIDR } from '../../components/format';
+import { formatIDR, formatTime } from '../../components/format';
 import type { PayrollRunExcludedEmployee } from './api';
 import { DetailPage } from '../../components/DetailPage';
 import { LockedAction } from '../../components/LockedAction';
@@ -240,6 +240,33 @@ export function PayrollRunDetailPage() {
                 </Typography.Text>
               </div>
             )}
+            {/* BUGS#15 — kept visible past isCalculating (unlike the numeric
+                Progress bar above, which stops being meaningful once done):
+                a short durable record of what the last calculation run did,
+                not just a live-only indicator. */}
+            {!!data.progressLog?.length && (
+              <div
+                style={{
+                  marginTop: 16,
+                  maxHeight: 160,
+                  overflowY: 'auto',
+                  padding: '8px 12px',
+                  background: 'rgba(0, 0, 0, 0.02)',
+                  borderRadius: 4,
+                }}
+              >
+                <Typography.Text strong style={{ fontSize: 12 }}>
+                  Riwayat Perhitungan
+                </Typography.Text>
+                {data.progressLog.map((entry, i) => (
+                  <div key={i}>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      {formatTime(entry.at)} — {entry.message}
+                    </Typography.Text>
+                  </div>
+                ))}
+              </div>
+            )}
             {!!data.excludedEmployees?.length && (
               <div style={{ marginTop: 16 }}>
                 <Alert
@@ -263,23 +290,25 @@ export function PayrollRunDetailPage() {
               <Descriptions.Item label="Status">
                 <StatusTag value={data.status} labels={PAYROLL_RUN_STATUS_LABELS} />
               </Descriptions.Item>
-              <Descriptions.Item label="Dibuat Oleh (User ID)">{data.createdBy}</Descriptions.Item>
-              <Descriptions.Item label="Disetujui Oleh (User ID)">
-                {data.approvedBy ?? '—'}
+              <Descriptions.Item label="Dibuat Oleh">
+                {data.createdByUser?.name ?? '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Disetujui Oleh">
+                {data.approvedByUser?.name ?? '—'}
               </Descriptions.Item>
               <Descriptions.Item label="Terkunci Sejak" span={2}>
                 {data.lockedAt ?? '—'}
               </Descriptions.Item>
               {/* Audit-trail follow-up (§1B) — the money-out step's actor,
                   rendered by name (disbursedByUser is eager-loaded by
-                  findByIdOrThrow) rather than raw user ID like the two
-                  fields above, per the review's explicit ask. */}
+                  findByIdOrThrow). BUGS#19 extended the same treatment to
+                  every other actor field on this entity, above and below. */}
               <Descriptions.Item label="Dicairkan Oleh" span={2}>
                 {data.disbursedByUser ? `Dicairkan oleh: ${data.disbursedByUser.name}` : '—'}
               </Descriptions.Item>
               {data.revertedBy && (
-                <Descriptions.Item label="Terakhir Dikembalikan ke Draft (User ID)" span={2}>
-                  {data.revertedBy} — "{data.revertReason}"
+                <Descriptions.Item label="Terakhir Dikembalikan ke Draft" span={2}>
+                  {data.revertedByUser?.name ?? '—'} — "{data.revertReason}"
                 </Descriptions.Item>
               )}
             </Descriptions>

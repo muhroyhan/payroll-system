@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -22,6 +23,7 @@ import { EmployeesService } from './employees.service';
 import { EmployeesImportService } from './employees-import.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { EmployeeListQueryDto } from './dto/employee-list-query.dto';
 
 @Controller('employees')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -33,8 +35,8 @@ export class EmployeesController {
   ) {}
 
   @Get()
-  list() {
-    return this.employeesService.list();
+  list(@Query() query: EmployeeListQueryDto) {
+    return this.employeesService.list(query);
   }
 
   @Get(':id')

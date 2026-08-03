@@ -1,12 +1,10 @@
 import { DatePicker, Form, Input, Select, TimePicker } from 'antd';
-import { useEmployeesQuery } from '../../employees/hooks';
+import { EmployeeSelect } from '../../employees/EmployeeSelect';
 import { enumSelectOptions } from '../../../components/enumSelectOptions';
 import { SURAT_IJIN_TYPE_LABELS } from './labels';
 
 // FE-T18 (09_FRONTEND_STEPS.md), §15.10 A (08_FRONTEND_STRUCTURE.md).
 export function SuratIjinFormFields() {
-  const employeesQuery = useEmployeesQuery();
-
   return (
     <>
       <Form.Item
@@ -14,14 +12,7 @@ export function SuratIjinFormFields() {
         label="Karyawan"
         rules={[{ required: true, message: 'Karyawan wajib dipilih' }]}
       >
-        <Select
-          showSearch
-          optionFilterProp="label"
-          options={(employeesQuery.data ?? []).map((employee) => ({
-            value: employee.id,
-            label: employee.name,
-          }))}
-        />
+        <EmployeeSelect />
       </Form.Item>
       <Form.Item
         name="type"

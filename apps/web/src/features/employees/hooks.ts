@@ -1,15 +1,31 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { PaginationParams } from '../../api/pagination';
 import {
   createEmployee,
   getEmployee,
   importEmployees,
   listEmployees,
+  listEmployeesPaginated,
   updateEmployee,
   type EmployeeFormValues,
+  type EmployeeListFilters,
 } from './api';
 
 export function useEmployeesQuery() {
   return useQuery({ queryKey: ['employees'], queryFn: listEmployees });
+}
+
+// BUGS#2 — EmployeeListPage's server-paginated + server-filtered query;
+// distinct from useEmployeesQuery() above (which every Select/dropdown
+// keeps using unpaginated) — different queryFn, different cache entry
+// (['employees','paginated',...]), same 'employees' prefix so both still
+// invalidate together on create/update.
+export function useEmployeesListQuery(params: PaginationParams & EmployeeListFilters) {
+  return useQuery({
+    queryKey: ['employees', 'paginated', params],
+    queryFn: () => listEmployeesPaginated(params),
+    placeholderData: (previousData) => previousData,
+  });
 }
 
 // EMP-011 — retry: false, same as the other "404 is a real state" queries

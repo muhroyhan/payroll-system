@@ -19,6 +19,7 @@ import { KasbonService } from './kasbon.service';
 import { CreateKasbonDto } from './dto/create-kasbon.dto';
 import { UpdateKasbonDto } from './dto/update-kasbon.dto';
 import { RejectKasbonDto } from './dto/reject-kasbon.dto';
+import { KasbonListQueryDto } from './dto/kasbon-list-query.dto';
 
 @Controller('kasbon')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -27,8 +28,8 @@ export class KasbonController {
   constructor(private readonly kasbonService: KasbonService) {}
 
   @Get()
-  list(@Query('employeeId') employeeId?: string) {
-    return this.kasbonService.list(employeeId);
+  list(@Query() query: KasbonListQueryDto) {
+    return this.kasbonService.list(query);
   }
 
   @Get(':id')
@@ -37,10 +38,7 @@ export class KasbonController {
   }
 
   @Post()
-  create(
-    @Body() dto: CreateKasbonDto,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
+  create(@Body() dto: CreateKasbonDto, @CurrentUser() user: AuthenticatedUser) {
     return this.kasbonService.create(dto, user.id);
   }
 

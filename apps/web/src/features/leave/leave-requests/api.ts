@@ -1,11 +1,12 @@
 import type { LeaveRequestStatus } from '@payroll-system/shared-types';
 import { apiClient } from '../../../api/client';
+import type { PaginatedResult, PaginationParams } from '../../../api/pagination';
 
 // Mirrors leave-request.entity.ts. list() includes ['leaveType'] but NOT
-// employee; findByIdOrThrow() (the detail GET) includes NEITHER association
-// at all (verified against leave-requests.service.ts — plain findByPk with
-// no `include`). Names are looked up from useEmployeesQuery/useLeaveTypesQuery
-// on both list and detail, not a second lookup implementation.
+// employee (verified against leave-requests.service.ts); employee names are
+// looked up from useEmployeesQuery on both list and detail, not a second
+// lookup implementation. approvedByUser/rejectedByUser/createdByUser ARE
+// eager-loaded (id/name only, BUGS#19) by both list() and findByIdOrThrow().
 //
 // ⚠️ No endpoint exposes a requested-day count as a field. The backend
 // computes one internally (countWeekdaysInclusive in
@@ -22,9 +23,12 @@ export interface LeaveRequest {
   endDate: string;
   status: LeaveRequestStatus;
   approvedBy: string | null;
+  approvedByUser?: { id: string; name: string } | null;
   rejectedBy: string | null;
+  rejectedByUser?: { id: string; name: string } | null;
   rejectReason: string | null;
   createdBy: string | null;
+  createdByUser?: { id: string; name: string } | null;
 }
 
 export interface LeaveRequestFormValues {
@@ -37,6 +41,19 @@ export interface LeaveRequestFormValues {
 export async function listLeaveRequests(employeeId?: string): Promise<LeaveRequest[]> {
   const { data } = await apiClient.get<LeaveRequest[]>('/leave-requests', {
     params: { employeeId },
+  });
+  return data;
+}
+
+// BUGS#2 — GET /leave-requests WITH page/limit gets the paginated
+// {items,total,...} shape back (LeaveRequestsService.list()'s doc comment);
+// listLeaveRequests() above (no page/limit) stays unpaginated for
+// HomePage's dashboard widget.
+export async function listLeaveRequestsPaginated(
+  params: PaginationParams & { employeeId?: string },
+): Promise<PaginatedResult<LeaveRequest>> {
+  const { data } = await apiClient.get<PaginatedResult<LeaveRequest>>('/leave-requests', {
+    params,
   });
   return data;
 }

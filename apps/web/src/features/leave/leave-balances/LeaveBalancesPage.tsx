@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Button, Form, Input, InputNumber, Progress, Select, Space, Tag, Typography } from 'antd';
+import { Button, Form, Input, InputNumber, Progress, Space, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ListPage } from '../../../components/ListPage';
 import { FormDrawer } from '../../../components/FormDrawer';
+import { YearSelect } from '../../../components/YearSelect';
 import { useEmployeesQuery } from '../../employees/hooks';
+import { EmployeeSelect } from '../../employees/EmployeeSelect';
 import { useLeaveBalancesQuery, useUpdateLeaveBalanceQuotaMutation } from './hooks';
 import { ResolveOneBalanceDrawer } from './ResolveOneBalanceDrawer';
 import { ResolveBulkBalanceModal } from './ResolveBulkBalanceModal';
@@ -92,25 +94,18 @@ export function LeaveBalancesPage() {
         }
         filters={
           <Space wrap>
-            <Select
+            <EmployeeSelect
               allowClear
               placeholder="Karyawan"
               style={{ width: 220 }}
-              showSearch
-              optionFilterProp="label"
-              options={(employeesQuery.data ?? []).map((employee) => ({
-                value: employee.id,
-                label: employee.name,
-              }))}
               value={employeeId}
               onChange={setEmployeeId}
             />
-            <InputNumber
+            <YearSelect
               placeholder="Tahun"
+              style={{ width: 120 }}
               value={year}
               onChange={(value) => value && setYear(value)}
-              min={2000}
-              max={2100}
             />
           </Space>
         }

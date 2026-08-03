@@ -74,7 +74,7 @@ export function SuratPeringatanDetailPage() {
               <StatusTag value={data.level} labels={SP_LEVEL_LABELS} />
             </Descriptions.Item>
             <Descriptions.Item label="Tanggal Terbit">{formatDate(data.issueDate)}</Descriptions.Item>
-            <Descriptions.Item label="Diterbitkan Oleh (User ID)">{data.issuedBy}</Descriptions.Item>
+            <Descriptions.Item label="Diterbitkan Oleh">{data.issuedByUser?.name ?? '—'}</Descriptions.Item>
             <Descriptions.Item label="Komponen Sanksi">
               {data.sanctionComponent?.name ?? '—'}
             </Descriptions.Item>

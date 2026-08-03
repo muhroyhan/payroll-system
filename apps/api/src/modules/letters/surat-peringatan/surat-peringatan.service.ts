@@ -27,13 +27,14 @@ export class SuratPeringatanService {
     if (employeeId) where.employeeId = employeeId;
     return this.suratPeringatanModel.findAll({
       where,
-      include: ['employee', 'sanctionComponent'],
+      include: ['employee', 'sanctionComponent', { association: 'issuedByUser', attributes: ['id', 'name'] }],
+      order: [['updatedAt', 'DESC']],
     });
   }
 
   async findByIdOrThrow(id: string): Promise<SuratPeringatan> {
     const record = await this.suratPeringatanModel.findByPk(id, {
-      include: ['employee', 'sanctionComponent'],
+      include: ['employee', 'sanctionComponent', { association: 'issuedByUser', attributes: ['id', 'name'] }],
     });
     if (!record) {
       throw new NotFoundException(`Surat peringatan ${id} not found`);

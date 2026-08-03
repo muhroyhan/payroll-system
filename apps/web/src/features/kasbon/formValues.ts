@@ -6,7 +6,6 @@ export interface KasbonFormRuntimeValues {
   amount: number;
   requestDate: Dayjs;
   installmentCount: number;
-  installmentAmount: number;
 }
 
 export function kasbonToRuntimeFormValues(record: Kasbon): KasbonFormRuntimeValues {
@@ -15,7 +14,6 @@ export function kasbonToRuntimeFormValues(record: Kasbon): KasbonFormRuntimeValu
     amount: Number(record.amount),
     requestDate: dayjs(record.requestDate),
     installmentCount: record.installmentCount,
-    installmentAmount: Number(record.installmentAmount),
   };
 }
 
@@ -25,6 +23,5 @@ export function runtimeFormValuesToApi(values: KasbonFormRuntimeValues): KasbonF
     amount: String(values.amount),
     requestDate: values.requestDate.format('YYYY-MM-DD'),
     installmentCount: values.installmentCount,
-    installmentAmount: String(values.installmentAmount),
   };
 }

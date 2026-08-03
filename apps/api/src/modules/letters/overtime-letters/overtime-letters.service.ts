@@ -14,6 +14,14 @@ import { OvertimeLetter } from './entities/overtime-letter.entity';
 import { CreateOvertimeLetterDto } from './dto/create-overtime-letter.dto';
 import { UpdateOvertimeLetterDto } from './dto/update-overtime-letter.dto';
 
+// BUGS#19 — id/name only (never the full User row), see payroll_runs'
+// disbursedByUser.
+const OVERTIME_LETTER_USER_INCLUDES = [
+  { association: 'verifiedByUser', attributes: ['id', 'name'] },
+  { association: 'rejectedByUser', attributes: ['id', 'name'] },
+  { association: 'createdByUser', attributes: ['id', 'name'] },
+];
+
 @Injectable()
 export class OvertimeLettersService {
   constructor(
@@ -27,12 +35,16 @@ export class OvertimeLettersService {
   list(employeeId?: string): Promise<OvertimeLetter[]> {
     const where: Record<string, unknown> = {};
     if (employeeId) where.employeeId = employeeId;
-    return this.overtimeLetterModel.findAll({ where, include: ['employee'] });
+    return this.overtimeLetterModel.findAll({
+      where,
+      include: ['employee', ...OVERTIME_LETTER_USER_INCLUDES],
+      order: [['updatedAt', 'DESC']],
+    });
   }
 
   async findByIdOrThrow(id: string): Promise<OvertimeLetter> {
     const record = await this.overtimeLetterModel.findByPk(id, {
-      include: ['employee'],
+      include: ['employee', ...OVERTIME_LETTER_USER_INCLUDES],
     });
     if (!record) {
       throw new NotFoundException(`Overtime letter ${id} not found`);

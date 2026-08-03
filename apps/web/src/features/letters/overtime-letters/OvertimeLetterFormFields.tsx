@@ -1,10 +1,8 @@
-import { DatePicker, Form, Input, InputNumber, Select } from 'antd';
-import { useEmployeesQuery } from '../../employees/hooks';
+import { DatePicker, Form, Input, InputNumber } from 'antd';
+import { EmployeeSelect } from '../../employees/EmployeeSelect';
 
 // FE-T20 (09_FRONTEND_STEPS.md), §15.10 C (08_FRONTEND_STRUCTURE.md).
 export function OvertimeLetterFormFields() {
-  const employeesQuery = useEmployeesQuery();
-
   return (
     <>
       <Form.Item
@@ -12,14 +10,7 @@ export function OvertimeLetterFormFields() {
         label="Karyawan"
         rules={[{ required: true, message: 'Karyawan wajib dipilih' }]}
       >
-        <Select
-          showSearch
-          optionFilterProp="label"
-          options={(employeesQuery.data ?? []).map((employee) => ({
-            value: employee.id,
-            label: employee.name,
-          }))}
-        />
+        <EmployeeSelect />
       </Form.Item>
       <Form.Item
         name="date"

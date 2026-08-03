@@ -16,7 +16,8 @@ export class LeaveTypesService {
   ) {}
 
   list(): Promise<LeaveType[]> {
-    return this.leaveTypeModel.findAll();
+    // BUGS#3 — newest-updated first, the default for every listing.
+    return this.leaveTypeModel.findAll({ order: [['updatedAt', 'DESC']] });
   }
 
   async findByIdOrThrow(id: string): Promise<LeaveType> {

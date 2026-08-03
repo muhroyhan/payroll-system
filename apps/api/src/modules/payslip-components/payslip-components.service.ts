@@ -20,7 +20,8 @@ export class PayslipComponentsService {
   ) {}
 
   list(): Promise<PayslipComponent[]> {
-    return this.payslipComponentModel.findAll();
+    // BUGS#3 — newest-updated first, the default for every listing.
+    return this.payslipComponentModel.findAll({ order: [['updatedAt', 'DESC']] });
   }
 
   async findByIdOrThrow(id: string): Promise<PayslipComponent> {

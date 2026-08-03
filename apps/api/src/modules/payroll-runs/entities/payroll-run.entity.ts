@@ -33,12 +33,21 @@ export class PayrollRun extends Model {
   @Column(DataType.ENUM(...Object.values(PayrollRunStatus)))
   declare status: PayrollRunStatus;
 
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare createdBy: string;
 
+  // BUGS#19 — id/name only, see disbursedByUser below.
+  @BelongsTo(() => User, 'createdBy')
+  declare createdByUser: User | null;
+
   // Set when the run moves calculated → approved.
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare approvedBy: string | null;
+
+  @BelongsTo(() => User, 'approvedBy')
+  declare approvedByUser: User | null;
 
   // Set when the run moves approved → disbursed; from then on the run and
   // everything under it are permanently immutable (§11).
@@ -62,8 +71,12 @@ export class PayrollRun extends Model {
   // and NO reason at all, despite tearing down every payslip/kasbon
   // deduction the run had produced (PayrollRunRevertService). Both are
   // written together, never one without the other (see revertToDraft).
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare revertedBy: string | null;
+
+  @BelongsTo(() => User, 'revertedBy')
+  declare revertedByUser: User | null;
 
   @Column(DataType.TEXT)
   declare revertReason: string | null;
@@ -78,6 +91,14 @@ export class PayrollRun extends Model {
   @Default(0)
   @Column(DataType.INTEGER)
   declare totalCount: number;
+
+  // BUGS#15 — step-level companion to processedCount/totalCount above: what
+  // the job was actually doing at each checkpoint (start, each chunk,
+  // completion), not just a percentage. Appended to by
+  // PayrollCalculationProcessor, capped at MAX_PROGRESS_LOG_ENTRIES there.
+  @Default([])
+  @Column(DataType.JSON)
+  declare progressLog: Array<{ message: string; at: string }>;
 
   // Reciprocal of Payslip's @BelongsTo(() => PayrollRun) — required by
   // EffectiveRangePayslipChecker's `PayrollRun.findAll({ include: [{ model:

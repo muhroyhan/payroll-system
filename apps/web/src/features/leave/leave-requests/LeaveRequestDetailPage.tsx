@@ -146,19 +146,19 @@ export function LeaveRequestDetailPage() {
               <Descriptions.Item label="Status">
                 <StatusTag value={data.status} labels={LEAVE_REQUEST_STATUS_LABELS} />
               </Descriptions.Item>
-              {/* approvedBy/rejectedBy/createdBy are user ids (admin/HR
-                  staff), not employee ids — GET /users is admin-only
-                  (§15.14), so they aren't resolvable to a name for every
-                  viewer here; shown as-is rather than guessed at. */}
-              <Descriptions.Item label="Dibuat Oleh (User ID)">
-                {data.createdBy ?? '—'}
+              {/* BUGS#19 — approvedBy/rejectedBy/createdBy (admin/HR staff
+                  user ids, not employee ids) are rendered by name via
+                  approvedByUser/rejectedByUser/createdByUser, eager-loaded
+                  id/name only (never a separate admin-only GET /users call). */}
+              <Descriptions.Item label="Dibuat Oleh">
+                {data.createdByUser?.name ?? '—'}
               </Descriptions.Item>
-              <Descriptions.Item label="Diputuskan Oleh (User ID)">
-                {data.approvedBy ?? '—'}
+              <Descriptions.Item label="Diputuskan Oleh">
+                {data.approvedByUser?.name ?? '—'}
               </Descriptions.Item>
               {data.rejectedBy && (
-                <Descriptions.Item label="Ditolak Oleh (User ID)" span={2}>
-                  {data.rejectedBy} — "{data.rejectReason}"
+                <Descriptions.Item label="Ditolak Oleh" span={2}>
+                  {data.rejectedByUser?.name ?? '—'} — "{data.rejectReason}"
                 </Descriptions.Item>
               )}
               <Descriptions.Item label="Tanggal Cuti" span={2}>

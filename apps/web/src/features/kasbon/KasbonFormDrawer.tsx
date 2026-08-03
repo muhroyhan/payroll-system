@@ -54,7 +54,10 @@ export function KasbonFormDrawer({ open, onClose, kasbon }: KasbonFormDrawerProp
       form={form}
       confirmLoading={createMutation.isPending || updateMutation.isPending}
     >
-      <KasbonFormFields moneyFieldsLocked={kasbon ? hasDeductionStarted(kasbon) : false} />
+      <KasbonFormFields
+        moneyFieldsLocked={kasbon ? hasDeductionStarted(kasbon) : false}
+        isEditMode={!!kasbon}
+      />
     </FormDrawer>
   );
 }

@@ -10,6 +10,7 @@ import {
 } from 'sequelize-typescript';
 import { SuratIjinStatus, SuratIjinType } from '@payroll-system/shared-types';
 import { Employee } from '../../../employees/entities/employee.entity';
+import { User } from '../../../users/entities/user.entity';
 
 // §5.5 — permission letter (late arrival / early leave). Once approved or
 // rejected it's permanently locked (§11), same shape as leave_requests — no
@@ -45,17 +46,30 @@ export class SuratIjin extends Model {
   @Column(DataType.ENUM(...Object.values(SuratIjinStatus)))
   declare status: SuratIjinStatus;
 
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare approvedBy: string | null;
 
+  // BUGS#19 — id/name only, see payroll_runs' disbursedByUser.
+  @BelongsTo(() => User, 'approvedBy')
+  declare approvedByUser: User | null;
+
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare rejectedBy: string | null;
+
+  @BelongsTo(() => User, 'rejectedBy')
+  declare rejectedByUser: User | null;
 
   @Column(DataType.TEXT)
   declare rejectReason: string | null;
 
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare createdBy: string | null;
+
+  @BelongsTo(() => User, 'createdBy')
+  declare createdByUser: User | null;
 
   // Populated asynchronously by the PDF generation job once approved —
   // never generated synchronously in the request handler (§3, no exceptions).

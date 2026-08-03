@@ -10,6 +10,7 @@ import {
 } from 'sequelize-typescript';
 import { AttendanceSource } from '@payroll-system/shared-types';
 import { Employee } from '../../employees/entities/employee.entity';
+import { User } from '../../users/entities/user.entity';
 
 // §5.3 — the reconciled, payroll-facing attendance fact for one employee/date.
 // Unique on (employee_id, date): exactly one row per day, regardless of which
@@ -73,12 +74,21 @@ export class AttendanceRecord extends Model {
   // overwrites it, since the manual actor no longer authored what's on the
   // row now. Full history (including this actor's now-superseded write) is
   // in audit_events, not just this latest-state column.
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare enteredBy: string | null;
+
+  // BUGS#19 — id/name only, see payroll_runs' disbursedByUser.
+  @BelongsTo(() => User, 'enteredBy')
+  declare enteredByUser: User | null;
 
   // Set only on the specific write that force-replaced a differently-sourced
   // row (TC-ATT-07's overwrite=true path) — null on a same-source update,
   // since that isn't an overwrite.
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare overwrittenBy: string | null;
+
+  @BelongsTo(() => User, 'overwrittenBy')
+  declare overwrittenByUser: User | null;
 }

@@ -27,10 +27,19 @@ export interface PayrollRun {
   period: string;
   status: PayrollRunStatus;
   createdBy: string;
+  // BUGS#19 -- eager-loaded (id/name only) by findByIdOrThrow, same as
+  // disbursedByUser below; absent on the list.
+  createdByUser?: { id: string; name: string } | null;
   approvedBy: string | null;
+  approvedByUser?: { id: string; name: string } | null;
   lockedAt: string | null;
   processedCount: number;
   totalCount: number;
+  // BUGS#15 — step-level companion to processedCount/totalCount: what the
+  // calculation job was doing at each checkpoint (start, each chunk,
+  // completion), not just a percentage. Read via the same poll as those two
+  // (usePayrollRunQuery's refetchInterval) — no separate realtime channel.
+  progressLog: Array<{ message: string; at: string }>;
   // Audit-trail follow-up (dispute-traceability review, §1B) — the money-out
   // step's actor. disbursedByUser is eager-loaded by findByIdOrThrow (GET
   // /payroll-runs/:id only, same caveat as excludedEmployees below) so the
@@ -40,6 +49,7 @@ export interface PayrollRun {
   // Set together whenever a `calculated` run is reverted to draft — never
   // one without the other (revertToDraft requires a non-empty reason).
   revertedBy: string | null;
+  revertedByUser?: { id: string; name: string } | null;
   revertReason: string | null;
   // Eager-loaded ONLY by GET /payroll-runs/:id (payroll-runs.service.ts
   // findByIdOrThrow) — GET /payroll-runs (the list) does NOT include it, so

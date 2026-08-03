@@ -1,9 +1,10 @@
 import type { AttendanceSource } from '@payroll-system/shared-types';
 import { apiClient } from '../../../api/client';
 
-// Mirrors attendance-record.entity.ts. list() has NO include (verified
-// against attendance-records.service.ts's plain findAll()) — employee names
-// are looked up via useEmployeesQuery, not a second lookup implementation.
+// Mirrors attendance-record.entity.ts. Employee names are looked up via
+// useEmployeesQuery, not a second lookup implementation. enteredByUser/
+// overwrittenByUser ARE eager-loaded (id/name only, BUGS#19) by both list()
+// and findByIdOrThrow().
 export interface AttendanceRecord {
   id: string;
   employeeId: string;
@@ -21,7 +22,9 @@ export interface AttendanceRecord {
   // cross-source overwrite (overwrittenBy), if any. Full history is in
   // audit_events (AuditHistoryPanel), not just these latest-state fields.
   enteredBy: string | null;
+  enteredByUser?: { id: string; name: string } | null;
   overwrittenBy: string | null;
+  overwrittenByUser?: { id: string; name: string } | null;
 }
 
 // Mirrors CreateAttendanceRecordDto — `source` is never client-supplied, the

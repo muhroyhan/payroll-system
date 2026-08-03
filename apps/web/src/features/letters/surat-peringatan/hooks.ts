@@ -42,10 +42,14 @@ export function useUpdateSuratPeringatanMutation(id: string) {
   });
 }
 
+// BUGS#16 — refetchType: 'none', see kasbon/hooks.ts's useRemoveKasbonMutation
+// for why: avoids an eager (and needless, 404-bound) refetch of the detail
+// query this mutation is always called from, right before it navigates away.
 export function useRemoveSuratPeringatanMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => removeSuratPeringatan(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['surat-peringatan'] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['surat-peringatan'], refetchType: 'none' }),
   });
 }

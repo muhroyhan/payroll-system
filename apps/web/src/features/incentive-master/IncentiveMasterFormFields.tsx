@@ -30,7 +30,7 @@ export function IncentiveMasterFormFields({ form }: IncentiveMasterFormFieldsPro
         name="isBpjsEligible"
         label="Termasuk Basis BPJS"
         valuePropName="checked"
-        extra="Tunjangan tetap/rutin biasanya ya; insentif variabel/satu kali biasanya tidak (§9 Step 2)."
+        extra="Tunjangan tetap/rutin biasanya ya; insentif variabel/satu kali biasanya tidak."
       >
         <Switch />
       </Form.Item>

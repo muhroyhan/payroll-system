@@ -19,6 +19,7 @@ import { LeaveRequestsService } from './leave-requests.service';
 import { CreateLeaveRequestDto } from './dto/create-leave-request.dto';
 import { UpdateLeaveRequestDto } from './dto/update-leave-request.dto';
 import { RejectLeaveRequestDto } from './dto/reject-leave-request.dto';
+import { LeaveRequestListQueryDto } from './dto/leave-request-list-query.dto';
 
 @Controller('leave-requests')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -27,8 +28,8 @@ export class LeaveRequestsController {
   constructor(private readonly leaveRequestsService: LeaveRequestsService) {}
 
   @Get()
-  list(@Query('employeeId') employeeId?: string) {
-    return this.leaveRequestsService.list(employeeId);
+  list(@Query() query: LeaveRequestListQueryDto) {
+    return this.leaveRequestsService.list(query);
   }
 
   @Get(':id')

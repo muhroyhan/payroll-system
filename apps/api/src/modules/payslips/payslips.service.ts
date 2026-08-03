@@ -11,7 +11,11 @@ export class PayslipsService {
   list(payrollRunId?: string): Promise<Payslip[]> {
     const where: Record<string, unknown> = {};
     if (payrollRunId) where.payrollRunId = payrollRunId;
-    return this.payslipModel.findAll({ where, include: ['employee'] });
+    return this.payslipModel.findAll({
+      where,
+      include: ['employee'],
+      order: [['updatedAt', 'DESC']],
+    });
   }
 
   async findByIdOrThrow(id: string): Promise<Payslip> {

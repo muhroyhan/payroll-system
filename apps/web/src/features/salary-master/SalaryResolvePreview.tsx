@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Card, DatePicker, Select, Space, Typography } from 'antd';
+import { Card, DatePicker, Space, Typography } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useEmployeesQuery } from '../employees/hooks';
+import { EmployeeSelect } from '../employees/EmployeeSelect';
 import { formatIDR } from '../../components/format';
 import { useResolveSalaryQuery } from './hooks';
 
@@ -9,7 +9,6 @@ import { useResolveSalaryQuery } from './hooks';
 // whatever GET /salary-master/resolve returns for a chosen employee/date; it
 // never re-implements the §5.2 priority order itself.
 export function SalaryResolvePreview() {
-  const employeesQuery = useEmployeesQuery();
   const [employeeId, setEmployeeId] = useState<string>();
   const [asOf, setAsOf] = useState<Dayjs>(() => dayjs());
 
@@ -18,15 +17,9 @@ export function SalaryResolvePreview() {
   return (
     <Card size="small" title="Pratinjau Resolusi Gaji" style={{ marginBottom: 16 }}>
       <Space wrap>
-        <Select
+        <EmployeeSelect
           placeholder="Pilih karyawan"
           style={{ width: 240 }}
-          showSearch
-          optionFilterProp="label"
-          options={(employeesQuery.data ?? []).map((employee) => ({
-            value: employee.id,
-            label: employee.name,
-          }))}
           value={employeeId}
           onChange={setEmployeeId}
         />

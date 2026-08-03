@@ -7,10 +7,21 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { LeaveRequestStatus } from '@payroll-system/shared-types';
 import { assertPendingStatus } from '../../../common/approval-workflow/assert-pending';
+import type { PaginatedResult } from '../../../common/pagination/pagination-query.dto';
+import { resolvePaginationAndSort } from '../../../common/pagination/resolve-pagination';
 import { LeaveBalancesService } from '../leave-balances/leave-balances.service';
 import { LeaveRequest } from './entities/leave-request.entity';
 import { CreateLeaveRequestDto } from './dto/create-leave-request.dto';
 import { UpdateLeaveRequestDto } from './dto/update-leave-request.dto';
+import { LeaveRequestListQueryDto } from './dto/leave-request-list-query.dto';
+
+// BUGS#19 — id/name only (never the full User row), see payroll_runs'
+// disbursedByUser.
+const LEAVE_REQUEST_USER_INCLUDES = [
+  { association: 'approvedByUser', attributes: ['id', 'name'] },
+  { association: 'rejectedByUser', attributes: ['id', 'name'] },
+  { association: 'createdByUser', attributes: ['id', 'name'] },
+];
 
 // §4 — standard Mon–Fri work week; weekends are never working days, so they
 // never consume leave quota. Company holidays are NOT excluded here (would
@@ -38,10 +49,34 @@ export class LeaveRequestsService {
     private readonly leaveBalancesService: LeaveBalancesService,
   ) {}
 
-  list(employeeId?: string): Promise<LeaveRequest[]> {
+  // BUGS#2/#3 — see EmployeesService.list()'s doc comment: no page/limit ->
+  // plain array (dropdown/Select callers unaffected), page/limit given ->
+  // {items,total,...}.
+  async list(
+    query: LeaveRequestListQueryDto = {},
+  ): Promise<LeaveRequest[] | PaginatedResult<LeaveRequest>> {
     const where: Record<string, unknown> = {};
-    if (employeeId) where.employeeId = employeeId;
-    return this.leaveRequestModel.findAll({ where, include: ['leaveType'] });
+    if (query.employeeId) where.employeeId = query.employeeId;
+
+    const { limit, offset, order } = resolvePaginationAndSort(query);
+
+    if (limit === undefined) {
+      return this.leaveRequestModel.findAll({
+        where,
+        include: ['leaveType', ...LEAVE_REQUEST_USER_INCLUDES],
+        order,
+      });
+    }
+
+    const { rows, count } = await this.leaveRequestModel.findAndCountAll({
+      where,
+      include: ['leaveType', ...LEAVE_REQUEST_USER_INCLUDES],
+      order,
+      limit,
+      offset,
+      distinct: true,
+    });
+    return { items: rows, total: count, page: query.page ?? 1, limit };
   }
 
   // Used by attendance reconciliation (P3-T03) to resolve is_on_leave for a date.
@@ -60,7 +95,9 @@ export class LeaveRequestsService {
   }
 
   async findByIdOrThrow(id: string): Promise<LeaveRequest> {
-    const record = await this.leaveRequestModel.findByPk(id);
+    const record = await this.leaveRequestModel.findByPk(id, {
+      include: LEAVE_REQUEST_USER_INCLUDES,
+    });
     if (!record) {
       throw new NotFoundException(`Leave request ${id} not found`);
     }

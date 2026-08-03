@@ -27,7 +27,11 @@ export class LeaveBalancesService {
     const where: Record<string, unknown> = {};
     if (employeeId) where.employeeId = employeeId;
     if (year) where.year = year;
-    return this.leaveBalanceModel.findAll({ where, include: ['leaveType'] });
+    return this.leaveBalanceModel.findAll({
+      where,
+      include: ['leaveType'],
+      order: [['updatedAt', 'DESC']],
+    });
   }
 
   async findByIdOrThrow(id: string): Promise<LeaveBalance> {

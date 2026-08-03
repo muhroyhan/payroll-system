@@ -35,7 +35,11 @@ export class PayslipTempComponentsService {
   ) {}
 
   list(): Promise<PayslipTempComponent[]> {
-    return this.tempComponentModel.findAll({ include: ['component'] });
+    // BUGS#3 — newest-updated first, the default for every listing.
+    return this.tempComponentModel.findAll({
+      include: ['component'],
+      order: [['updatedAt', 'DESC']],
+    });
   }
 
   async findByIdOrThrow(id: string): Promise<PayslipTempComponent> {

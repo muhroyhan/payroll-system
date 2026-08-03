@@ -11,6 +11,9 @@ interface EffectiveDatedRecord {
   // Audit-trail follow-up (§1C) — optional so this stays a drop-in for any
   // future effective-dated master; all 7 current ones set them.
   updatedBy?: string | null;
+  // BUGS#19 — eager-loaded (id/name only) by every master's list(); rendered
+  // instead of the raw updatedBy id.
+  updatedByUser?: { id: string; name: string } | null;
   reason?: string | null;
 }
 
@@ -93,13 +96,12 @@ export function EffectiveDatedMasterPage<T extends EffectiveDatedRecord>({
         ),
     },
     // Audit-trail follow-up (§1C) — who last touched this row, and (when
-    // retired) why. updatedBy is a user id, not resolvable to a name here
-    // (same reasoning as approvedBy elsewhere — GET /users is admin-only).
+    // retired) why. BUGS#19 — rendered by name (updatedByUser is eager-loaded
+    // by every master's list(), id/name only), not the raw user id.
     {
-      title: 'Diubah Oleh (User ID)',
-      dataIndex: 'updatedBy',
+      title: 'Diubah Oleh',
       key: 'updatedBy',
-      render: (value: string | null | undefined) => value ?? '—',
+      render: (_, record) => record.updatedByUser?.name ?? '—',
     },
     {
       title: 'Alasan (jika diakhiri)',
@@ -117,10 +119,12 @@ export function EffectiveDatedMasterPage<T extends EffectiveDatedRecord>({
             key: 'retire',
             render: (_, record) => (
               <Space size="small">
+                {/* BUGS#1 — "Ubah", not "Akhiri Masa Berlaku": this just opens
+                    the edit form (onRetire === openEdit in every caller); it
+                    doesn't retire anything by itself until Berlaku Sampai is
+                    actually filled in and saved. */}
                 {onRetire && (
-                  <Typography.Link onClick={() => onRetire(record)}>
-                    Akhiri Masa Berlaku
-                  </Typography.Link>
+                  <Typography.Link onClick={() => onRetire(record)}>Ubah</Typography.Link>
                 )}
                 {onShowHistory && (
                   <Typography.Link onClick={() => onShowHistory(record)}>

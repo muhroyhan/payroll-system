@@ -24,7 +24,11 @@ export class BpjsKetenagakerjaanMasterService {
   // Admin view: every row, active or not (this table intentionally keeps the
   // old + new JP-cap rows side by side, so date-filtering here would hide one).
   list(): Promise<BpjsKetenagakerjaanMaster[]> {
-    return this.bpjsKetenagakerjaanMasterModel.findAll();
+    // BUGS#19 — id/name only, see salary_master.service.ts's list().
+    return this.bpjsKetenagakerjaanMasterModel.findAll({
+      include: [{ association: 'updatedByUser', attributes: ['id', 'name'] }],
+      order: [['updatedAt', 'DESC']],
+    });
   }
 
   // Payroll-facing: the single rate card active for `periodDate`.

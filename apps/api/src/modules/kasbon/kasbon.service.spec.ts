@@ -21,6 +21,10 @@ describe('KasbonService', () => {
       findOne: jest.fn().mockResolvedValue(existingDeduction),
       create: jest.fn().mockResolvedValue({ id: 'ded-1' }),
       findAll: jest.fn(),
+      // BUGS#20 — how many installments this kasbon has already had
+      // deducted, used to detect "this is the final scheduled one". Defaults
+      // to 0 (first deduction) unless a test overrides it.
+      count: jest.fn().mockResolvedValue(0),
     };
     const service = new KasbonService(model as any, deductionModel as any);
     return { service, model, deductionModel };
@@ -49,7 +53,6 @@ describe('KasbonService', () => {
         amount: '3000000',
         requestDate: '2026-07-23',
         installmentCount: 3,
-        installmentAmount: '1000000',
       },
       'user-1',
     );
@@ -59,6 +62,25 @@ describe('KasbonService', () => {
         remainingBalance: null,
         createdBy: 'user-1',
       }),
+    );
+  });
+
+  // BUGS#20 — installmentAmount is no longer client-supplied; it's derived
+  // as floor(amount / installmentCount).
+  it('create() derives installmentAmount as floor(amount / installmentCount)', async () => {
+    const { service, model } = makeService();
+    await service.create(
+      {
+        employeeId: 'emp-1',
+        amount: '1000000',
+        requestDate: '2026-07-23',
+        installmentCount: 3,
+      },
+      'user-1',
+    );
+    // 1,000,000 / 3 = 333,333.33... -> floor -> 333,333.00, NOT rounded up.
+    expect(model.create).toHaveBeenCalledWith(
+      expect.objectContaining({ installmentAmount: '333333.00' }),
     );
   });
 
@@ -118,7 +140,12 @@ describe('KasbonService', () => {
     const { service } = makeService(r);
 
     await service.update('kb-1', { installmentCount: 4 });
-    expect(r.update).toHaveBeenCalledWith({ installmentCount: 4 });
+    // BUGS#20 — changing installmentCount recomputes the derived
+    // installmentAmount too: 3,000,000 / 4 = 750,000.00 exactly.
+    expect(r.update).toHaveBeenCalledWith({
+      installmentCount: 4,
+      installmentAmount: '750000.00',
+    });
 
     await service.remove('kb-1');
     expect(r.destroy).toHaveBeenCalled();
@@ -134,27 +161,31 @@ describe('KasbonService', () => {
     });
     const { service } = makeService(r);
 
-    await service.update('kb-1', { installmentAmount: '1500000' });
-    expect(r.update).toHaveBeenCalledWith({ installmentAmount: '1500000' });
+    // BUGS#20 — installmentAmount is derived, not directly settable;
+    // changing installmentCount is what now recomputes it.
+    await service.update('kb-1', { installmentCount: 2 });
+    expect(r.update).toHaveBeenCalledWith({
+      installmentCount: 2,
+      // 3,000,000 / 2 = 1,500,000.00 exactly.
+      installmentAmount: '1500000.00',
+    });
 
     await service.remove('kb-1');
     expect(r.destroy).toHaveBeenCalled();
   });
 
-  // P5-T03 — the lock is FIELD-level, not whole-record: touching any of
-  // amount/installmentCount/installmentAmount once a deduction has started
-  // is rejected, but remove() has no such granularity (deleting discards
-  // those fields regardless), so it stays fully blocked.
-  it('update() rejects touching amount/installmentCount/installmentAmount once at least one installment has been deducted (§11/TC-KASBON-04)', async () => {
+  // P5-T03 — the lock is FIELD-level, not whole-record: touching either of
+  // amount/installmentCount once a deduction has started is rejected
+  // (installmentAmount, BUGS#20, is derived from those two — nothing
+  // separate left to lock), but remove() has no such granularity (deleting
+  // discards those fields regardless), so it stays fully blocked.
+  it('update() rejects touching amount/installmentCount once at least one installment has been deducted (§11/TC-KASBON-04)', async () => {
     const r = record({
       status: KasbonStatus.APPROVED,
       remainingBalance: '2000000.00', // < amount 3000000.00
     });
     const { service } = makeService(r);
 
-    await expect(
-      service.update('kb-1', { installmentAmount: '1500000' }),
-    ).rejects.toThrow(ConflictException);
     await expect(service.update('kb-1', { amount: '5000000' })).rejects.toThrow(
       ConflictException,
     );
@@ -222,6 +253,7 @@ describe('KasbonService', () => {
         status: KasbonStatus.APPROVED,
         remainingBalance: '3000000.00',
         installmentAmount: '1000000.00',
+        installmentCount: 3,
       });
       const { service, deductionModel } = makeService(r, null);
 
@@ -244,6 +276,7 @@ describe('KasbonService', () => {
         status: KasbonStatus.APPROVED,
         remainingBalance: '3000000.00',
         installmentAmount: '1000000.00',
+        installmentCount: 3,
       });
       const { service, deductionModel } = makeService(r, null);
 
@@ -267,6 +300,7 @@ describe('KasbonService', () => {
         status: KasbonStatus.APPROVED,
         remainingBalance: '3000000.00',
         installmentAmount: '1000000.00',
+        installmentCount: 3,
       });
       const { service, deductionModel, model } = makeService(r, null);
       deductionModel.create.mockRejectedValue(
@@ -287,6 +321,7 @@ describe('KasbonService', () => {
         status: KasbonStatus.APPROVED,
         remainingBalance: '1000000.00',
         installmentAmount: '1000000.00',
+        installmentCount: 1,
       });
       const { service } = makeService(r, null);
 
@@ -315,6 +350,7 @@ describe('KasbonService', () => {
         status: KasbonStatus.APPROVED,
         remainingBalance: '400000.00',
         installmentAmount: '1000000.00',
+        installmentCount: 5,
       });
       const { service, deductionModel } = makeService(r, null);
 
@@ -322,6 +358,30 @@ describe('KasbonService', () => {
 
       expect(deductionModel.create).toHaveBeenCalledWith(
         expect.objectContaining({ amount: '400000.00' }),
+      );
+      expect(result.remainingBalance).toBe('0.00');
+      expect(result.status).toBe(KasbonStatus.PAID_OFF);
+    });
+
+    // BUGS#20 — the rounding remainder from floor(amount / installmentCount)
+    // is absorbed by the LAST installment, not clipped-by-coincidence like
+    // the safety-net test above: 1,000,000 / 3 floors to 333,333.00/installment,
+    // leaving 334 undistributed; the 3rd (final) installment must collect
+    // 333,334.00 — one unit more than a regular installment — to zero out.
+    it('BUGS#20: the final installment absorbs the floor-rounding remainder', async () => {
+      const r = record({
+        status: KasbonStatus.APPROVED,
+        remainingBalance: '333334.00', // 1,000,000 - 333,333 - 333,333
+        installmentAmount: '333333.00',
+        installmentCount: 3,
+      });
+      const { service, deductionModel } = makeService(r, null);
+      deductionModel.count.mockResolvedValue(2); // 2 installments already taken
+
+      const result = await service.deductInstallment('kb-1', 'run-6');
+
+      expect(deductionModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: '333334.00' }),
       );
       expect(result.remainingBalance).toBe('0.00');
       expect(result.status).toBe(KasbonStatus.PAID_OFF);

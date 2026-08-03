@@ -21,6 +21,8 @@ export class AuditEventsService {
     return this.auditEventModel.findAll({
       where: { entityType, entityId },
       order: [['createdAt', 'DESC']],
+      // BUGS#19 — id/name only so the panel can render "Oleh" by name.
+      include: [{ association: 'actor', attributes: ['id', 'name'] }],
     });
   }
 }

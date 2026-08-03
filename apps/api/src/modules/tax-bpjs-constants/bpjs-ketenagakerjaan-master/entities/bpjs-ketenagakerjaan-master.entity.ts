@@ -1,11 +1,14 @@
 import {
+  BelongsTo,
   Column,
   DataType,
   Default,
+  ForeignKey,
   Model,
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
+import { User } from '../../../users/entities/user.entity';
 
 // §8 — BPJS Ketenagakerjaan: JHT (no cap), JP (capped), JKK (company-only,
 // risk-class dependent), JKM (company-only). Modeled as one rate card since
@@ -54,8 +57,13 @@ export class BpjsKetenagakerjaanMaster extends Model {
   @Column(DataType.UUID)
   declare createdBy: string;
 
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare updatedBy: string | null;
+
+  // BUGS#19 — see salary_master's updatedByUser.
+  @BelongsTo(() => User, 'updatedBy')
+  declare updatedByUser: User | null;
 
   @Column(DataType.TEXT)
   declare reason: string | null;

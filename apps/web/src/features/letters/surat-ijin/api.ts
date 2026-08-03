@@ -14,9 +14,12 @@ export interface SuratIjin {
   timeRequested: string;
   status: SuratIjinStatus;
   approvedBy: string | null;
+  approvedByUser?: { id: string; name: string } | null;
   rejectedBy: string | null;
+  rejectedByUser?: { id: string; name: string } | null;
   rejectReason: string | null;
   createdBy: string | null;
+  createdByUser?: { id: string; name: string } | null;
   // Populated asynchronously once approved — null means "not generated yet",
   // not an error (§15.10). Derivable, so the download action can be
   // pre-emptively disabled instead of waiting for the PDF 404 (R-06a).

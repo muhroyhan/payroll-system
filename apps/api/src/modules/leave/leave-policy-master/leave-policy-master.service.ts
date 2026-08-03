@@ -25,7 +25,11 @@ export class LeavePolicyMasterService {
   ) {}
 
   list(): Promise<LeavePolicyMaster[]> {
-    return this.leavePolicyMasterModel.findAll();
+    // BUGS#19 — id/name only, see salary_master.service.ts's list().
+    return this.leavePolicyMasterModel.findAll({
+      include: [{ association: 'updatedByUser', attributes: ['id', 'name'] }],
+      order: [['updatedAt', 'DESC']],
+    });
   }
 
   async findByIdOrThrow(id: string): Promise<LeavePolicyMaster> {
@@ -106,7 +110,7 @@ export class LeavePolicyMasterService {
       throw new ConflictException(
         `Leave policy master ${record.id}'s ${touched} is locked — it has ` +
           `already been resolved into at least one leave_balances row ` +
-          `(§11/§1C); retire it via effectiveEndDate and add a new row ` +
+          `(§11); retire it via effectiveEndDate and add a new row ` +
           `instead of editing this one`,
       );
     }

@@ -149,7 +149,7 @@ export function EmployeeFormFields({
           name="spouseNoIncomeCertificate"
           label="Surat Keterangan Suami Tidak Berpenghasilan"
           valuePropName="checked"
-          extra="Menentukan status PTKP TK atau K untuk karyawan perempuan menikah (§5.1a)."
+          extra="Menentukan status PTKP TK atau K untuk karyawan perempuan menikah."
         >
           <Switch />
         </Form.Item>

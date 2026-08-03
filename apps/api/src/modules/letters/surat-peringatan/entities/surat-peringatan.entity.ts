@@ -11,6 +11,7 @@ import {
 import { SPLevel } from '@payroll-system/shared-types';
 import { Employee } from '../../../employees/entities/employee.entity';
 import { PayslipComponent } from '../../../payslip-components/entities/payslip-component.entity';
+import { User } from '../../../users/entities/user.entity';
 
 // §5.5 — SP / warning letter + optional sanction. No pending/approved status
 // (unlike surat_ijin/overtime_letter) — §5.5 lists no such field for this
@@ -50,8 +51,13 @@ export class SuratPeringatan extends Model {
   @Column(DataType.DECIMAL(15, 2))
   declare sanctionAmount: string | null;
 
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare issuedBy: string;
+
+  // BUGS#19 — id/name only, see payroll_runs' disbursedByUser.
+  @BelongsTo(() => User, 'issuedBy')
+  declare issuedByUser: User | null;
 
   // Populated asynchronously by the PDF generation job right after creation —
   // never generated synchronously in the request handler (§3, no exceptions).

@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Alert, Button, DatePicker, Form, Input, Popconfirm, Select, Space, Typography } from 'antd';
+import { Alert, Button, DatePicker, Form, Input, Popconfirm, Space, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ListPage } from '../../components/ListPage';
 import { FormDrawer } from '../../components/FormDrawer';
 import { formatDate } from '../../components/format';
 import { describeApiError } from '../../api/errors';
-import { useEmployeesQuery } from '../employees/hooks';
+import { EmployeeSelect } from '../employees/EmployeeSelect';
 import {
   useCreateFingerprintMutation,
   useFingerprintsQuery,
@@ -35,7 +35,6 @@ function toApi(values: FingerprintFormRuntimeValues): FingerprintFormValues {
 // CRUD: employee_id ↔ device_user_id + device_id enrolment mapping.
 export function FingerprintsPage() {
   const query = useFingerprintsQuery();
-  const employeesQuery = useEmployeesQuery();
   const createMutation = useCreateFingerprintMutation();
   const updateMutation = useUpdateFingerprintMutation();
   const removeMutation = useRemoveFingerprintMutation();
@@ -141,14 +140,7 @@ export function FingerprintsPage() {
           label="Karyawan"
           rules={[{ required: true, message: 'Karyawan wajib dipilih' }]}
         >
-          <Select
-            showSearch
-            optionFilterProp="label"
-            options={(employeesQuery.data ?? []).map((employee) => ({
-              value: employee.id,
-              label: employee.name,
-            }))}
-          />
+          <EmployeeSelect />
         </Form.Item>
         <Form.Item
           name="deviceUserId"

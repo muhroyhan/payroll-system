@@ -20,6 +20,12 @@ import { PAYROLL_CALCULATION_QUEUE } from './payroll-calculation.queue';
 // the safe lower end: finer checkpointing, smaller retry unit. Free to tune.
 const CHUNK_SIZE = 100;
 
+// BUGS#15 — progressLog is retried from scratch alongside processedCount on
+// a re-run (P8-T04's "starts over, doesn't resume" note), so this only ever
+// needs to hold one run's worth of checkpoints — 50 is generous headroom
+// even for a large multi-thousand-employee run chunked at 100/batch.
+const MAX_PROGRESS_LOG_ENTRIES = 50;
+
 // P8-T02/T04 — the calculation worker. Chunks the run's employees, runs the
 // full §9 calculation per employee (P8-T04, PayrollRunCalculationService),
 // tracks progress, and flips the run to `calculated`. Same PATTERN as
@@ -39,6 +45,19 @@ export class PayrollCalculationProcessor extends WorkerHost {
     private readonly pdfGenerationQueue: PdfGenerationQueue,
   ) {
     super();
+  }
+
+  // BUGS#15 — appends one checkpoint message, capped at
+  // MAX_PROGRESS_LOG_ENTRIES. Returns the array to write, doesn't write it
+  // itself — callers fold it into whichever run.update() they're already
+  // making for that checkpoint rather than triggering an extra write.
+  private nextProgressLog(
+    run: PayrollRun,
+    message: string,
+  ): Array<{ message: string; at: string }> {
+    return [...(run.progressLog ?? []), { message, at: new Date().toISOString() }].slice(
+      -MAX_PROGRESS_LOG_ENTRIES,
+    );
   }
 
   async process(job: Job): Promise<void> {
@@ -89,7 +108,14 @@ export class PayrollCalculationProcessor extends WorkerHost {
       [Op.or]: [{ endDate: null }, { endDate: { [Op.gte]: periodStart } }],
     };
     const total = await this.employeeModel.count({ where });
-    await run.update({ totalCount: total, processedCount: 0 });
+    await run.update({
+      totalCount: total,
+      processedCount: 0,
+      progressLog: this.nextProgressLog(
+        run,
+        `Memulai perhitungan periode ${run.period}: ${total} karyawan`,
+      ),
+    });
 
     // P8-T03 — one scope-resolver cache for the whole run (snapshot-once,
     // shared across all chunks; never leaks to another run).
@@ -120,8 +146,13 @@ export class PayrollCalculationProcessor extends WorkerHost {
 
       // Absolute SET (not increment): re-running a chunk on retry writes the
       // same value, so progress can never double-count.
+      const processedCount = Math.min(offset + chunk.length, total);
       await run.update({
-        processedCount: Math.min(offset + chunk.length, total),
+        processedCount,
+        progressLog: this.nextProgressLog(
+          run,
+          `Memproses karyawan: ${processedCount} dari ${total} selesai`,
+        ),
       });
     }
 
@@ -129,7 +160,10 @@ export class PayrollCalculationProcessor extends WorkerHost {
     // service uses (imported as a pure function to avoid a module cycle).
     if (isTransitionAllowed(run.status, PayrollRunStatus.CALCULATED)) {
       await run.update(
-        { status: PayrollRunStatus.CALCULATED },
+        {
+          status: PayrollRunStatus.CALCULATED,
+          progressLog: this.nextProgressLog(run, 'Perhitungan selesai'),
+        },
         SYSTEM_AUDIT_OPTIONS,
       );
 
@@ -144,6 +178,12 @@ export class PayrollCalculationProcessor extends WorkerHost {
       await this.pdfGenerationQueue.enqueuePayslipPdfBulk(
         payslips.map((p) => p.id),
       );
+      await run.update({
+        progressLog: this.nextProgressLog(
+          run,
+          `${payslips.length} slip gaji diantrekan untuk pembuatan PDF`,
+        ),
+      });
     }
   }
 }

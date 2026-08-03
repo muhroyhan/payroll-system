@@ -16,7 +16,8 @@ export class PositionsService {
   ) {}
 
   list(): Promise<Position[]> {
-    return this.positionModel.findAll();
+    // BUGS#3 — newest-updated first, the default for every listing.
+    return this.positionModel.findAll({ order: [['updatedAt', 'DESC']] });
   }
 
   async findByIdOrThrow(id: string): Promise<Position> {

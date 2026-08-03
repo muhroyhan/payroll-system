@@ -1,11 +1,14 @@
 import {
+  BelongsTo,
   Column,
   DataType,
   Default,
+  ForeignKey,
   Model,
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
+import { User } from '../../../users/entities/user.entity';
 
 // §8 — BPJS Kesehatan: 1% employee / 4% company of (base salary + fixed
 // allowances), capped at wageCap. Effective-dated; never hard-deleted (§11).
@@ -38,8 +41,13 @@ export class BpjsKesehatanMaster extends Model {
   @Column(DataType.UUID)
   declare createdBy: string;
 
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare updatedBy: string | null;
+
+  // BUGS#19 — see salary_master's updatedByUser.
+  @BelongsTo(() => User, 'updatedBy')
+  declare updatedByUser: User | null;
 
   @Column(DataType.TEXT)
   declare reason: string | null;

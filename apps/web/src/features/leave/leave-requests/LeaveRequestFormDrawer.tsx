@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { DatePicker, Form, Select } from 'antd';
 import { FormDrawer } from '../../../components/FormDrawer';
-import { useEmployeesQuery } from '../../employees/hooks';
+import { EmployeeSelect } from '../../employees/EmployeeSelect';
 import { useLeaveTypesQuery } from '../leave-types/hooks';
 import { useCreateLeaveRequestMutation, useUpdateLeaveRequestMutation } from './hooks';
 import {
@@ -23,7 +23,6 @@ interface LeaveRequestFormDrawerProps {
 // FE-T14 (09_FRONTEND_STEPS.md), §15.9 (08_FRONTEND_STRUCTURE.md).
 export function LeaveRequestFormDrawer({ open, onClose, request }: LeaveRequestFormDrawerProps) {
   const [form] = Form.useForm<LeaveRequestFormRuntimeValues>();
-  const employeesQuery = useEmployeesQuery();
   const leaveTypesQuery = useLeaveTypesQuery();
 
   const createMutation = useCreateLeaveRequestMutation();
@@ -61,14 +60,7 @@ export function LeaveRequestFormDrawer({ open, onClose, request }: LeaveRequestF
         label="Karyawan"
         rules={[{ required: true, message: 'Karyawan wajib dipilih' }]}
       >
-        <Select
-          showSearch
-          optionFilterProp="label"
-          options={(employeesQuery.data ?? []).map((employee) => ({
-            value: employee.id,
-            label: employee.name,
-          }))}
-        />
+        <EmployeeSelect />
       </Form.Item>
       <Form.Item
         name="leaveTypeId"

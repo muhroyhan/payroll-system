@@ -16,7 +16,8 @@ export class DepartmentsService {
   ) {}
 
   list(): Promise<Department[]> {
-    return this.departmentModel.findAll();
+    // BUGS#3 — newest-updated first, the default for every listing.
+    return this.departmentModel.findAll({ order: [['updatedAt', 'DESC']] });
   }
 
   async findByIdOrThrow(id: string): Promise<Department> {

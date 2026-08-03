@@ -7,6 +7,7 @@ interface MockRun {
   status: PayrollRunStatus;
   totalCount?: number;
   processedCount?: number;
+  progressLog?: Array<{ message: string; at: string }>;
   update: jest.Mock<Promise<MockRun>, [Partial<MockRun>]>;
 }
 
@@ -111,6 +112,27 @@ describe('PayrollCalculationProcessor (P8-T02)', () => {
     expect(processedSets).toEqual([0, 100, 200, 250]);
     expect(run.totalCount).toBe(250);
     expect(run.status).toBe(PayrollRunStatus.CALCULATED);
+  });
+
+  // BUGS#15 — companion step-level log alongside the numeric counters:
+  // start, one entry per chunk, and completion, in order, capped/appended
+  // via nextProgressLog rather than overwritten.
+  it('BUGS#15: appends a step-level progressLog entry at start, each chunk, and completion', async () => {
+    const run = draftRun();
+    const { processor } = makeProcessor(run, 150);
+
+    await processor.process(job() as any);
+
+    const messages = (run.progressLog ?? []).map((entry) => entry.message);
+    expect(messages).toEqual([
+      'Memulai perhitungan periode 2026-07: 150 karyawan',
+      'Memproses karyawan: 100 dari 150 selesai',
+      'Memproses karyawan: 150 dari 150 selesai',
+      'Perhitungan selesai',
+      '0 slip gaji diantrekan untuk pembuatan PDF',
+    ]);
+    // Every entry has a timestamp.
+    expect((run.progressLog ?? []).every((entry) => typeof entry.at === 'string')).toBe(true);
   });
 
   // Idempotency: a retry firing after the run already reached `calculated` is a

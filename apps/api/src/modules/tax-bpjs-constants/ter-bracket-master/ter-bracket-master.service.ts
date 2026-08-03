@@ -24,7 +24,11 @@ export class TerBracketMasterService {
 
   // Admin view: every bracket row, active or not.
   list(): Promise<TerBracketMaster[]> {
-    return this.terBracketMasterModel.findAll();
+    // BUGS#19 — id/name only, see salary_master.service.ts's list().
+    return this.terBracketMasterModel.findAll({
+      include: [{ association: 'updatedByUser', attributes: ['id', 'name'] }],
+      order: [['updatedAt', 'DESC']],
+    });
   }
 
   // Payroll-facing: all brackets active for `periodDate` (optionally one category).

@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { PaginationParams } from '../../../api/pagination';
 import {
   approveLeaveRequest,
   createLeaveRequest,
   getLeaveRequest,
   listLeaveRequests,
+  listLeaveRequestsPaginated,
   rejectLeaveRequest,
   removeLeaveRequest,
   updateLeaveRequest,
@@ -14,6 +16,20 @@ export function useLeaveRequestsQuery(employeeId?: string) {
   return useQuery({
     queryKey: ['leave-requests', { employeeId }],
     queryFn: () => listLeaveRequests(employeeId),
+  });
+}
+
+// BUGS#2 — LeaveRequestListPage's server-paginated + server-filtered query;
+// distinct from useLeaveRequestsQuery() above (HomePage's dashboard widget
+// keeps using the unpaginated one) — same 'leave-requests' prefix so both
+// still invalidate together on create/update/approve/reject.
+export function useLeaveRequestsPaginatedQuery(
+  params: PaginationParams & { employeeId?: string },
+) {
+  return useQuery({
+    queryKey: ['leave-requests', 'paginated', params],
+    queryFn: () => listLeaveRequestsPaginated(params),
+    placeholderData: (previousData) => previousData,
   });
 }
 
@@ -44,11 +60,15 @@ export function useUpdateLeaveRequestMutation(id: string) {
   });
 }
 
+// BUGS#16 — refetchType: 'none', see kasbon/hooks.ts's useRemoveKasbonMutation
+// for why: avoids an eager (and needless, 404-bound) refetch of the detail
+// query this mutation is always called from, right before it navigates away.
 export function useRemoveLeaveRequestMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => removeLeaveRequest(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leave-requests'] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['leave-requests'], refetchType: 'none' }),
   });
 }
 

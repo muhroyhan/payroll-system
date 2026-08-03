@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Form, InputNumber, Modal, Select, Table } from 'antd';
+import { Alert, Button, Form, Modal, Select, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { YearSelect } from '../../../components/YearSelect';
 import { useLeaveTypesQuery } from '../leave-types/hooks';
 import { useResolveLeaveBalancesForLeaveTypeMutation } from './hooks';
 import { describeApiError, type ApiErrorPresentation } from '../../../api/errors';
@@ -88,7 +89,7 @@ export function ResolveBulkBalanceModal({ open, onClose }: ResolveBulkBalanceMod
           label="Tahun"
           rules={[{ required: true, message: 'Tahun wajib diisi' }]}
         >
-          <InputNumber style={{ width: '100%' }} min={2000} max={2100} />
+          <YearSelect style={{ width: '100%' }} />
         </Form.Item>
       </Form>
 

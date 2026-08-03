@@ -5,14 +5,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { UniqueConstraintError } from 'sequelize';
+import { Op, UniqueConstraintError, type WhereOptions } from 'sequelize';
 import { PtkpStatus, Role } from '@payroll-system/shared-types';
 import { auditOptions } from '../../common/audit/audit-actor';
+import type { PaginatedResult } from '../../common/pagination/pagination-query.dto';
+import { resolvePaginationAndSort } from '../../common/pagination/resolve-pagination';
 import { PtkpDerivationService } from '../ptkp/ptkp-derivation.service';
 import { ScopeContext } from '../scope-resolver/scope-resolver.types';
 import { Employee } from './entities/employee.entity';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { EmployeeListQueryDto } from './dto/employee-list-query.dto';
 
 const EMPLOYEE_ASSOCIATIONS = [
   'employeeType',
@@ -29,8 +32,49 @@ export class EmployeesService {
     private readonly ptkpDerivationService: PtkpDerivationService,
   ) {}
 
-  list(): Promise<Employee[]> {
-    return this.employeeModel.findAll({ include: EMPLOYEE_ASSOCIATIONS });
+  // BUGS#2/#3 — server-side filter + pagination + default sort. A caller
+  // that passes neither `page` nor `limit` (every dropdown/Select data
+  // source, e.g. useEmployeesQuery()) still gets the plain array it always
+  // has — see resolvePaginationAndSort's doc comment; only EmployeeListPage
+  // (which passes page/limit) gets the paginated {items,total,...} shape.
+  async list(
+    query: EmployeeListQueryDto = {},
+  ): Promise<Employee[] | PaginatedResult<Employee>> {
+    const where: WhereOptions = {
+      ...(query.status && { status: query.status }),
+      ...(query.departmentId && { departmentId: query.departmentId }),
+      ...(query.divisionId && { divisionId: query.divisionId }),
+      ...(query.positionId && { positionId: query.positionId }),
+      ...(query.employeeTypeId && { employeeTypeId: query.employeeTypeId }),
+      // BUGS#9/#10 — server-side name/NIK search for the debounced employee
+      // picker (EmployeeSelect).
+      ...(query.search && {
+        [Op.or]: [
+          { name: { [Op.like]: `%${query.search}%` } },
+          { nik: { [Op.like]: `%${query.search}%` } },
+        ],
+      }),
+    };
+
+    const { limit, offset, order } = resolvePaginationAndSort(query);
+
+    if (limit === undefined) {
+      return this.employeeModel.findAll({
+        where,
+        include: EMPLOYEE_ASSOCIATIONS,
+        order,
+      });
+    }
+
+    const { rows, count } = await this.employeeModel.findAndCountAll({
+      where,
+      include: EMPLOYEE_ASSOCIATIONS,
+      order,
+      limit,
+      offset,
+      distinct: true,
+    });
+    return { items: rows, total: count, page: query.page ?? 1, limit };
   }
 
   async findByIdOrThrow(id: string): Promise<Employee> {

@@ -1,15 +1,19 @@
-import { DatePicker, Form, InputNumber, Select, Tooltip } from 'antd';
-import { useEmployeesQuery } from '../employees/hooks';
+import { DatePicker, Form, InputNumber, Tooltip } from 'antd';
+import { EmployeeSelect } from '../employees/EmployeeSelect';
 
 interface KasbonFormFieldsProps {
   /** True once at least one installment has been deducted (§11) — freezes
-   *  amount/installmentCount/installmentAmount specifically; requestDate
-   *  stays editable. Fully derivable (R-06a), see api.ts's hasDeductionStarted. */
+   *  amount/installmentCount specifically (installmentAmount is derived,
+   *  BUGS#20 — nothing separate left to lock); requestDate stays editable.
+   *  Fully derivable (R-06a), see api.ts's hasDeductionStarted. */
   moneyFieldsLocked?: boolean;
+  /** BUGS#21 — true when editing an existing kasbon: which employee a
+   *  kasbon belongs to is fixed at creation, not something to reassign. */
+  isEditMode?: boolean;
 }
 
 const LOCK_TOOLTIP =
-  'Sudah ada cicilan yang terpotong — buat kasbon baru untuk koreksi (§11).';
+  'Sudah ada cicilan yang terpotong — buat kasbon baru untuk koreksi.';
 
 function MoneyField({
   name,
@@ -31,9 +35,10 @@ function MoneyField({
 }
 
 // FE-T21 (09_FRONTEND_STEPS.md), §15.11 (08_FRONTEND_STRUCTURE.md).
-export function KasbonFormFields({ moneyFieldsLocked = false }: KasbonFormFieldsProps) {
-  const employeesQuery = useEmployeesQuery();
-
+export function KasbonFormFields({
+  moneyFieldsLocked = false,
+  isEditMode = false,
+}: KasbonFormFieldsProps) {
   return (
     <>
       <Form.Item
@@ -41,14 +46,7 @@ export function KasbonFormFields({ moneyFieldsLocked = false }: KasbonFormFields
         label="Karyawan"
         rules={[{ required: true, message: 'Karyawan wajib dipilih' }]}
       >
-        <Select
-          showSearch
-          optionFilterProp="label"
-          options={(employeesQuery.data ?? []).map((employee) => ({
-            value: employee.id,
-            label: employee.name,
-          }))}
-        />
+        <EmployeeSelect disabled={isEditMode} />
       </Form.Item>
       <MoneyField name="amount" label="Jumlah Kasbon (Rp)" min={0} locked={moneyFieldsLocked} />
       <Form.Item
@@ -62,12 +60,6 @@ export function KasbonFormFields({ moneyFieldsLocked = false }: KasbonFormFields
         name="installmentCount"
         label="Jumlah Cicilan"
         min={1}
-        locked={moneyFieldsLocked}
-      />
-      <MoneyField
-        name="installmentAmount"
-        label="Nominal per Cicilan (Rp)"
-        min={0}
         locked={moneyFieldsLocked}
       />
     </>

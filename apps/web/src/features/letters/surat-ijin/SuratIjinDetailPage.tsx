@@ -123,18 +123,18 @@ export function SuratIjinDetailPage() {
             </Descriptions.Item>
             <Descriptions.Item label="Jam">{data.timeRequested}</Descriptions.Item>
             <Descriptions.Item label="Tanggal">{formatDate(data.date)}</Descriptions.Item>
-            <Descriptions.Item label="Dibuat Oleh (User ID)">
-              {data.createdBy ?? '—'}
+            <Descriptions.Item label="Dibuat Oleh">
+              {data.createdByUser?.name ?? '—'}
             </Descriptions.Item>
-            <Descriptions.Item label="Disetujui Oleh (User ID)">
-              {data.approvedBy ?? '—'}
+            <Descriptions.Item label="Disetujui Oleh">
+              {data.approvedByUser?.name ?? '—'}
             </Descriptions.Item>
             <Descriptions.Item label="Alasan Pengajuan" span={2}>
               {data.reason}
             </Descriptions.Item>
             {data.rejectedBy && (
-              <Descriptions.Item label="Ditolak Oleh (User ID)" span={2}>
-                {data.rejectedBy} — "{data.rejectReason}"
+              <Descriptions.Item label="Ditolak Oleh" span={2}>
+                {data.rejectedByUser?.name ?? '—'} — "{data.rejectReason}"
               </Descriptions.Item>
             )}
           </Descriptions>

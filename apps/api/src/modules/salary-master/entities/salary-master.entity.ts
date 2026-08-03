@@ -1,12 +1,15 @@
 import {
+  BelongsTo,
   Column,
   DataType,
   Default,
+  ForeignKey,
   Model,
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
 import { ScopeType } from '@payroll-system/shared-types';
+import { User } from '../../users/entities/user.entity';
 
 // §5.2 Master Gaji Karyawan — base_salary resolved via the shared scope engine,
 // effective-dated. Never hard-deleted (§11); retire a rule via effectiveEndDate.
@@ -35,8 +38,15 @@ export class SalaryMaster extends Model {
   @Column(DataType.UUID)
   declare createdBy: string;
 
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare updatedBy: string | null;
+
+  // BUGS#19 — eager-loaded (attributes: ['id', 'name'] only, same as
+  // payroll_runs' disbursedByUser) so "Diubah Oleh" can render a name
+  // instead of a raw user id, without a separate admin-only GET /users call.
+  @BelongsTo(() => User, 'updatedBy')
+  declare updatedByUser: User | null;
 
   // Set when this row is retired (effectiveEndDate closed) — required on
   // manual retire, auto-generated on automatic retire. See

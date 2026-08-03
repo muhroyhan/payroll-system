@@ -10,6 +10,7 @@ import {
 } from 'sequelize-typescript';
 import { ScopeType } from '@payroll-system/shared-types';
 import { LeaveType } from '../../leave-types/entities/leave-type.entity';
+import { User } from '../../../users/entities/user.entity';
 
 // §5.4 — standardized leave quota, resolved via the shared scope engine and
 // effective-dated. Per-employee overrides live in leave_balances (Phase 3),
@@ -50,8 +51,13 @@ export class LeavePolicyMaster extends Model {
   @Column(DataType.UUID)
   declare createdBy: string;
 
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare updatedBy: string | null;
+
+  // BUGS#19 — see salary_master's updatedByUser.
+  @BelongsTo(() => User, 'updatedBy')
+  declare updatedByUser: User | null;
 
   @Column(DataType.TEXT)
   declare reason: string | null;

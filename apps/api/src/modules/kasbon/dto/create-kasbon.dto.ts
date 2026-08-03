@@ -20,6 +20,8 @@ export class CreateKasbonDto {
   @Min(1)
   installmentCount: number;
 
-  @IsNumberString()
-  installmentAmount: string;
+  // BUGS#20 — no longer client-supplied. KasbonService computes it as
+  // floor(amount / installmentCount); the rounding remainder is absorbed by
+  // the LAST installment at deduction time (deductInstallment), not stored
+  // as a separate value here.
 }

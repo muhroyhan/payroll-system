@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { Form, InputNumber, Select } from 'antd';
+import { Form, Select } from 'antd';
+import { YearSelect } from '../../../components/YearSelect';
 import { FormDrawer } from '../../../components/FormDrawer';
-import { useEmployeesQuery } from '../../employees/hooks';
+import { EmployeeSelect } from '../../employees/EmployeeSelect';
 import { useLeaveTypesQuery } from '../leave-types/hooks';
 import { useResolveOneLeaveBalanceMutation } from './hooks';
 
@@ -23,7 +24,6 @@ interface ResolveOneBalanceDrawerProps {
 // special case needed here.
 export function ResolveOneBalanceDrawer({ open, onClose }: ResolveOneBalanceDrawerProps) {
   const [form] = Form.useForm<ResolveOneBalanceFormValues>();
-  const employeesQuery = useEmployeesQuery();
   const leaveTypesQuery = useLeaveTypesQuery();
   const resolveMutation = useResolveOneLeaveBalanceMutation();
 
@@ -49,14 +49,7 @@ export function ResolveOneBalanceDrawer({ open, onClose }: ResolveOneBalanceDraw
         label="Karyawan"
         rules={[{ required: true, message: 'Karyawan wajib dipilih' }]}
       >
-        <Select
-          showSearch
-          optionFilterProp="label"
-          options={(employeesQuery.data ?? []).map((employee) => ({
-            value: employee.id,
-            label: employee.name,
-          }))}
-        />
+        <EmployeeSelect />
       </Form.Item>
       <Form.Item
         name="leaveTypeId"
@@ -75,7 +68,7 @@ export function ResolveOneBalanceDrawer({ open, onClose }: ResolveOneBalanceDraw
         label="Tahun"
         rules={[{ required: true, message: 'Tahun wajib diisi' }]}
       >
-        <InputNumber style={{ width: '100%' }} min={2000} max={2100} />
+        <YearSelect style={{ width: '100%' }} />
       </Form.Item>
     </FormDrawer>
   );

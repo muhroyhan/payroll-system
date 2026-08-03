@@ -1,12 +1,15 @@
 import {
+  BelongsTo,
   Column,
   DataType,
   Default,
+  ForeignKey,
   Model,
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
 import { PtkpStatus } from '@payroll-system/shared-types';
+import { User } from '../../../users/entities/user.entity';
 
 // §7 — annual PTKP amount per status, effective-dated. Never hard-deleted (§11);
 // retire a superseded figure via effectiveEndDate. Seeded with verified values
@@ -33,8 +36,13 @@ export class PtkpMaster extends Model {
   @Column(DataType.UUID)
   declare createdBy: string;
 
+  @ForeignKey(() => User)
   @Column(DataType.UUID)
   declare updatedBy: string | null;
+
+  // BUGS#19 — see salary_master's updatedByUser.
+  @BelongsTo(() => User, 'updatedBy')
+  declare updatedByUser: User | null;
 
   @Column(DataType.TEXT)
   declare reason: string | null;

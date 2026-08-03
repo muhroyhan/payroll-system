@@ -1,10 +1,12 @@
 import { Button, Result } from 'antd';
 import { Link } from 'react-router-dom';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 // Catch-all route (router.tsx). Also legitimately reached by clicking a nav
 // item whose page hasn't been built yet (routes/access.ts) — see FE-T04's
 // note in 09_FRONTEND_STEPS.md.
 export function NotFoundPage() {
+  usePageTitle('Halaman Tidak Ditemukan');
   return (
     <Result
       status="404"

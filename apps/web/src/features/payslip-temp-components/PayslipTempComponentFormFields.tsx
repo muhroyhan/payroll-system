@@ -1,5 +1,7 @@
 import { Col, Form, InputNumber, Row, Select, Typography, type FormInstance } from 'antd';
+import { MONTH_OPTIONS } from '@payroll-system/shared-types';
 import { ScopeSelector } from '../scope-resolver/ScopeSelector';
+import { YearSelect } from '../../components/YearSelect';
 import { usePayslipComponentsQuery } from '../payslip-components/hooks';
 import type { PayslipComponent } from '../payslip-components/api';
 import type { PayslipTempComponentFormRuntimeValues } from './formValues';
@@ -74,7 +76,7 @@ export function PayslipTempComponentFormFields({
             label="Tahun"
             rules={[{ required: true, message: 'Tahun wajib diisi' }]}
           >
-            <InputNumber style={{ width: '100%' }} min={2000} max={2100} />
+            <YearSelect style={{ width: '100%' }} />
           </Form.Item>
         </Col>
         <Col span={12}>
@@ -83,7 +85,7 @@ export function PayslipTempComponentFormFields({
             label="Bulan"
             rules={[{ required: true, message: 'Bulan wajib diisi' }]}
           >
-            <InputNumber style={{ width: '100%' }} min={1} max={12} />
+            <Select style={{ width: '100%' }} options={MONTH_OPTIONS} />
           </Form.Item>
         </Col>
       </Row>

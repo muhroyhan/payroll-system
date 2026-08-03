@@ -39,11 +39,21 @@ export class AttendanceRecordsService {
     return this.attendanceRecordModel.findAll({
       where,
       order: [['date', 'ASC']],
+      // BUGS#19 — id/name only, see payroll_runs' disbursedByUser.
+      include: [
+        { association: 'enteredByUser', attributes: ['id', 'name'] },
+        { association: 'overwrittenByUser', attributes: ['id', 'name'] },
+      ],
     });
   }
 
   async findByIdOrThrow(id: string): Promise<AttendanceRecord> {
-    const record = await this.attendanceRecordModel.findByPk(id);
+    const record = await this.attendanceRecordModel.findByPk(id, {
+      include: [
+        { association: 'enteredByUser', attributes: ['id', 'name'] },
+        { association: 'overwrittenByUser', attributes: ['id', 'name'] },
+      ],
+    });
     if (!record) {
       throw new NotFoundException(`Attendance record ${id} not found`);
     }
