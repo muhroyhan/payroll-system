@@ -1,8 +1,10 @@
 import { Link, useParams } from 'react-router-dom';
+import { Alert } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ListPage } from '../../components/ListPage';
 import { formatIDR } from '../../components/format';
 import { usePayslipsQuery } from './hooks';
+import { PAYSLIP_CORRECTION_GUIDANCE } from './labels';
 import type { Payslip } from './api';
 
 // FE-T30 (09_FRONTEND_STEPS.md), §15.13 (08_FRONTEND_STRUCTURE.md). Payslips
@@ -50,6 +52,7 @@ export function PayslipListPage() {
           <Link to={`/payroll-runs/${id}`}>&larr; Kembali ke Payroll Run</Link>
         </div>
       )}
+      <Alert style={{ marginBottom: 16 }} type="info" showIcon message={PAYSLIP_CORRECTION_GUIDANCE} />
       <ListPage<Payslip>
         title="Payslip"
         query={query}

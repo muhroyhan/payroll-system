@@ -8,7 +8,11 @@ import { LockedAction } from '../../components/LockedAction';
 import { formatIDR } from '../../components/format';
 import { useDownloadPdf } from '../../hooks/useDownloadPdf';
 import { usePayslipQuery } from './hooks';
-import { PAYSLIP_LINE_SOURCE_LABELS, PAYSLIP_LINE_SOURCE_LINK_BASE } from './labels';
+import {
+  PAYSLIP_CORRECTION_GUIDANCE,
+  PAYSLIP_LINE_SOURCE_LABELS,
+  PAYSLIP_LINE_SOURCE_LINK_BASE,
+} from './labels';
 import type { PayslipLineItem } from './api';
 
 // §15.13 order — the fixed, documented source ordering for the breakdown,
@@ -100,6 +104,12 @@ export function PayslipDetailPage() {
 
         return (
         <>
+          <Alert
+            style={{ marginBottom: 16 }}
+            type="info"
+            showIcon
+            message={PAYSLIP_CORRECTION_GUIDANCE}
+          />
           {isProrated && (
             <Alert
               style={{ marginBottom: 16 }}

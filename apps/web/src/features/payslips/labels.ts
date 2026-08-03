@@ -25,3 +25,9 @@ export const PAYSLIP_LINE_SOURCE_LINK_BASE: Partial<Record<PayslipLineSource, st
   [PayslipLineSource.SANCTION]: '/letters/surat-peringatan',
   [PayslipLineSource.OVERTIME]: '/letters/overtime',
 };
+
+// §11 — payslips are CRU-only (no PUT/DELETE endpoint at all); shown on
+// both the list and detail screens so the "why no edit button" question is
+// answered right where its absence is visible, not left to be inferred.
+export const PAYSLIP_CORRECTION_GUIDANCE =
+  'Payslip tidak bisa diedit/dihapus. Untuk koreksi, revert payroll run terkait (jika masih calculated) atau sesuaikan di periode berikutnya.';
