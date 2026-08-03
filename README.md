@@ -126,6 +126,29 @@ Open items, none of which block current use — see
   (monthly rounding is confirmed).
 - BPJS JKK company rate needs confirming against this employer's actual registered risk
   class.
-- A handful of smaller backend gaps (no server-side pagination, two tax-constant tables
-  without an admin UI, two §11 locks not yet exposed as a flag the frontend can pre-empt)
-  are accepted with their consequence documented in the frontend code — see the tech manual.
+- A handful of smaller backend gaps (server-side pagination now covers employees/kasbon/
+  leave-requests only, not every listing; two tax-constant tables without an admin UI;
+  two §11 locks not yet exposed as a flag the frontend can pre-empt) are accepted with
+  their consequence documented in the frontend code — see the tech manual.
+- Payroll run periods can still be duplicated (no unique constraint on `period`), backend
+  error messages are still mostly English with raw entity IDs, and the raw attendance log
+  screen has three known gaps (scan time shows date-only, no fingerprint cross-check,
+  device fields are free text instead of a picker) — see `manuals/tech_manual.docx` §13.6
+  for the full still-open list.
+
+## Recent Fixes (Test-Case-Driven UX/Bugfix Rounds)
+
+Three rounds of fixes landed from live-executing `manuals/test_cases.xlsx` against a
+running instance (not just reading the spec) — commits `fix category 1 from test case`,
+`fix category 2 test case`, and `kategori 3` / `more fixes` / `fix`. Highlights: server-side
+pagination + debounced search for employee pickers, a redesigned sider (icons, collapsible
+groups, hamburger toggle, sticky on scroll, clickable breadcrumb), auto-calculated kasbon
+installments (floor + remainder-on-last-installment), a step-level progress log for payroll
+run calculation, actor names instead of raw user IDs throughout, a CSV-import screen for
+attendance records (ATT-006), and a payslip correction-guidance banner (PAYSLIP-003).
+
+Full before/after detail, verification notes, and — importantly — the items that were
+checked and found **still open** (duplicate payroll periods, inconsistent Indonesian error
+messages, three raw-attendance-log gaps) live in `manuals/tech_manual.docx` §13 and
+`manuals/user_manual.docx` §13. Don't assume a `manuals/test_cases.xlsx` BUGS-sheet item is
+closed without checking there first — several are intentionally still open.
